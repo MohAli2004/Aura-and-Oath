@@ -1,0 +1,321 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap');
+
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+/* Aura & Oath design tokens */
+:root {
+    --color-ivory: #F7F3EE;
+    --color-beige: #E8DFD4;
+    --color-blush: #D4A5A5;
+    --color-taupe: #8B7E74;
+    --color-charcoal: #2C2A28;
+    --color-gold: #C4A574;
+    --color-white: #FFFCFA;
+    --color-blush-deep: #C98B8B;
+    --color-sand: #D9CBB8;
+    --font-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+    --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
+    --radius-sm: 2px;
+    --shadow-soft: 0 12px 40px rgba(44, 42, 40, 0.06);
+    --container: 80rem;
+}
+
+@theme {
+    --font-sans: var(--font-body);
+    --font-display: var(--font-display);
+    --color-ivory: #F7F3EE;
+    --color-beige: #E8DFD4;
+    --color-blush: #D4A5A5;
+    --color-taupe: #8B7E74;
+    --color-charcoal: #2C2A28;
+    --color-gold: #C4A574;
+    --color-sand: #D9CBB8;
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        font-family: var(--font-body);
+        background:
+            radial-gradient(1200px 600px at 10% -10%, rgba(212, 165, 165, 0.18), transparent 55%),
+            radial-gradient(900px 500px at 100% 0%, rgba(196, 165, 116, 0.12), transparent 50%),
+            var(--color-ivory);
+        color: var(--color-charcoal);
+        -webkit-font-smoothing: antialiased;
+        line-height: 1.6;
+    }
+
+    h1, h2, h3, h4, .font-display {
+        font-family: var(--font-display);
+        font-weight: 500;
+        letter-spacing: 0.01em;
+        line-height: 1.15;
+    }
+
+    a {
+        transition: color 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
+    }
+
+    ::selection {
+        background: color-mix(in srgb, var(--color-blush) 45%, white);
+        color: var(--color-charcoal);
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer components {
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm tracking-wide transition;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        min-height: 2.5rem;
+    }
+
+    .btn-sm {
+        @apply px-3 py-1.5 text-sm;
+        min-height: 2rem;
+    }
+
+    .btn-primary {
+        background: var(--color-charcoal);
+        color: var(--color-ivory);
+    }
+
+    .btn-primary:hover {
+        background: #1a1918;
+    }
+
+    .btn-secondary {
+        background: transparent;
+        color: var(--color-charcoal);
+        border: 1px solid var(--color-taupe);
+    }
+
+    .btn-secondary:hover {
+        border-color: var(--color-charcoal);
+        background: color-mix(in srgb, var(--color-beige) 40%, transparent);
+    }
+
+    .btn-gold {
+        background: var(--color-gold);
+        color: var(--color-charcoal);
+    }
+
+    .btn-gold:hover {
+        filter: brightness(0.96);
+    }
+
+    .btn-danger {
+        background: #8b3a3a;
+        color: white;
+    }
+
+    .btn-ghost {
+        background: transparent;
+        color: var(--color-taupe);
+    }
+
+    .input {
+        @apply w-full px-3 py-2.5 text-sm outline-none transition;
+        background: var(--color-white);
+        border: 1px solid color-mix(in srgb, var(--color-taupe) 35%, transparent);
+        border-radius: var(--radius-sm);
+        color: var(--color-charcoal);
+    }
+
+    .input:focus {
+        border-color: var(--color-gold);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-gold) 25%, transparent);
+    }
+
+    textarea.input {
+        min-height: 6rem;
+        resize: vertical;
+    }
+
+    .label {
+        @apply block text-xs uppercase tracking-[0.14em] mb-1.5;
+        color: var(--color-taupe);
+    }
+
+    .badge {
+        @apply inline-flex items-center px-2 py-0.5 text-xs tracking-wide;
+        border-radius: var(--radius-sm);
+        background: var(--color-beige);
+        color: var(--color-charcoal);
+    }
+
+    .badge-success { background: #dce8dc; }
+    .badge-warning { background: #f0e6d0; }
+    .badge-danger { background: #f0d8d8; }
+    .badge-info { background: #e4ddd4; }
+
+    .alert {
+        @apply px-4 py-3 text-sm mb-4;
+        border-radius: var(--radius-sm);
+        border: 1px solid transparent;
+    }
+
+    .alert-success { background: #e8f0e8; color: #2f4f2f; border-color: #cfe0cf; }
+    .alert-error { background: #f5e4e4; color: #6b2d2d; border-color: #e8c8c8; }
+    .alert-info { background: #efeae4; color: #4a433c; border-color: #e0d7cc; }
+
+    .card-soft {
+        background: color-mix(in srgb, var(--color-white) 88%, transparent);
+        border: 1px solid color-mix(in srgb, var(--color-beige) 85%, transparent);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-soft);
+    }
+
+    .section-title {
+        font-family: var(--font-display);
+        font-size: clamp(1.75rem, 3vw, 2.5rem);
+    }
+
+    .product-card {
+        position: relative;
+        transition: transform 0.35s ease;
+    }
+
+    .product-card:hover {
+        transform: translateY(-4px);
+    }
+
+    .product-card img {
+        transition: transform 0.5s ease;
+    }
+
+    .product-card:hover img {
+        transform: scale(1.03);
+    }
+
+    .admin-sidebar {
+        z-index: 99999 !important;
+        isolation: isolate;
+    }
+
+    .admin-sidebar-overlay {
+        z-index: 99998 !important;
+    }
+
+    .storefront-mobile-nav__overlay {
+        z-index: 99998 !important;
+    }
+
+    .storefront-mobile-nav__panel {
+        z-index: 99999 !important;
+        isolation: isolate;
+    }
+
+    .admin-sidebar a {
+        border-radius: var(--radius-sm);
+        color: var(--color-charcoal);
+    }
+
+    .admin-sidebar a:hover,
+    .admin-sidebar button:hover {
+        background: color-mix(in srgb, var(--color-beige) 45%, transparent);
+    }
+
+    .admin-sidebar a.active {
+        background: color-mix(in srgb, var(--color-beige) 70%, transparent);
+        color: var(--color-charcoal);
+    }
+
+    .admin-content {
+        max-width: 100%;
+        overflow-x: clip;
+    }
+
+    .admin-content .overflow-x-auto,
+    .table-scroll {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-content table {
+        min-width: 640px;
+    }
+
+    @media (max-width: 640px) {
+        .font-display.text-5xl,
+        h1.font-display {
+            font-size: clamp(2rem, 8vw, 2.75rem);
+        }
+
+        .product-card:hover {
+            transform: none;
+        }
+    }
+
+    .table-admin {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    .table-admin th,
+    .table-admin td {
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--color-beige);
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .hero-fade { animation: heroFade 1s ease both; }
+    .rise-in { animation: riseIn 0.7s ease both; }
+    .fade-up { animation: riseIn 0.8s ease both; }
+
+    @keyframes heroFade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes riseIn {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Decorative barcode bars for print labels */
+    .barcode-bars {
+        display: flex;
+        align-items: end;
+        justify-content: center;
+        gap: 1px;
+        height: 48px;
+        margin: 10px 0;
+    }
+
+    .barcode-bars span {
+        display: inline-block;
+        background: #2C2A28;
+        width: 2px;
+        height: 100%;
+    }
+
+    .barcode-bars span:nth-child(3n) { width: 1px; height: 85%; }
+    .barcode-bars span:nth-child(5n) { width: 3px; height: 100%; }
+    .barcode-bars span:nth-child(7n) { width: 1px; height: 70%; }
+}
+
+@media print {
+    body {
+        background: white !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+}

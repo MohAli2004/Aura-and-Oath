@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#F7F3EE"/><stop offset="100%" stop-color="#D4A5A5"/></linearGradient></defs>
+  <rect width="800" height="1000" fill="url(#g)"/>
+  <text x="400" y="480" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="#2C2A28" opacity="0.7">Aura &amp; Oath</text>
+  <text x="400" y="540" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#8B7E74">product</text>
+</svg>
