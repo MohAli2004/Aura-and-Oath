@@ -40,6 +40,8 @@
 @layer base {
     html {
         scroll-behavior: smooth;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
     }
 
     body {
@@ -51,6 +53,19 @@
         color: var(--color-charcoal);
         -webkit-font-smoothing: antialiased;
         line-height: 1.6;
+        overflow-x: hidden;
+    }
+
+    img,
+    video,
+    svg,
+    canvas {
+        max-width: 100%;
+        height: auto;
+    }
+
+    img {
+        display: block;
     }
 
     h1, h2, h3, h4, .font-display {
@@ -132,6 +147,14 @@
         border: 1px solid color-mix(in srgb, var(--color-taupe) 35%, transparent);
         border-radius: var(--radius-sm);
         color: var(--color-charcoal);
+        /* Prevent iOS zoom on focus */
+        font-size: 1rem;
+    }
+
+    @media (min-width: 640px) {
+        .input {
+            font-size: 0.875rem;
+        }
     }
 
     .input:focus {

@@ -12,6 +12,9 @@
             @endforeach
         </select>
         <button class="btn btn-secondary" type="submit">Search</button>
+        @if(request()->filled('q') || request()->filled('gender'))
+            <a href="{{ url()->current() }}" class="btn btn-secondary">Clear</a>
+        @endif
     </form>
 </div>
 

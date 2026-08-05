@@ -15,7 +15,10 @@
         <div class="flex items-center justify-between gap-3 border-b border-beige p-3 text-sm">
             <div class="flex items-center gap-3 min-w-0">
                 <x-admin.bulk-checkbox :id="$brand->id" />
-                <div>{{ $brand->name }}</div>
+                <div class="h-10 w-10 shrink-0 overflow-hidden border border-beige bg-ivory/60">
+                    <img src="{{ $brand->logoUrl() }}" alt="" class="h-full w-full object-contain">
+                </div>
+                <div class="truncate">{{ $brand->name }}</div>
             </div>
             <a class="underline shrink-0" href="{{ route('admin.brands.edit', $brand) }}">Edit</a>
         </div>

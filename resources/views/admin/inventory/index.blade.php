@@ -46,7 +46,13 @@
     <button class="btn btn-primary" type="submit">Lookup</button>
 </form>
 
-<form method="GET" class="mb-6"><input class="input max-w-sm" name="q" value="{{ request('q') }}" placeholder="Search products"></form>
+<form method="GET" class="mb-6 flex flex-wrap gap-2">
+    <input class="input max-w-sm" name="q" value="{{ request('q') }}" placeholder="Search products">
+    <button class="btn btn-secondary" type="submit">Search</button>
+    @if(request()->filled('q'))
+        <a href="{{ url()->current() }}" class="btn btn-secondary">Clear</a>
+    @endif
+</form>
 
 <div class="grid lg:grid-cols-[1.4fr_1fr] gap-8">
     <div class="overflow-x-auto border border-beige bg-[#FFFCFA]">

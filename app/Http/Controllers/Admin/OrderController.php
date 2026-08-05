@@ -31,7 +31,8 @@ class OrderController extends Controller
                 });
             })
             ->latest()
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.orders.index', [
             'orders' => $orders,

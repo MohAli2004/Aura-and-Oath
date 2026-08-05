@@ -11,6 +11,9 @@
         @endforeach
     </select>
     <button class="btn btn-secondary" type="submit">Filter</button>
+    @if(request()->filled('q') || request()->filled('status'))
+        <a href="{{ url()->current() }}" class="btn btn-secondary">Clear</a>
+    @endif
 </form>
 <div class="overflow-x-auto border border-beige bg-[#FFFCFA]">
     <table class="w-full text-sm">

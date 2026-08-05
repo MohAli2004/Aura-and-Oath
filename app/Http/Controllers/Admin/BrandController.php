@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\Concerns\BulkDestroysResources;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\Product;
+use App\Services\ImageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -14,6 +15,9 @@ use Illuminate\View\View;
 class BrandController extends Controller
 {
     use BulkDestroysResources;
+
+    public function __construct(protected ImageService $images) {}
+
     public function index(): View
     {
         return view('admin.brands.index', [
@@ -30,6 +34,11 @@ class BrandController extends Controller
     {
         $data = $this->validated($request);
         $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
+
+        if ($request->hasFile('logo')) {
+            $data['logo_path'] = $this->images->store($request->file('logo'), 'brands');
+        }
+
         Brand::query()->create($data);
 
         return redirect()->route('admin.brands.index')->with('success', 'Brand created.');
@@ -42,7 +51,16 @@ class BrandController extends Controller
 
     public function update(Request $request, Brand $brand): RedirectResponse
     {
-        $brand->update($this->validated($request));
+        $data = $this->validated($request);
+
+        if ($request->hasFile('logo')) {
+            if ($brand->logo_path && ! str_starts_with($brand->logo_path, 'images/')) {
+                $this->images->delete($brand->logo_path);
+            }
+            $data['logo_path'] = $this->images->store($request->file('logo'), 'brands');
+        }
+
+        $brand->update($data);
 
         return redirect()->route('admin.brands.index')->with('success', 'Brand updated.');
     }
@@ -84,9 +102,17 @@ class BrandController extends Controller
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
             'is_featured' => ['nullable', 'boolean'],
+            'logo' => [
+                'nullable',
+                'file',
+                'max:2048',
+                'mimes:png,jpg,jpeg,webp,svg,gif',
+                'mimetypes:image/png,image/jpeg,image/webp,image/svg+xml,image/gif',
+            ],
         ]);
         $data['is_active'] = $request->boolean('is_active');
         $data['is_featured'] = $request->boolean('is_featured');
+        unset($data['logo']);
 
         return $data;
     }

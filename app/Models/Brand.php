@@ -71,4 +71,11 @@ class Brand extends Model
     {
         return $query->where('is_featured', true);
     }
+
+    public function logoUrl(): string
+    {
+        return app(\App\Services\ImageService::class)->url(
+            $this->logo_path ?: 'images/placeholders/brand.svg'
+        );
+    }
 }

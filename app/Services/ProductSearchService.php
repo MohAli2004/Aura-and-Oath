@@ -18,12 +18,17 @@ class ProductSearchService
             ->published();
 
         if (! empty($filters['q'])) {
-            $q = $filters['q'];
-            $query->where(function (Builder $builder) use ($q) {
-                $builder->where('name', 'like', "%{$q}%")
-                    ->orWhere('sku', 'like', "%{$q}%")
-                    ->orWhere('barcode', 'like', "%{$q}%")
-                    ->orWhere('short_description', 'like', "%{$q}%");
+            $q = trim((string) $filters['q']);
+            $like = '%'.$q.'%';
+            $query->where(function (Builder $builder) use ($q, $like) {
+                $builder->where('name', 'like', $like)
+                    ->orWhere('sku', 'like', $like)
+                    ->orWhere('barcode', 'like', $like)
+                    ->orWhere('short_description', 'like', $like)
+                    ->orWhereHas('variants', function (Builder $variants) use ($like) {
+                        $variants->where('barcode', 'like', $like)
+                            ->orWhere('sku', 'like', $like);
+                    });
             });
         }
 
@@ -80,11 +85,16 @@ class ProductSearchService
         $query = Product::query()->with(['category', 'brand', 'images', 'activeVariants']);
 
         if (! empty($filters['q'])) {
-            $q = $filters['q'];
-            $query->where(function (Builder $builder) use ($q) {
-                $builder->where('name', 'like', "%{$q}%")
-                    ->orWhere('sku', 'like', "%{$q}%")
-                    ->orWhere('barcode', 'like', "%{$q}%");
+            $q = trim((string) $filters['q']);
+            $like = '%'.$q.'%';
+            $query->where(function (Builder $builder) use ($like) {
+                $builder->where('name', 'like', $like)
+                    ->orWhere('sku', 'like', $like)
+                    ->orWhere('barcode', 'like', $like)
+                    ->orWhereHas('variants', function (Builder $variants) use ($like) {
+                        $variants->where('barcode', 'like', $like)
+                            ->orWhere('sku', 'like', $like);
+                    });
             });
         }
 
