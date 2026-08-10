@@ -121,14 +121,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Print documents (invoice / packing slip field labels)
+    | Print documents (invoice / packing slip)
     |--------------------------------------------------------------------------
     |
-    | Keys are stored in settings as invoice_fields / packing_slip_fields (JSON
-    | arrays of enabled field keys). Missing settings means all fields shown.
+    | Field keys are stored as invoice_fields / packing_slip_fields (JSON).
+    | Page sizes are stored as invoice_size / packing_slip_size (A4|A5).
     |
     */
     'print' => [
+        'sizes' => [
+            'A4' => [
+                'width' => '210mm',
+                'height' => '297mm',
+                'margin' => '14mm',
+            ],
+            'A5' => [
+                'width' => '148mm',
+                'height' => '210mm',
+                'margin' => '10mm',
+            ],
+        ],
+        'defaults' => [
+            'invoice' => 'A5',
+            'packing_slip' => 'A4',
+        ],
         'invoice' => [
             'brand' => 'Brand name',
             'customer_name' => 'Customer name',

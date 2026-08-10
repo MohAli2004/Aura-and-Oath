@@ -2,31 +2,48 @@
 @section('title', 'Checkout — '.config('aura.name'))
 @section('content')
 @php
-    $defaultRegionId = (string) old('delivery_region_id', $regions->first()?->id);
+    $draft = $draft ?? [];
+    $shipping = [
+        'full_name' => old('shipping.full_name', data_get($draft, 'shipping.full_name', auth()->user()->name)),
+        'phone' => old('shipping.phone', data_get($draft, 'shipping.phone', auth()->user()->phone)),
+        'line1' => old('shipping.line1', data_get($draft, 'shipping.line1')),
+        'line2' => old('shipping.line2', data_get($draft, 'shipping.line2')),
+        'city' => old('shipping.city', data_get($draft, 'shipping.city', 'Beirut')),
+        'governorate' => old('shipping.governorate', data_get($draft, 'shipping.governorate')),
+    ];
+    $defaultRegionId = (string) old(
+        'delivery_region_id',
+        data_get($draft, 'delivery_region_id', $regions->first()?->id)
+    );
+    $defaultPaymentMethod = old(
+        'payment_method',
+        data_get($draft, 'payment_method', $paymentMethods[0]->value)
+    );
+    $customerNote = old('customer_note', data_get($draft, 'customer_note'));
     $regionFees = $regions->mapWithKeys(fn ($region) => [(string) $region->id => (float) $region->fee]);
 @endphp
 <div
     class="max-w-6xl mx-auto px-4 sm:px-6 py-10"
-    x-data="{
-        regionId: '{{ $defaultRegionId }}',
-        fees: {{ $regionFees->toJson() }},
-        subtotal: {{ (float) $quote['subtotal'] }},
-        discount: {{ (float) $quote['discount_amount'] }},
-        method: '{{ old('payment_method', $paymentMethods[0]->value) }}',
-        format(amount) {
-            return new Intl.NumberFormat('en-US', { style: 'currency', currency: '{{ config('aura.currency', 'USD') }}' }).format(amount);
-        },
-        get fee() {
-            return Number(this.fees[this.regionId] ?? 0);
-        },
-        get total() {
-            return this.subtotal - this.discount + this.fee;
-        }
-    }"
+    x-data="checkoutPage({
+        regionId: @js($defaultRegionId),
+        fees: @js($regionFees),
+        subtotal: @js((float) $quote['subtotal']),
+        discount: @js((float) $quote['discount_amount']),
+        method: @js($defaultPaymentMethod),
+        currency: @js(config('aura.currency', 'USD')),
+        hasServerDraft: @js((bool) ($hasServerDraft ?? false)),
+    })"
 >
     <h1 class="font-display text-5xl mb-8">Checkout</h1>
     <div class="grid lg:grid-cols-[1.2fr_0.8fr] gap-10">
-        <form id="checkout-form" method="POST" action="{{ route('checkout.store') }}" class="space-y-6">
+        <form
+            id="checkout-form"
+            method="POST"
+            action="{{ route('checkout.store') }}"
+            class="space-y-6"
+            novalidate
+            @submit="validateBeforeSubmit($event)"
+        >
             @csrf
             <input type="hidden" name="idempotency_token" value="{{ $idempotencyToken }}">
             <div class="text-sm text-taupe">
@@ -34,23 +51,74 @@
                 · {{ auth()->user()->email }}
             </div>
 
+            <div x-show="formError" x-cloak class="alert alert-error" x-text="formError"></div>
+
             <div>
                 <h2 class="font-display text-2xl mb-3">Shipping address</h2>
                 <div class="grid sm:grid-cols-2 gap-4">
-                    <x-input label="Full name" name="shipping[full_name]" value="{{ old('shipping.full_name', auth()->user()->name) }}" required />
-                    <x-input label="Phone" name="shipping[phone]" value="{{ old('shipping.phone', auth()->user()->phone) }}" required />
-                    <div class="sm:col-span-2"><x-input label="Address line 1" name="shipping[line1]" value="{{ old('shipping.line1') }}" required /></div>
-                    <div class="sm:col-span-2"><x-input label="Address line 2" name="shipping[line2]" value="{{ old('shipping.line2') }}" /></div>
-                    <x-input label="City" name="shipping[city]" value="{{ old('shipping.city', 'Beirut') }}" required />
-                    <x-input label="District" name="shipping[governorate]" value="{{ old('shipping.governorate') }}" />
+                    <div data-field-wrap>
+                        <x-input
+                            label="Full name"
+                            name="shipping[full_name]"
+                            value="{{ $shipping['full_name'] }}"
+                            required
+                            data-required
+                            data-required-label="Full name"
+                            @input="clearFieldError($event.target)"
+                        />
+                    </div>
+                    <div data-field-wrap>
+                        <x-input
+                            label="Phone"
+                            name="shipping[phone]"
+                            value="{{ $shipping['phone'] }}"
+                            required
+                            data-required
+                            data-required-label="Phone"
+                            @input="clearFieldError($event.target)"
+                        />
+                    </div>
+                    <div class="sm:col-span-2" data-field-wrap>
+                        <x-input
+                            label="Address line 1"
+                            name="shipping[line1]"
+                            value="{{ $shipping['line1'] }}"
+                            required
+                            data-required
+                            data-required-label="Address line 1"
+                            @input="clearFieldError($event.target)"
+                        />
+                    </div>
+                    <div class="sm:col-span-2"><x-input label="Address line 2" name="shipping[line2]" value="{{ $shipping['line2'] }}" /></div>
+                    <div data-field-wrap>
+                        <x-input
+                            label="City"
+                            name="shipping[city]"
+                            value="{{ $shipping['city'] }}"
+                            required
+                            data-required
+                            data-required-label="City"
+                            @input="clearFieldError($event.target)"
+                        />
+                    </div>
+                    <x-input label="District" name="shipping[governorate]" value="{{ $shipping['governorate'] }}" />
                 </div>
             </div>
 
-            <div>
-                <label class="label">Payment method</label>
-                <select name="payment_method" class="input" x-model="method" required>
+            <div data-field-wrap>
+                <label class="label" for="payment_method">Payment method <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required</span></label>
+                <select
+                    id="payment_method"
+                    name="payment_method"
+                    class="input"
+                    x-model="method"
+                    required
+                    data-required
+                    data-required-label="Payment method"
+                    @change="clearFieldError($event.target)"
+                >
                     @foreach($paymentMethods as $method)
-                        <option value="{{ $method->value }}">{{ $method->label() }}</option>
+                        <option value="{{ $method->value }}" @selected($defaultPaymentMethod === $method->value)>{{ $method->label() }}</option>
                     @endforeach
                 </select>
                 <div
@@ -75,7 +143,7 @@
 
             <div>
                 <label class="label">Order note</label>
-                <textarea name="customer_note" class="input" rows="3">{{ old('customer_note') }}</textarea>
+                <textarea name="customer_note" class="input" rows="3">{{ $customerNote }}</textarea>
             </div>
 
             <button class="btn btn-primary" type="submit">Place order</button>
@@ -84,7 +152,7 @@
         <aside class="space-y-6 lg:sticky lg:top-6 self-start">
             <div>
                 <h2 class="font-display text-2xl mb-3">Delivery region</h2>
-                <div class="space-y-3">
+                <div class="space-y-3" data-field-wrap>
                     @foreach($regions as $region)
                         <label class="block border border-beige p-4 bg-[#FFFCFA] cursor-pointer transition"
                                :class="regionId == '{{ $region->id }}' ? 'border-[var(--ao-gold)]' : ''">
@@ -98,6 +166,9 @@
                                     x-model="regionId"
                                     @checked($defaultRegionId == (string) $region->id)
                                     required
+                                    data-required
+                                    data-required-label="Delivery region"
+                                    @change="clearFieldError($event.target)"
                                 >
                                 <div class="min-w-0 flex-1">
                                     <div class="flex flex-wrap items-baseline justify-between gap-2">
@@ -133,10 +204,10 @@
                 </div>
             </div>
 
-            <form method="POST" action="{{ route('checkout.coupon') }}" class="border border-beige p-5 bg-[#FFFCFA] space-y-3">
+            <form id="checkout-coupon-form" method="POST" action="{{ route('checkout.coupon') }}" class="border border-beige p-5 bg-[#FFFCFA] space-y-3">
                 @csrf
                 <label class="label">Coupon</label>
-                <input class="input" name="coupon_code" placeholder="AURA10" value="{{ session('checkout_coupon') }}">
+                <input class="input" name="coupon_code" placeholder="AURA10" value="{{ old('coupon_code', session('checkout_coupon')) }}">
                 <button class="btn btn-secondary w-full" type="submit">Apply coupon</button>
             </form>
         </aside>

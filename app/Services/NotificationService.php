@@ -3,11 +3,15 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Notifications\ContactMessageNotification;
 use App\Notifications\LowStockNotification;
+use App\Notifications\NewUserRegisteredNotification;
+use App\Notifications\OrderCancelledByCustomerNotification;
+use App\Notifications\OrderPaymentStatusChangedNotification;
 use App\Notifications\OrderPlacedNotification;
 use App\Notifications\OrderStatusChangedNotification;
 use App\Notifications\WishPaymentReceivedNotification;
@@ -29,6 +33,37 @@ class NotificationService
         if ($order->user) {
             $order->user->notify(new OrderStatusChangedNotification($order, $from, $to));
         }
+    }
+
+    public function notifyOrderPaymentStatusChanged(Order $order, PaymentStatus $from, PaymentStatus $to): void
+    {
+        if ($from === $to) {
+            return;
+        }
+
+        if ($order->user) {
+            $order->user->notify(new OrderPaymentStatusChangedNotification($order, $from, $to));
+        }
+    }
+
+    public function notifyAdminsOrderCancelledByCustomer(Order $order): void
+    {
+        Notification::send(
+            $this->activeAdmins(),
+            new OrderCancelledByCustomerNotification($order)
+        );
+    }
+
+    public function notifyAdminsNewUser(User $user, string $method = 'email'): void
+    {
+        if (! $user->isCustomer()) {
+            return;
+        }
+
+        Notification::send(
+            $this->activeAdmins(),
+            new NewUserRegisteredNotification($user, $method)
+        );
     }
 
     public function notifyLowStock(Product $product): void

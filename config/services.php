@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => (static function () {
+            $redirect = env('GOOGLE_REDIRECT_URI', env('APP_URL').'/auth/google/callback');
+
+            if (filled($redirect) && str_starts_with($redirect, '/')) {
+                return rtrim((string) env('APP_URL'), '/').$redirect;
+            }
+
+            return $redirect;
+        })(),
+    ],
+
 ];

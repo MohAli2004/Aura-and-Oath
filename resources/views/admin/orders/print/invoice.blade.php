@@ -3,8 +3,9 @@
 <head>
     <meta charset="utf-8">
     <title>Invoice {{ $order->order_number }}</title>
+    @php $page = print_page_dims('invoice'); @endphp
     <style>
-        @page { size: A4 portrait; margin: 14mm; }
+        @page { size: {{ $page['name'] }} portrait; margin: {{ $page['margin'] }}; }
 
         * { box-sizing: border-box; }
 
@@ -19,7 +20,7 @@
         }
 
         .toolbar {
-            max-width: 210mm;
+            max-width: {{ $page['width'] }};
             margin: 0 auto;
             padding: 16px 0 0;
         }
@@ -35,10 +36,10 @@
         }
 
         .sheet {
-            width: 210mm;
-            min-height: 297mm;
+            width: {{ $page['width'] }};
+            min-height: {{ $page['height'] }};
             margin: 16px auto 32px;
-            padding: 14mm;
+            padding: {{ $page['margin'] }};
             background: #fff;
             box-shadow: 0 1px 3px rgba(44, 42, 40, 0.08);
             display: flex;
@@ -49,24 +50,24 @@
 
         .label {
             font-family: 'Segoe UI', sans-serif;
-            font-size: 10px;
+            font-size: {{ $page['compact'] ? '9px' : '10px' }};
             letter-spacing: 0.14em;
             text-transform: uppercase;
             color: #8B7E74;
-            margin: 0 0 4px;
+            margin: 0 0 {{ $page['compact'] ? '3px' : '4px' }};
         }
 
         .header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            gap: 24px;
-            padding-bottom: 14px;
+            gap: {{ $page['compact'] ? '16px' : '24px' }};
+            padding-bottom: {{ $page['compact'] ? '10px' : '14px' }};
             border-bottom: 1px solid #2C2A28;
         }
 
         .brand {
-            font-size: 26px;
+            font-size: {{ $page['compact'] ? '22px' : '26px' }};
             font-weight: 500;
             letter-spacing: 0.02em;
             margin: 0;
@@ -74,25 +75,25 @@
 
         .doc-type {
             font-family: 'Segoe UI', sans-serif;
-            font-size: 12px;
+            font-size: {{ $page['compact'] ? '11px' : '12px' }};
             color: #8B7E74;
-            margin: 6px 0 0;
+            margin: {{ $page['compact'] ? '4px' : '6px' }} 0 0;
         }
 
         .header-meta {
             font-family: 'Segoe UI', sans-serif;
             text-align: right;
-            line-height: 1.45;
+            line-height: 1.4;
         }
 
         .header-meta .order-no {
-            font-size: 15px;
+            font-size: {{ $page['compact'] ? '13px' : '15px' }};
             font-weight: 600;
-            margin: 0 0 6px;
+            margin: 0 0 {{ $page['compact'] ? '4px' : '6px' }};
         }
 
         .header-meta .meta-line {
-            font-size: 12px;
+            font-size: {{ $page['compact'] ? '11px' : '12px' }};
             color: #5C534C;
             margin: 0;
         }
@@ -100,11 +101,11 @@
         .meta-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 18px 0 0;
+            gap: {{ $page['compact'] ? '14px' : '20px' }};
+            margin: {{ $page['compact'] ? '14px' : '18px' }} 0 0;
             font-family: 'Segoe UI', sans-serif;
-            font-size: 13px;
-            line-height: 1.5;
+            font-size: {{ $page['compact'] ? '12px' : '13px' }};
+            line-height: 1.45;
         }
 
         .meta-grid .value {
@@ -114,26 +115,26 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 26px;
+            margin-top: {{ $page['compact'] ? '18px' : '26px' }};
         }
 
         thead th {
             font-family: 'Segoe UI', sans-serif;
-            font-size: 10px;
+            font-size: {{ $page['compact'] ? '9px' : '10px' }};
             font-weight: 600;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
             color: #8B7E74;
             text-align: left;
-            padding: 0 8px 8px;
+            padding: 0 {{ $page['compact'] ? '6px' : '8px' }} {{ $page['compact'] ? '6px' : '8px' }};
             border-bottom: 1px solid #2C2A28;
             background: transparent;
         }
 
         tbody td {
             font-family: 'Segoe UI', sans-serif;
-            font-size: 13px;
-            padding: 10px 8px;
+            font-size: {{ $page['compact'] ? '12px' : '13px' }};
+            padding: {{ $page['compact'] ? '7px 6px' : '10px 8px' }};
             border-bottom: 1px solid #E5DDD3;
             vertical-align: top;
             background: transparent;
@@ -146,25 +147,25 @@
         .item-variant {
             display: block;
             margin-top: 2px;
-            font-size: 12px;
+            font-size: {{ $page['compact'] ? '11px' : '12px' }};
             color: #8B7E74;
             font-weight: 400;
         }
 
         .totals {
             margin-top: auto;
-            padding-top: 28px;
-            width: 260px;
+            padding-top: {{ $page['compact'] ? '18px' : '28px' }};
+            width: {{ $page['compact'] ? '200px' : '260px' }};
             align-self: flex-end;
             font-family: 'Segoe UI', sans-serif;
-            font-size: 13px;
+            font-size: {{ $page['compact'] ? '12px' : '13px' }};
         }
 
         .totals .row {
             display: flex;
             justify-content: space-between;
-            gap: 24px;
-            padding: 5px 0;
+            gap: {{ $page['compact'] ? '16px' : '24px' }};
+            padding: {{ $page['compact'] ? '4px' : '5px' }} 0;
             color: #5C534C;
         }
 
@@ -174,20 +175,20 @@
         }
 
         .totals .grand {
-            margin-top: 6px;
-            padding-top: 10px;
+            margin-top: {{ $page['compact'] ? '4px' : '6px' }};
+            padding-top: {{ $page['compact'] ? '8px' : '10px' }};
             border-top: 1px solid #2C2A28;
-            font-size: 15px;
+            font-size: {{ $page['compact'] ? '14px' : '15px' }};
             font-weight: 600;
             color: #2C2A28;
         }
 
         .footer-note {
-            margin-top: 18px;
-            padding-top: 10px;
+            margin-top: {{ $page['compact'] ? '12px' : '18px' }};
+            padding-top: {{ $page['compact'] ? '8px' : '10px' }};
             border-top: 1px solid #E5DDD3;
             font-family: 'Segoe UI', sans-serif;
-            font-size: 11px;
+            font-size: {{ $page['compact'] ? '10px' : '11px' }};
             color: #8B7E74;
             text-align: center;
         }
@@ -292,6 +293,7 @@
                 </thead>
                 <tbody>
                 @foreach($order->items as $item)
+                    @continue($item->isRejected())
                     <tr>
                         @foreach($columns->keys() as $key)
                             <td class="{{ $columns[$key]['class'] }}">

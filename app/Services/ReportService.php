@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\OrderItemStatus;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -21,8 +23,8 @@ class ReportService
         return [
             'orders_today' => Order::query()->whereDate('created_at', $today)->count(),
             'revenue_today' => (float) Order::query()
+                ->countsTowardRevenue()
                 ->whereDate('created_at', $today)
-                ->whereNotIn('status', [OrderStatus::Cancelled->value, OrderStatus::Rejected->value])
                 ->sum('total'),
             'pending_approval' => Order::query()->pendingApproval()->count(),
             'low_stock' => Product::query()
@@ -36,9 +38,9 @@ class ReportService
             'customers' => User::query()->where('role', 'customer')->count(),
             'products_active' => Product::query()->where('status', 'active')->count(),
             'revenue_month' => (float) Order::query()
+                ->countsTowardRevenue()
                 ->whereMonth('created_at', now()->month)
                 ->whereYear('created_at', now()->year)
-                ->whereNotIn('status', [OrderStatus::Cancelled->value, OrderStatus::Rejected->value])
                 ->sum('total'),
         ];
     }
@@ -46,9 +48,9 @@ class ReportService
     public function salesByDay(int $days = 30): Collection
     {
         return Order::query()
+            ->countsTowardRevenue()
             ->select(DB::raw('DATE(created_at) as day'), DB::raw('COUNT(*) as orders'), DB::raw('SUM(total) as revenue'))
             ->where('created_at', '>=', now()->subDays($days))
-            ->whereNotIn('status', [OrderStatus::Cancelled->value, OrderStatus::Rejected->value])
             ->groupBy('day')
             ->orderBy('day')
             ->get();
@@ -57,9 +59,22 @@ class ReportService
     public function topProducts(int $limit = 10): Collection
     {
         return OrderItem::query()
-            ->select('product_id', 'product_name', DB::raw('SUM(quantity) as qty'), DB::raw('SUM(line_total) as revenue'))
-            ->whereNotNull('product_id')
-            ->groupBy('product_id', 'product_name')
+            ->select(
+                'order_items.product_id',
+                'order_items.product_name',
+                DB::raw('SUM(order_items.quantity) as qty'),
+                DB::raw('SUM(order_items.line_total) as revenue')
+            )
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->whereNull('orders.deleted_at')
+            ->whereNotNull('order_items.product_id')
+            ->where('order_items.status', '!=', OrderItemStatus::Rejected->value)
+            ->whereNotIn('orders.status', OrderStatus::excludedFromRevenueValues())
+            ->whereNotIn('orders.payment_status', [
+                PaymentStatus::Refunded->value,
+                PaymentStatus::Failed->value,
+            ])
+            ->groupBy('order_items.product_id', 'order_items.product_name')
             ->orderByDesc('qty')
             ->limit($limit)
             ->get();

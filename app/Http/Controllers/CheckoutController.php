@@ -37,10 +37,13 @@ class CheckoutController extends Controller
         $token = $request->session()->get('checkout_idempotency') ?? $this->checkoutService->newIdempotencyToken();
         $request->session()->put('checkout_idempotency', $token);
 
+        $draft = $request->session()->get('checkout_draft', []);
+        $regionId = old('delivery_region_id', data_get($draft, 'delivery_region_id'));
+
         $quote = $this->pricingService->quote(
             $cart,
             $request->session()->get('checkout_coupon'),
-            $request->integer('delivery_region_id') ?: null,
+            $regionId ? (int) $regionId : null,
             Auth::user()
         );
 
@@ -52,6 +55,8 @@ class CheckoutController extends Controller
             'idempotencyToken' => $token,
             'addresses' => Auth::user()->addresses ?? collect(),
             'whishPayEnabled' => $this->whishPayService->isConfigured(),
+            'draft' => $draft,
+            'hasServerDraft' => $request->session()->hasOldInput() || filled($draft),
         ]);
     }
 
@@ -59,12 +64,15 @@ class CheckoutController extends Controller
     {
         $request->validate(['coupon_code' => ['required', 'string']]);
         $request->session()->put('checkout_coupon', $request->string('coupon_code')->toString());
+        $this->storeCheckoutDraft($request);
 
-        return back()->with('success', 'Coupon applied.');
+        return back()->with('success', 'Coupon applied.')->withInput($request->except(['_token', 'coupon_code']));
     }
 
     public function store(CheckoutRequest $request): RedirectResponse
     {
+        $this->storeCheckoutDraft($request);
+
         $token = $request->input('idempotency_token') ?: $request->session()->get('checkout_idempotency');
 
         $user = Auth::user();
@@ -77,7 +85,7 @@ class CheckoutController extends Controller
             'billing' => $request->input('billing'),
         ]);
 
-        $request->session()->forget(['checkout_idempotency', 'checkout_coupon']);
+        $request->session()->forget(['checkout_idempotency', 'checkout_coupon', 'checkout_draft']);
 
         if ($order->payment_method === PaymentMethod::WishAccount && $this->whishPayService->isConfigured()) {
             try {
@@ -92,5 +100,31 @@ class CheckoutController extends Controller
         }
 
         return redirect()->route('account.orders.show', $order)->with('success', 'Order placed successfully. Awaiting approval.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function storeCheckoutDraft(Request $request): array
+    {
+        $existing = $request->session()->get('checkout_draft', []);
+
+        $draft = [
+            'shipping' => [
+                'full_name' => $request->input('shipping.full_name', data_get($existing, 'shipping.full_name')),
+                'phone' => $request->input('shipping.phone', data_get($existing, 'shipping.phone')),
+                'line1' => $request->input('shipping.line1', data_get($existing, 'shipping.line1')),
+                'line2' => $request->input('shipping.line2', data_get($existing, 'shipping.line2')),
+                'city' => $request->input('shipping.city', data_get($existing, 'shipping.city')),
+                'governorate' => $request->input('shipping.governorate', data_get($existing, 'shipping.governorate')),
+            ],
+            'payment_method' => $request->input('payment_method', data_get($existing, 'payment_method')),
+            'delivery_region_id' => $request->input('delivery_region_id', data_get($existing, 'delivery_region_id')),
+            'customer_note' => $request->input('customer_note', data_get($existing, 'customer_note')),
+        ];
+
+        $request->session()->put('checkout_draft', $draft);
+
+        return $draft;
     }
 }

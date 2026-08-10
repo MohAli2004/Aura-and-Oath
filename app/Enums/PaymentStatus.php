@@ -22,4 +22,15 @@ enum PaymentStatus: string
             self::PartiallyRefunded => 'Partially Refunded',
         };
     }
+
+    public function tone(): string
+    {
+        return match ($this) {
+            self::Pending => 'pending',
+            self::AwaitingConfirmation => 'preparing',
+            self::Paid => 'success',
+            self::Failed => 'danger',
+            self::Refunded, self::PartiallyRefunded => 'muted',
+        };
+    }
 }

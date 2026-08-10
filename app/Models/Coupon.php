@@ -49,7 +49,7 @@ class Coupon extends Model
 
     public function categories(): BelongsToMany
     {
-        return $this->belongsToMany(Category::class);
+        return $this->belongsToMany(Category::class, 'coupon_category');
     }
 
     public function usages(): HasMany

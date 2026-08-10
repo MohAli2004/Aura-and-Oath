@@ -24,9 +24,10 @@
     <div>
         <h2 class="font-display text-2xl mb-4">Pending orders</h2>
         @forelse($pendingOrders as $order)
-            <a href="{{ route('admin.orders.show', $order) }}" class="flex justify-between border-b border-beige py-3 text-sm">
+            <a href="{{ route('admin.orders.show', $order) }}" class="flex justify-between gap-3 border-b border-beige py-3 text-sm {{ $order->status->rowClass() }} px-2">
                 <span>{{ $order->order_number }}</span>
                 <span>{{ $order->customer_name }}</span>
+                <x-badge :tone="$order->status->tone()">{{ $order->status->label() }}</x-badge>
                 <span>{{ money($order->total) }}</span>
             </a>
         @empty

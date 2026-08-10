@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\OrderItemStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\OrderNote;
 use App\Models\OrderStatusHistory;
 use App\Models\User;
@@ -21,14 +23,19 @@ class OrderService
 
     public function approve(Order $order, User $admin, ?string $note = null): Order
     {
-        return $this->transition($order, OrderStatus::Approved, $admin, $note, function (Order $order) use ($admin) {
+        return $this->transition($order, OrderStatus::Preparing, $admin, $note, function (Order $order) use ($admin) {
             $order->load('items.product', 'items.variant');
 
-            foreach ($order->items as $item) {
-                if (! $item->product) {
-                    continue;
-                }
-                if ($item->product->track_inventory) {
+            $accepted = $order->items->filter(fn (OrderItem $item) => $item->isAccepted());
+
+            if ($accepted->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'items' => 'Cannot approve an order with no remaining items. Restore an item or reject the order.',
+                ]);
+            }
+
+            foreach ($accepted as $item) {
+                if ($item->product?->track_inventory) {
                     $this->inventoryService->convertReservationToSale(
                         $item->product,
                         $item->quantity,
@@ -37,11 +44,166 @@ class OrderService
                         $admin
                     );
                 }
+
+                $item->status = OrderItemStatus::Approved;
+                $item->save();
             }
+
+            $this->recalculateTotals($order);
 
             $order->approved_at = now();
             $order->approved_by = $admin->id;
             $order->save();
+        });
+    }
+
+    /**
+     * Reject selected line items while the order is still pending approval.
+     *
+     * @param  list<array{id:int|string, reason?:string|null}>  $rejects
+     */
+    public function rejectItems(Order $order, User $admin, array $rejects): Order
+    {
+        return DB::transaction(function () use ($order, $admin, $rejects) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if ($order->status !== OrderStatus::PendingApproval) {
+                throw ValidationException::withMessages([
+                    'status' => 'Items can only be rejected while the order is pending approval.',
+                ]);
+            }
+
+            $order->load('items.product', 'items.variant');
+            $byId = collect($rejects)->keyBy(fn ($row) => (int) $row['id']);
+
+            if ($byId->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'items' => 'Select at least one item to reject.',
+                ]);
+            }
+
+            $rejectedNames = [];
+
+            foreach ($order->items as $item) {
+                if (! $byId->has($item->id) || $item->isRejected()) {
+                    continue;
+                }
+
+                if ($item->product?->track_inventory) {
+                    $this->inventoryService->release(
+                        $item->product,
+                        $item->quantity,
+                        $item->variant,
+                        $order,
+                        $admin
+                    );
+                }
+
+                $reason = trim((string) ($byId[$item->id]['reason'] ?? '')) ?: null;
+                $item->status = OrderItemStatus::Rejected;
+                $item->rejection_reason = $reason;
+                $item->rejected_at = now();
+                $item->save();
+
+                $rejectedNames[] = $item->product_name.($item->variant_name ? ' — '.$item->variant_name : '');
+            }
+
+            if ($rejectedNames === []) {
+                throw ValidationException::withMessages([
+                    'items' => 'No eligible items were rejected.',
+                ]);
+            }
+
+            $this->recalculateTotals($order);
+
+            $this->addNote(
+                $order,
+                $admin,
+                'Rejected item(s): '.implode(', ', $rejectedNames).'. Totals recalculated.',
+                true
+            );
+
+            $this->audit->log(
+                'order.items_rejected',
+                $order,
+                null,
+                ['item_ids' => $byId->keys()->all()],
+                'Partial item rejection',
+                $admin
+            );
+
+            $remaining = $order->items()->accepted()->count();
+
+            if ($remaining === 0) {
+                return $this->reject(
+                    $order->fresh(),
+                    $admin,
+                    'All items were rejected.'
+                );
+            }
+
+            return $order->fresh(['items', 'statusHistories', 'notes']);
+        });
+    }
+
+    public function restoreItem(Order $order, OrderItem $item, User $admin): Order
+    {
+        return DB::transaction(function () use ($order, $item, $admin) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $item = OrderItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
+
+            if ((int) $item->order_id !== (int) $order->id) {
+                throw ValidationException::withMessages([
+                    'item' => 'Item does not belong to this order.',
+                ]);
+            }
+
+            if ($order->status !== OrderStatus::PendingApproval) {
+                throw ValidationException::withMessages([
+                    'status' => 'Rejected items can only be restored while the order is pending approval.',
+                ]);
+            }
+
+            if (! $item->isRejected()) {
+                return $order->fresh(['items']);
+            }
+
+            $item->load(['product', 'variant']);
+
+            if ($item->product?->track_inventory) {
+                $this->inventoryService->reserve(
+                    $item->product,
+                    $item->quantity,
+                    $item->variant,
+                    $order,
+                    $admin
+                );
+            }
+
+            $item->status = OrderItemStatus::Pending;
+            $item->rejection_reason = null;
+            $item->rejected_at = null;
+            $item->save();
+
+            $this->recalculateTotals($order);
+
+            $this->addNote(
+                $order,
+                $admin,
+                'Restored item: '.$item->product_name.($item->variant_name ? ' — '.$item->variant_name : '').'. Totals recalculated.',
+                true
+            );
+
+            $this->audit->log(
+                'order.item_restored',
+                $order,
+                null,
+                ['item_id' => $item->id],
+                'Rejected item restored',
+                $admin
+            );
+
+            return $order->fresh(['items', 'notes']);
         });
     }
 
@@ -57,14 +219,19 @@ class OrderService
 
     public function cancel(Order $order, User $actor, ?string $note = null): Order
     {
-        return $this->transition($order, OrderStatus::Cancelled, $actor, $note, function (Order $order) use ($actor) {
+        $order = $this->transition($order, OrderStatus::Cancelled, $actor, $note, function (Order $order) use ($actor) {
             if ($order->status === OrderStatus::PendingApproval) {
                 $this->releaseReservations($order, $actor);
             }
-            // If already approved, stock was deducted — do not auto-restore unless returned.
             $order->cancelled_at = now();
             $order->save();
         });
+
+        if ($actor->isCustomer()) {
+            $this->notifications->notifyAdminsOrderCancelledByCustomer($order);
+        }
+
+        return $order;
     }
 
     public function markPaid(Order $order, ?User $admin = null, ?string $note = null): Order
@@ -97,7 +264,128 @@ class OrderService
                 user: $actor
             );
 
-            return $order->fresh();
+            $fresh = $order->fresh();
+            $this->notifications->notifyOrderPaymentStatusChanged(
+                $fresh,
+                $from,
+                PaymentStatus::Paid
+            );
+
+            return $fresh;
+        });
+    }
+
+    public function undoApprove(Order $order, User $admin, ?string $note = null): Order
+    {
+        return DB::transaction(function () use ($order, $admin, $note) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if (! in_array($order->status, [OrderStatus::Preparing, OrderStatus::Approved], true)) {
+                throw ValidationException::withMessages([
+                    'status' => 'Only preparing (approved) orders can be moved back to pending approval.',
+                ]);
+            }
+
+            $from = $order->status;
+            $order->load('items.product', 'items.variant');
+
+            foreach ($order->items as $item) {
+                if ($item->isRejected()) {
+                    continue;
+                }
+
+                if ($item->product?->track_inventory) {
+                    $this->inventoryService->revertSaleToReservation(
+                        $item->product,
+                        $item->quantity,
+                        $item->variant,
+                        $order,
+                        $admin
+                    );
+                }
+
+                $item->status = OrderItemStatus::Pending;
+                $item->save();
+            }
+
+            $order->status = OrderStatus::PendingApproval;
+            $order->approved_at = null;
+            $order->approved_by = null;
+            $order->save();
+
+            OrderStatusHistory::query()->create([
+                'order_id' => $order->id,
+                'from_status' => $from,
+                'to_status' => OrderStatus::PendingApproval,
+                'changed_by' => $admin->id,
+                'note' => $note ?: 'Approval undone by admin.',
+                'is_customer_visible' => true,
+            ]);
+
+            $this->audit->log(
+                'order.undo_approve',
+                $order,
+                ['status' => $from->value],
+                ['status' => OrderStatus::PendingApproval->value],
+                $note,
+                $admin
+            );
+
+            $this->notifications->notifyOrderStatusChanged(
+                $order->fresh(),
+                $from,
+                OrderStatus::PendingApproval
+            );
+
+            return $order->fresh(['items', 'statusHistories']);
+        });
+    }
+
+    public function unmarkPaid(Order $order, User $admin, ?string $note = null): Order
+    {
+        if ($order->payment_status !== PaymentStatus::Paid) {
+            throw ValidationException::withMessages([
+                'payment_status' => 'Only paid orders can have payment unmarked.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($order, $admin, $note) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if ($order->payment_status !== PaymentStatus::Paid) {
+                throw ValidationException::withMessages([
+                    'payment_status' => 'Only paid orders can have payment unmarked.',
+                ]);
+            }
+
+            $from = $order->payment_status;
+            $to = $order->payment_method->requiresTransferConfirmation()
+                ? PaymentStatus::AwaitingConfirmation
+                : PaymentStatus::Pending;
+
+            $order->payment_status = $to;
+            $order->save();
+
+            $this->addNote(
+                $order,
+                $admin,
+                $note ?: 'Payment unmarked — set back to '.$to->label().'.',
+                true
+            );
+
+            $this->audit->log(
+                'order.payment_unmarked',
+                $order,
+                ['payment_status' => $from->value],
+                ['payment_status' => $to->value],
+                $note,
+                $admin
+            );
+
+            $fresh = $order->fresh();
+            $this->notifications->notifyOrderPaymentStatusChanged($fresh, $from, $to);
+
+            return $fresh;
         });
     }
 
@@ -123,6 +411,9 @@ class OrderService
             if ($resellable) {
                 $order->load('items.product', 'items.variant');
                 foreach ($order->items as $item) {
+                    if ($item->isRejected()) {
+                        continue;
+                    }
                     if ($item->product?->track_inventory) {
                         $this->inventoryService->restore(
                             $item->product,
@@ -152,6 +443,43 @@ class OrderService
         $this->audit->log('order.note', $order, null, ['note_id' => $note->id], user: $user);
 
         return $note;
+    }
+
+    protected function recalculateTotals(Order $order): void
+    {
+        $order->loadMissing(['items', 'coupon']);
+
+        $previousSubtotal = (float) $order->subtotal;
+        $previousDiscount = (float) $order->discount_amount;
+
+        $acceptedSubtotal = round((float) $order->items
+            ->filter(fn (OrderItem $item) => $item->isAccepted())
+            ->sum(fn (OrderItem $item) => (float) $item->line_total), 2);
+
+        if ($order->coupon) {
+            $discount = app(CouponService::class)->calculateDiscount($order->coupon, $acceptedSubtotal);
+            if ($order->coupon->min_order_amount !== null && $acceptedSubtotal < (float) $order->coupon->min_order_amount) {
+                $discount = 0.0;
+            }
+        } elseif ($previousSubtotal > 0 && $previousDiscount > 0) {
+            $discount = round($previousDiscount * ($acceptedSubtotal / $previousSubtotal), 2);
+        } else {
+            $discount = 0.0;
+        }
+
+        $discount = min($discount, $acceptedSubtotal);
+        $taxRate = (float) setting('tax_rate', 0);
+        $taxable = max(0, $acceptedSubtotal - $discount);
+        $tax = round($taxable * ($taxRate / 100), 2);
+        $delivery = $acceptedSubtotal > 0 ? (float) $order->delivery_fee : 0.0;
+        $total = round($taxable + $delivery + $tax, 2);
+
+        $order->subtotal = $acceptedSubtotal;
+        $order->discount_amount = $discount;
+        $order->delivery_fee = $delivery;
+        $order->tax_amount = $tax;
+        $order->total = $total;
+        $order->save();
     }
 
     protected function transition(
@@ -212,6 +540,10 @@ class OrderService
         $order->load('items.product', 'items.variant');
 
         foreach ($order->items as $item) {
+            if ($item->isRejected()) {
+                continue;
+            }
+
             if ($item->product?->track_inventory) {
                 $this->inventoryService->release(
                     $item->product,

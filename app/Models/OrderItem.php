@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\OrderItemStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -19,6 +21,9 @@ class OrderItem extends Model
         'unit_price',
         'line_total',
         'unit_cost',
+        'status',
+        'rejection_reason',
+        'rejected_at',
     ];
 
     protected $hidden = [
@@ -31,6 +36,8 @@ class OrderItem extends Model
             'unit_price' => 'decimal:2',
             'line_total' => 'decimal:2',
             'unit_cost' => 'decimal:2',
+            'status' => OrderItemStatus::class,
+            'rejected_at' => 'datetime',
         ];
     }
 
@@ -47,5 +54,25 @@ class OrderItem extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
+
+    public function scopeAccepted(Builder $query): Builder
+    {
+        return $query->where('status', '!=', OrderItemStatus::Rejected);
+    }
+
+    public function scopeRejected(Builder $query): Builder
+    {
+        return $query->where('status', OrderItemStatus::Rejected);
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === OrderItemStatus::Rejected;
+    }
+
+    public function isAccepted(): bool
+    {
+        return ! $this->isRejected();
     }
 }

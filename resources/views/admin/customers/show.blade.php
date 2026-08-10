@@ -10,8 +10,10 @@
     <div>
         <h2 class="font-display text-2xl mb-3">Orders</h2>
         @foreach($customer->orders as $order)
-            <a href="{{ route('admin.orders.show', $order) }}" class="flex justify-between border-b border-beige py-2 text-sm">
-                <span>{{ $order->order_number }}</span><span>{{ $order->status->label() }}</span><span>{{ money($order->total) }}</span>
+            <a href="{{ route('admin.orders.show', $order) }}" class="flex justify-between gap-3 border-b border-beige py-2 text-sm {{ $order->status->rowClass() }} px-2">
+                <span>{{ $order->order_number }}</span>
+                <x-badge :tone="$order->status->tone()">{{ $order->status->label() }}</x-badge>
+                <span>{{ money($order->total) }}</span>
             </a>
         @endforeach
     </div>

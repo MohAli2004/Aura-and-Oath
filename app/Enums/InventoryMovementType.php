@@ -14,6 +14,7 @@ enum InventoryMovementType: string
     case Returned = 'returned';
     case Correction = 'correction';
     case OrderDeduction = 'order_deduction';
+    case SaleRevert = 'sale_revert';
 
     public function label(): string
     {
@@ -28,6 +29,7 @@ enum InventoryMovementType: string
             self::Returned => 'Returned',
             self::Correction => 'Correction',
             self::OrderDeduction => 'Order Deduction',
+            self::SaleRevert => 'Sale Revert',
         };
     }
 }

@@ -2,21 +2,21 @@
 
 namespace App\Notifications;
 
-use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class OrderStatusChangedNotification extends Notification implements ShouldQueue
+class OrderPaymentStatusChangedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
     public function __construct(
         public Order $order,
-        public OrderStatus $from,
-        public OrderStatus $to
+        public PaymentStatus $from,
+        public PaymentStatus $to
     ) {
         $this->afterCommit();
     }
@@ -29,7 +29,7 @@ class OrderStatusChangedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Order '.$this->order->order_number.' update')
+            ->subject('Order '.$this->order->order_number.' payment update')
             ->greeting('Hello '.$notifiable->name.',')
             ->line($this->body())
             ->action('View order', url('/account/orders/'.$this->order->id));
@@ -50,25 +50,27 @@ class OrderStatusChangedNotification extends Notification implements ShouldQueue
 
     protected function title(): string
     {
-        if ($this->isApprovalUndone()) {
-            return 'Order approval undone';
+        if ($this->from === PaymentStatus::Paid && $this->to !== PaymentStatus::Paid) {
+            return 'Payment unmarked';
         }
 
-        return 'Order '.$this->to->label();
+        if ($this->to === PaymentStatus::Paid) {
+            return 'Payment confirmed';
+        }
+
+        return 'Payment status updated';
     }
 
     protected function body(): string
     {
-        if ($this->isApprovalUndone()) {
-            return 'Approval for order '.$this->order->order_number.' was undone. Your order is pending approval again.';
+        if ($this->from === PaymentStatus::Paid && $this->to !== PaymentStatus::Paid) {
+            return 'Payment for order '.$this->order->order_number.' was unmarked. It is now '.$this->to->label().'.';
         }
 
-        return 'Your order '.$this->order->order_number.' status changed from '.$this->from->label().' to '.$this->to->label().'.';
-    }
+        if ($this->to === PaymentStatus::Paid) {
+            return 'Payment for order '.$this->order->order_number.' was marked as paid.';
+        }
 
-    protected function isApprovalUndone(): bool
-    {
-        return $this->to === OrderStatus::PendingApproval
-            && in_array($this->from, [OrderStatus::Preparing, OrderStatus::Approved], true);
+        return 'Payment for order '.$this->order->order_number.' changed from '.$this->from->label().' to '.$this->to->label().'.';
     }
 }

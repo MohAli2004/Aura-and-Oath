@@ -76,6 +76,20 @@ class DatabaseSeeder extends Seeder
                 'type' => 'json',
                 'is_public' => false,
             ],
+            [
+                'group' => 'print',
+                'key' => 'invoice_size',
+                'value' => config('aura.print.defaults.invoice', 'A5'),
+                'type' => 'string',
+                'is_public' => false,
+            ],
+            [
+                'group' => 'print',
+                'key' => 'packing_slip_size',
+                'value' => config('aura.print.defaults.packing_slip', 'A4'),
+                'type' => 'string',
+                'is_public' => false,
+            ],
         ];
 
         foreach ($rows as $row) {

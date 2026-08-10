@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DeliveryRegionController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
@@ -36,6 +37,9 @@ Route::resource('brands', BrandController::class)->except(['show']);
 Route::delete('coupons/bulk', [CouponController::class, 'bulkDestroy'])->name('coupons.bulk-destroy');
 Route::resource('coupons', CouponController::class)->except(['show']);
 
+Route::delete('delivery-regions/bulk', [DeliveryRegionController::class, 'bulkDestroy'])->name('delivery-regions.bulk-destroy');
+Route::resource('delivery-regions', DeliveryRegionController::class)->except(['show']);
+
 Route::delete('banners/bulk', [BannerController::class, 'bulkDestroy'])->name('banners.bulk-destroy');
 Route::resource('banners', BannerController::class)->except(['show']);
 
@@ -52,13 +56,18 @@ Route::post('inventory/adjust', [InventoryController::class, 'adjust'])->middlew
 Route::match(['get', 'post'], 'inventory/scan', [InventoryController::class, 'scan'])->name('inventory.scan');
 
 Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+Route::get('orders/print', [OrderController::class, 'printList'])->name('orders.print');
 Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 Route::post('orders/{order}/approve', [OrderController::class, 'approve'])->name('orders.approve');
+Route::post('orders/{order}/undo-approve', [OrderController::class, 'undoApprove'])->name('orders.undo-approve');
 Route::post('orders/{order}/reject', [OrderController::class, 'reject'])->name('orders.reject');
+Route::post('orders/{order}/reject-items', [OrderController::class, 'rejectItems'])->name('orders.reject-items');
+Route::post('orders/{order}/items/{item}/restore', [OrderController::class, 'restoreItem'])->name('orders.items.restore');
 Route::post('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.status');
 Route::post('orders/{order}/notes', [OrderController::class, 'addNote'])->name('orders.notes');
 Route::post('orders/{order}/return', [OrderController::class, 'confirmReturn'])->name('orders.return');
 Route::post('orders/{order}/mark-paid', [OrderController::class, 'markPaid'])->name('orders.mark-paid');
+Route::post('orders/{order}/unmark-paid', [OrderController::class, 'unmarkPaid'])->name('orders.unmark-paid');
 Route::get('orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
 Route::get('orders/{order}/packing-slip', [OrderController::class, 'packingSlip'])->name('orders.packing-slip');
 

@@ -4,6 +4,9 @@ namespace App\Support;
 
 use App\Notifications\ContactMessageNotification;
 use App\Notifications\LowStockNotification;
+use App\Notifications\NewUserRegisteredNotification;
+use App\Notifications\OrderCancelledByCustomerNotification;
+use App\Notifications\OrderPaymentStatusChangedNotification;
 use App\Notifications\OrderPlacedNotification;
 use App\Notifications\OrderStatusChangedNotification;
 use App\Notifications\WishPaymentReceivedNotification;
@@ -38,6 +41,9 @@ class NotificationPresenter
                 ? 'New order placed'
                 : 'Order received',
             OrderStatusChangedNotification::class => 'Order status updated',
+            OrderPaymentStatusChangedNotification::class => 'Payment status updated',
+            OrderCancelledByCustomerNotification::class => 'Order cancelled by customer',
+            NewUserRegisteredNotification::class => 'New customer registered',
             LowStockNotification::class => 'Low stock alert',
             ContactMessageNotification::class => 'New contact message',
             WishPaymentReceivedNotification::class => 'Wish payment received',
@@ -56,6 +62,15 @@ class NotificationPresenter
             OrderStatusChangedNotification::class => isset($data['order_number'], $data['to'])
                 ? 'Order '.$data['order_number'].' is now '.str_replace('_', ' ', (string) $data['to']).'.'
                 : 'Your order status was updated.',
+            OrderPaymentStatusChangedNotification::class => isset($data['order_number'], $data['to'])
+                ? 'Payment for order '.$data['order_number'].' is now '.str_replace('_', ' ', (string) $data['to']).'.'
+                : 'Your payment status was updated.',
+            OrderCancelledByCustomerNotification::class => isset($data['order_number'])
+                ? 'Customer cancelled order '.$data['order_number'].'.'
+                : 'A customer cancelled an order.',
+            NewUserRegisteredNotification::class => isset($data['name'], $data['email'])
+                ? $data['name'].' ('.$data['email'].') registered.'
+                : 'A new customer registered.',
             LowStockNotification::class => isset($data['sku'])
                 ? 'Product '.$data['sku'].' is running low'.(isset($data['available']) ? ' ('.$data['available'].' left)' : '').'.'
                 : 'A product is low on stock.',
@@ -73,14 +88,17 @@ class NotificationPresenter
         $forAdmin = ! empty($data['for_admin']);
 
         return match ($notification->type) {
-            OrderPlacedNotification::class, WishPaymentReceivedNotification::class => isset($data['order_id'])
-                ? ($forAdmin || $notification->type === WishPaymentReceivedNotification::class
+            OrderPlacedNotification::class, WishPaymentReceivedNotification::class, OrderCancelledByCustomerNotification::class => isset($data['order_id'])
+                ? ($forAdmin || in_array($notification->type, [WishPaymentReceivedNotification::class, OrderCancelledByCustomerNotification::class], true)
                     ? url('/admin/orders/'.$data['order_id'])
                     : url('/account/orders/'.$data['order_id']))
                 : null,
-            OrderStatusChangedNotification::class => isset($data['order_id'])
+            OrderStatusChangedNotification::class, OrderPaymentStatusChangedNotification::class => isset($data['order_id'])
                 ? url('/account/orders/'.$data['order_id'])
                 : null,
+            NewUserRegisteredNotification::class => isset($data['user_id'])
+                ? url('/admin/customers/'.$data['user_id'])
+                : url('/admin/customers'),
             LowStockNotification::class => url('/admin/inventory'),
             ContactMessageNotification::class => url('/admin/notifications'),
             default => null,

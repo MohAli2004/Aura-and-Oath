@@ -31,6 +31,7 @@
             ['admin.orders.index', 'Orders', 'orders'],
             ['admin.customers.index', 'Customers', 'customers'],
             ['admin.coupons.index', 'Coupons', 'coupons'],
+            ['admin.delivery-regions.index', 'Delivery', 'delivery'],
         ],
         'Marketing' => [
             ['admin.banners.index', 'Banners', 'banners'],

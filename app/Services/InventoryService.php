@@ -132,6 +132,42 @@ class InventoryService
         });
     }
 
+    public function revertSaleToReservation(Product $product, int $quantity, ?ProductVariant $variant = null, ?Order $order = null, ?User $user = null): void
+    {
+        if ($quantity <= 0) {
+            throw new RuntimeException('Revert quantity must be positive.');
+        }
+
+        DB::transaction(function () use ($product, $quantity, $variant, $order, $user) {
+            $stockable = $this->lockStockable($product, $variant);
+
+            $stockBefore = (int) $stockable->stock_quantity;
+            $reservedBefore = (int) $stockable->reserved_quantity;
+
+            $stockable->stock_quantity = $stockBefore + $quantity;
+            $stockable->reserved_quantity = $reservedBefore + $quantity;
+            $stockable->save();
+
+            $this->record(
+                $product,
+                $variant,
+                InventoryMovementType::SaleRevert,
+                $quantity,
+                $stockBefore,
+                (int) $stockable->stock_quantity,
+                $reservedBefore,
+                (int) $stockable->reserved_quantity,
+                $order,
+                $user,
+                $order?->order_number,
+                'Undo approval — sale reverted to reservation'
+            );
+
+            $product->refresh();
+            $product->refreshStockStatus();
+        });
+    }
+
     public function adjust(
         Product $product,
         int $quantityChange,

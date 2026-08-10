@@ -12,12 +12,21 @@ use App\Models\DeliveryRegion;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Notifications\NewUserRegisteredNotification;
+use App\Notifications\OrderCancelledByCustomerNotification;
+use App\Notifications\OrderPaymentStatusChangedNotification;
+use App\Notifications\OrderStatusChangedNotification;
 use App\Services\BarcodeService;
 use App\Services\CartService;
 use App\Services\CheckoutService;
 use App\Services\InventoryService;
 use App\Services\OrderService;
+use App\Services\ReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\User as SocialiteUser;
 use Tests\TestCase;
 
 class AuraCommerceTest extends TestCase
@@ -66,6 +75,10 @@ class AuraCommerceTest extends TestCase
 
     public function test_customer_can_register_and_login(): void
     {
+        Notification::fake();
+
+        $admin = User::factory()->admin()->create(['is_active' => true]);
+
         $this->post('/register', [
             'name' => 'Test User',
             'email' => 'testuser@example.com',
@@ -74,6 +87,8 @@ class AuraCommerceTest extends TestCase
         ])->assertRedirect('/');
 
         $this->assertAuthenticated();
+        Notification::assertSentTo($admin, NewUserRegisteredNotification::class);
+
         $this->post('/logout')->assertRedirect('/');
         $this->assertGuest();
 
@@ -132,6 +147,45 @@ class AuraCommerceTest extends TestCase
             'status' => 'active',
             'visibility' => 'public',
         ])->assertSessionHasErrors('sku');
+    }
+
+    public function test_admin_can_edit_delivery_region_fee(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $region = $this->createRegion('BRT');
+
+        $this->actingAs($admin)
+            ->get('/admin/delivery-regions')
+            ->assertOk()
+            ->assertSee('Beirut Central');
+
+        $this->actingAs($admin)
+            ->put('/admin/delivery-regions/'.$region->id, [
+                'name' => 'Beirut Central',
+                'code' => 'BRT',
+                'fee' => 4.50,
+                'description' => $region->description,
+                'estimated_days_min' => 1,
+                'estimated_days_max' => 2,
+                'sort_order' => 1,
+                'is_active' => 1,
+            ])
+            ->assertRedirect(route('admin.delivery-regions.index'));
+
+        $this->assertDatabaseHas('delivery_regions', [
+            'id' => $region->id,
+            'fee' => 4.50,
+        ]);
+
+        $this->actingAs($admin)
+            ->put('/admin/delivery-regions/'.$region->id, [
+                'name' => 'Beirut Central',
+                'code' => 'BRT',
+                'fee' => -1,
+                'estimated_days_min' => 1,
+                'estimated_days_max' => 2,
+            ])
+            ->assertSessionHasErrors('fee');
     }
 
     public function test_barcode_service_lookup_and_format(): void
@@ -275,7 +329,14 @@ class AuraCommerceTest extends TestCase
         $product->refresh();
         $this->assertEquals(0, $product->reserved_quantity);
         $this->assertEquals(7, $product->stock_quantity);
-        $this->assertEquals(OrderStatus::Approved, $order->fresh()->status);
+        $this->assertEquals(OrderStatus::Preparing, $order->fresh()->status);
+
+        app(OrderService::class)->undoApprove($order->fresh(), $admin);
+        $product->refresh();
+        $this->assertEquals(OrderStatus::PendingApproval, $order->fresh()->status);
+        $this->assertEquals(3, $product->reserved_quantity);
+        $this->assertEquals(10, $product->stock_quantity);
+        $this->assertNull($order->fresh()->approved_at);
 
         $product2 = $this->createProduct(['stock_quantity' => 5, 'sku' => 'SKU-R', 'barcode' => 'BC-R', 'slug' => 'reject-p']);
         app(CartService::class)->add($product2, 2);
@@ -431,5 +492,322 @@ class AuraCommerceTest extends TestCase
             ->get('/admin/barcodes/labels?codes=6221999000111')
             ->assertOk()
             ->assertSee('6221999000111');
+    }
+
+    public function test_admin_can_unmark_paid_payment(): void
+    {
+        Notification::fake();
+
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->customer()->create();
+        $product = $this->createProduct(['stock_quantity' => 4]);
+
+        $order = Order::query()->create([
+            'order_number' => 'AO-UNPAY-1',
+            'user_id' => $user->id,
+            'status' => OrderStatus::PendingApproval,
+            'payment_method' => PaymentMethod::WishAccount,
+            'payment_status' => PaymentStatus::Paid,
+            'subtotal' => 50,
+            'total' => 50,
+            'customer_name' => $user->name,
+            'customer_email' => $user->email,
+            'customer_phone' => '010',
+        ]);
+        $order->items()->create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'sku' => $product->sku,
+            'barcode' => $product->barcode,
+            'quantity' => 1,
+            'unit_price' => 50,
+            'line_total' => 50,
+        ]);
+
+        $this->actingAs($admin)
+            ->post('/admin/orders/'.$order->id.'/unmark-paid')
+            ->assertRedirect();
+
+        $this->assertEquals(PaymentStatus::AwaitingConfirmation, $order->fresh()->payment_status);
+
+        Notification::assertSentTo(
+            $user,
+            OrderPaymentStatusChangedNotification::class,
+            function (OrderPaymentStatusChangedNotification $notification) use ($order) {
+                return $notification->order->is($order)
+                    && $notification->from === PaymentStatus::Paid
+                    && $notification->to === PaymentStatus::AwaitingConfirmation;
+            }
+        );
+    }
+
+    public function test_customer_is_notified_when_admin_undoes_approval(): void
+    {
+        Notification::fake();
+
+        $product = $this->createProduct(['stock_quantity' => 10]);
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->customer()->create();
+        $region = $this->createRegion('BEI-UNDO-NOTIFY');
+
+        $this->actingAs($user);
+        app(CartService::class)->add($product, 1);
+        $order = app(CheckoutService::class)->placeOrder($user, [
+            'customer_phone' => '01000000000',
+            'payment_method' => PaymentMethod::CashOnDelivery->value,
+            'delivery_region_id' => $region->id,
+            'idempotency_token' => 'undo-notify-1',
+            'shipping' => ['full_name' => $user->name, 'phone' => '010', 'line1' => 'A', 'city' => 'Beirut'],
+        ]);
+
+        app(OrderService::class)->approve($order, $admin);
+        Notification::fake();
+
+        app(OrderService::class)->undoApprove($order->fresh(), $admin);
+
+        Notification::assertSentTo(
+            $user,
+            OrderStatusChangedNotification::class,
+            function (OrderStatusChangedNotification $notification) use ($order) {
+                return $notification->order->is($order)
+                    && $notification->from === OrderStatus::Preparing
+                    && $notification->to === OrderStatus::PendingApproval;
+            }
+        );
+    }
+
+    public function test_admin_can_reject_some_items_then_approve_rest(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->customer()->create();
+        $region = $this->createRegion('BEI-PARTIAL');
+        $productA = $this->createProduct(['stock_quantity' => 10, 'sku' => 'SKU-A1', 'barcode' => 'BC-A1', 'slug' => 'partial-a']);
+        $productB = $this->createProduct(['stock_quantity' => 10, 'sku' => 'SKU-B1', 'barcode' => 'BC-B1', 'slug' => 'partial-b']);
+
+        $this->actingAs($user);
+        app(CartService::class)->add($productA, 2);
+        app(CartService::class)->add($productB, 1);
+        $order = app(CheckoutService::class)->placeOrder($user, [
+            'customer_phone' => '01000000000',
+            'payment_method' => PaymentMethod::CashOnDelivery->value,
+            'delivery_region_id' => $region->id,
+            'idempotency_token' => 'partial-reject-1',
+            'shipping' => ['full_name' => $user->name, 'phone' => '010', 'line1' => 'A', 'city' => 'Beirut'],
+        ]);
+
+        $rejectItem = $order->items()->where('product_id', $productB->id)->firstOrFail();
+
+        $this->actingAs($admin)
+            ->post('/admin/orders/'.$order->id.'/reject-items', [
+                'items' => [
+                    ['id' => $rejectItem->id, 'reason' => 'Out of stock shade'],
+                ],
+            ])
+            ->assertRedirect();
+
+        $order->refresh();
+        $this->assertTrue($rejectItem->fresh()->isRejected());
+        $this->assertEquals(0, $productB->fresh()->reserved_quantity);
+        $this->assertEquals(2, $productA->fresh()->reserved_quantity);
+        $this->assertEquals(OrderStatus::PendingApproval, $order->status);
+
+        app(OrderService::class)->approve($order->fresh(), $admin);
+
+        $this->assertEquals(OrderStatus::Preparing, $order->fresh()->status);
+        $this->assertEquals(0, $productA->fresh()->reserved_quantity);
+        $this->assertEquals(8, $productA->fresh()->stock_quantity);
+        $this->assertEquals(10, $productB->fresh()->stock_quantity);
+    }
+
+    public function test_report_revenue_excludes_cancelled_refunded_and_returned_orders(): void
+    {
+        $user = User::factory()->customer()->create();
+        $product = $this->createProduct(['stock_quantity' => 20]);
+
+        $makeOrder = function (string $number, OrderStatus $status, float $total, PaymentStatus $payment = PaymentStatus::Paid) use ($user, $product) {
+            $order = Order::query()->create([
+                'order_number' => $number,
+                'user_id' => $user->id,
+                'status' => $status,
+                'payment_method' => PaymentMethod::CashOnDelivery,
+                'payment_status' => $payment,
+                'subtotal' => $total,
+                'total' => $total,
+                'customer_name' => $user->name,
+                'customer_email' => $user->email,
+                'customer_phone' => '010',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $order->items()->create([
+                'product_id' => $product->id,
+                'product_name' => $product->name,
+                'sku' => $product->sku,
+                'barcode' => $product->barcode,
+                'quantity' => 1,
+                'unit_price' => $total,
+                'line_total' => $total,
+            ]);
+
+            return $order;
+        };
+
+        $makeOrder('AO-REV-OK', OrderStatus::Delivered, 100);
+        $makeOrder('AO-REV-PREP', OrderStatus::Preparing, 40);
+        $makeOrder('AO-REV-CANCEL', OrderStatus::Cancelled, 70);
+        $makeOrder('AO-REV-REJECT', OrderStatus::Rejected, 55);
+        $makeOrder('AO-REV-RETURN', OrderStatus::Returned, 90);
+        $makeOrder('AO-REV-REFUND', OrderStatus::Refunded, 80);
+        $makeOrder('AO-REV-PAYFAIL', OrderStatus::Delivered, 25, PaymentStatus::Failed);
+        $makeOrder('AO-REV-PAYREF', OrderStatus::Delivered, 35, PaymentStatus::Refunded);
+
+        $stats = app(ReportService::class)->dashboardStats();
+        $this->assertEquals(140.0, $stats['revenue_today']);
+        $this->assertEquals(140.0, $stats['revenue_month']);
+
+        $sales = app(ReportService::class)->salesByDay(1);
+        $this->assertEquals(140.0, (float) $sales->sum('revenue'));
+        $this->assertEquals(2, (int) $sales->sum('orders'));
+
+        $top = app(ReportService::class)->topProducts(5);
+        $this->assertEquals(2, (int) $top->first()->qty);
+        $this->assertEquals(140.0, (float) $top->first()->revenue);
+    }
+
+    public function test_admins_are_notified_when_customer_cancels_order(): void
+    {
+        Notification::fake();
+
+        $admin = User::factory()->admin()->create(['is_active' => true]);
+        $inactiveAdmin = User::factory()->admin()->create(['is_active' => false]);
+        $user = User::factory()->customer()->create();
+        $region = $this->createRegion('BEI-CANCEL-NOTIFY');
+        $product = $this->createProduct(['stock_quantity' => 5]);
+
+        $this->actingAs($user);
+        app(CartService::class)->add($product, 1);
+        $order = app(CheckoutService::class)->placeOrder($user, [
+            'customer_phone' => '01000000000',
+            'payment_method' => PaymentMethod::CashOnDelivery->value,
+            'delivery_region_id' => $region->id,
+            'idempotency_token' => 'cancel-notify-1',
+            'shipping' => ['full_name' => $user->name, 'phone' => '010', 'line1' => 'A', 'city' => 'Beirut'],
+        ]);
+
+        Notification::fake();
+
+        $this->actingAs($user)
+            ->post('/account/orders/'.$order->id.'/cancel')
+            ->assertRedirect();
+
+        $this->assertEquals(OrderStatus::Cancelled, $order->fresh()->status);
+
+        Notification::assertSentTo($admin, OrderCancelledByCustomerNotification::class);
+        Notification::assertNotSentTo($inactiveAdmin, OrderCancelledByCustomerNotification::class);
+        Notification::assertNotSentTo($user, OrderCancelledByCustomerNotification::class);
+    }
+
+    public function test_google_auth_redirects_to_google(): void
+    {
+        config([
+            'services.google.client_id' => 'test-client-id',
+            'services.google.client_secret' => 'test-client-secret',
+            'services.google.redirect' => 'http://localhost/auth/google/callback',
+        ]);
+
+        Socialite::fake('google');
+
+        $this->get('/auth/google')
+            ->assertRedirect();
+    }
+
+    public function test_google_auth_creates_customer_and_logs_in(): void
+    {
+        Notification::fake();
+
+        $admin = User::factory()->admin()->create(['is_active' => true]);
+
+        config([
+            'services.google.client_id' => 'test-client-id',
+            'services.google.client_secret' => 'test-client-secret',
+            'services.google.redirect' => 'http://localhost/auth/google/callback',
+        ]);
+
+        Socialite::fake('google', SocialiteUser::fake([
+            'id' => 'google-user-1',
+            'name' => 'Google Customer',
+            'email' => 'google.customer@example.com',
+            'avatar' => 'https://example.com/a.jpg',
+        ]));
+
+        $this->get('/auth/google/callback')
+            ->assertRedirect('/');
+
+        $this->assertAuthenticated();
+        $this->assertDatabaseHas('users', [
+            'email' => 'google.customer@example.com',
+            'google_id' => 'google-user-1',
+            'name' => 'Google Customer',
+        ]);
+        Notification::assertSentTo($admin, NewUserRegisteredNotification::class);
+    }
+
+    public function test_google_auth_rejects_existing_email_with_password_account(): void
+    {
+        config([
+            'services.google.client_id' => 'test-client-id',
+            'services.google.client_secret' => 'test-client-secret',
+            'services.google.redirect' => 'http://localhost/auth/google/callback',
+        ]);
+
+        $user = User::factory()->customer()->create([
+            'email' => 'existing@example.com',
+            'name' => 'Existing User',
+            'google_id' => null,
+        ]);
+        $originalPassword = $user->password;
+
+        Socialite::fake('google', SocialiteUser::fake([
+            'id' => 'google-user-2',
+            'name' => 'Existing User Google',
+            'email' => 'existing@example.com',
+        ]));
+
+        $this->get('/auth/google/callback')
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+        $this->assertNull($user->fresh()->google_id);
+        $this->assertSame($originalPassword, $user->fresh()->password);
+    }
+
+    public function test_google_auth_allows_returning_google_user_without_changing_password(): void
+    {
+        config([
+            'services.google.client_id' => 'test-client-id',
+            'services.google.client_secret' => 'test-client-secret',
+            'services.google.redirect' => 'http://localhost/auth/google/callback',
+        ]);
+
+        $user = User::factory()->customer()->create([
+            'email' => 'google.return@example.com',
+            'name' => 'Return User',
+            'google_id' => 'google-user-return',
+        ]);
+        $originalPassword = $user->password;
+
+        Socialite::fake('google', SocialiteUser::fake([
+            'id' => 'google-user-return',
+            'name' => 'Return User Updated',
+            'email' => 'google.return@example.com',
+        ]));
+
+        $this->get('/auth/google/callback')
+            ->assertRedirect('/');
+
+        $this->assertAuthenticatedAs($user->fresh());
+        $this->assertSame($originalPassword, $user->fresh()->password);
+        $this->assertSame('Return User Updated', $user->fresh()->name);
     }
 }

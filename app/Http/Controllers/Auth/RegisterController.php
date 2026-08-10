@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,8 @@ use Illuminate\View\View;
 
 class RegisterController extends Controller
 {
+    public function __construct(protected NotificationService $notifications) {}
+
     public function create(): View
     {
         return view('auth.register');
@@ -39,6 +42,7 @@ class RegisterController extends Controller
         ]);
 
         event(new Registered($user));
+        $this->notifications->notifyAdminsNewUser($user, 'email');
         Auth::login($user);
 
         return redirect()->route('home');

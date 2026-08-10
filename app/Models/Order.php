@@ -77,6 +77,16 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function acceptedItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class)->accepted();
+    }
+
+    public function rejectedItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class)->rejected();
+    }
+
     public function addresses(): HasMany
     {
         return $this->hasMany(OrderAddress::class);
@@ -120,6 +130,16 @@ class Order extends Model
     public function scopePendingApproval(Builder $query): Builder
     {
         return $query->where('status', OrderStatus::PendingApproval);
+    }
+
+    public function scopeCountsTowardRevenue(Builder $query): Builder
+    {
+        return $query
+            ->whereNotIn('status', OrderStatus::excludedFromRevenueValues())
+            ->whereNotIn('payment_status', [
+                PaymentStatus::Refunded->value,
+                PaymentStatus::Failed->value,
+            ]);
     }
 
     public function isOwnedBy(?User $user): bool

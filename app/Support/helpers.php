@@ -109,3 +109,34 @@ if (! function_exists('print_shows')) {
         return in_array($field, print_fields($document), true);
     }
 }
+
+if (! function_exists('print_page_size')) {
+    function print_page_size(string $document): string
+    {
+        $default = (string) config("aura.print.defaults.{$document}", 'A4');
+        $size = strtoupper((string) setting("{$document}_size", $default));
+
+        return array_key_exists($size, config('aura.print.sizes', []))
+            ? $size
+            : (array_key_exists($default, config('aura.print.sizes', [])) ? $default : 'A4');
+    }
+}
+
+if (! function_exists('print_page_dims')) {
+    /**
+     * @return array{name:string,width:string,height:string,margin:string,compact:bool}
+     */
+    function print_page_dims(string $document): array
+    {
+        $name = print_page_size($document);
+        $dims = config("aura.print.sizes.{$name}", config('aura.print.sizes.A4'));
+
+        return [
+            'name' => $name,
+            'width' => $dims['width'],
+            'height' => $dims['height'],
+            'margin' => $dims['margin'],
+            'compact' => $name === 'A5',
+        ];
+    }
+}

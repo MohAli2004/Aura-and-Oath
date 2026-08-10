@@ -25,6 +25,8 @@ class SettingController extends Controller
             'home_background_path',
             'invoice_fields',
             'packing_slip_fields',
+            'invoice_size',
+            'packing_slip_size',
         ];
 
         return view('admin.settings.edit', [
@@ -41,6 +43,9 @@ class SettingController extends Controller
             'homeBackgroundUrl' => store_home_background_url(),
             'invoiceFields' => print_fields('invoice'),
             'packingSlipFields' => print_fields('packing_slip'),
+            'invoiceSize' => print_page_size('invoice'),
+            'packingSlipSize' => print_page_size('packing_slip'),
+            'printSizes' => array_keys(config('aura.print.sizes', [])),
         ]);
     }
 
@@ -48,6 +53,7 @@ class SettingController extends Controller
     {
         $invoiceKeys = array_keys(config('aura.print.invoice', []));
         $packingKeys = array_keys(config('aura.print.packing_slip', []));
+        $sizeKeys = array_keys(config('aura.print.sizes', []));
 
         $data = $request->validate([
             'settings' => ['nullable', 'array'],
@@ -56,6 +62,8 @@ class SettingController extends Controller
             'invoice_fields.*' => ['string', 'in:'.implode(',', $invoiceKeys)],
             'packing_slip_fields' => ['nullable', 'array'],
             'packing_slip_fields.*' => ['string', 'in:'.implode(',', $packingKeys)],
+            'invoice_size' => ['required', 'string', 'in:'.implode(',', $sizeKeys)],
+            'packing_slip_size' => ['required', 'string', 'in:'.implode(',', $sizeKeys)],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,svg', 'max:10240'],
             'favicon' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,ico,svg', 'max:2048'],
             'home_background' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
@@ -71,6 +79,8 @@ class SettingController extends Controller
                 'home_background_path',
                 'invoice_fields',
                 'packing_slip_fields',
+                'invoice_size',
+                'packing_slip_size',
             ], true)) {
                 continue;
             }
@@ -96,6 +106,9 @@ class SettingController extends Controller
             'print',
             false,
         );
+
+        $this->settings->set('invoice_size', $data['invoice_size'], 'string', 'print', false);
+        $this->settings->set('packing_slip_size', $data['packing_slip_size'], 'string', 'print', false);
 
         if ($request->boolean('remove_logo')) {
             $this->images->delete($this->settings->get('logo_path'));

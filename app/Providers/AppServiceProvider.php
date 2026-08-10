@@ -14,6 +14,7 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -25,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->configureApplicationUrl();
+
         Gate::policy(Order::class, OrderPolicy::class);
         Gate::policy(Product::class, ProductPolicy::class);
 
@@ -80,5 +83,37 @@ class AppServiceProvider extends ServiceProvider
                 'navBrandsTotal' => $navBrandsTotal,
             ]);
         });
+    }
+
+    /**
+     * Force APP_URL only when the browser is already on that host.
+     * Forcing localhost while opening the site via a LAN IP breaks CSS/images on phones.
+     */
+    protected function configureApplicationUrl(): void
+    {
+        if ($this->app->runningInConsole()) {
+            return;
+        }
+
+        $root = (string) config('app.url');
+        if ($root === '') {
+            return;
+        }
+
+        $appHost = $this->normalizeHost(parse_url($root, PHP_URL_HOST));
+        $requestHost = $this->normalizeHost(request()->getHost());
+
+        if ($appHost !== '' && $appHost === $requestHost) {
+            URL::forceRootUrl($root);
+        }
+    }
+
+    protected function normalizeHost(?string $host): string
+    {
+        $host = strtolower((string) $host);
+
+        return in_array($host, ['localhost', '127.0.0.1', '::1'], true)
+            ? 'localhost'
+            : $host;
     }
 }

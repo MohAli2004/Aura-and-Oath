@@ -115,40 +115,62 @@
     <section class="border border-beige bg-[#FFFCFA] p-6 space-y-6">
         <div>
             <h2 class="font-display text-2xl">Print documents</h2>
-            <p class="text-sm text-taupe mt-1">Choose which fields appear on invoices and packing slips.</p>
+            <p class="text-sm text-taupe mt-1">Choose page size and which fields appear on invoices and packing slips.</p>
         </div>
 
         <div class="grid sm:grid-cols-2 gap-6">
-            <div class="space-y-3">
+            <div class="space-y-4">
                 <h3 class="font-medium text-sm uppercase tracking-wider text-taupe">Invoice</h3>
+                <div>
+                    <label class="label" for="invoice_size">Page size</label>
+                    <select id="invoice_size" name="invoice_size" class="input">
+                        @foreach($printSizes as $size)
+                            <option value="{{ $size }}" @selected(old('invoice_size', $invoiceSize) === $size)>{{ $size }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 @php $selectedInvoice = old('invoice_fields', $invoiceFields); @endphp
-                @foreach(config('aura.print.invoice') as $key => $label)
-                    <label class="flex items-center gap-2 text-sm">
-                        <input
-                            type="checkbox"
-                            name="invoice_fields[]"
-                            value="{{ $key }}"
-                            @checked(in_array($key, $selectedInvoice, true))
-                        >
-                        {{ $label }}
-                    </label>
-                @endforeach
+                <div class="space-y-3">
+                    <p class="text-xs uppercase tracking-wider text-taupe">Visible fields</p>
+                    @foreach(config('aura.print.invoice') as $key => $label)
+                        <label class="flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                name="invoice_fields[]"
+                                value="{{ $key }}"
+                                @checked(in_array($key, $selectedInvoice, true))
+                            >
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
             </div>
 
-            <div class="space-y-3">
+            <div class="space-y-4">
                 <h3 class="font-medium text-sm uppercase tracking-wider text-taupe">Packing slip</h3>
+                <div>
+                    <label class="label" for="packing_slip_size">Page size</label>
+                    <select id="packing_slip_size" name="packing_slip_size" class="input">
+                        @foreach($printSizes as $size)
+                            <option value="{{ $size }}" @selected(old('packing_slip_size', $packingSlipSize) === $size)>{{ $size }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 @php $selectedPacking = old('packing_slip_fields', $packingSlipFields); @endphp
-                @foreach(config('aura.print.packing_slip') as $key => $label)
-                    <label class="flex items-center gap-2 text-sm">
-                        <input
-                            type="checkbox"
-                            name="packing_slip_fields[]"
-                            value="{{ $key }}"
-                            @checked(in_array($key, $selectedPacking, true))
-                        >
-                        {{ $label }}
-                    </label>
-                @endforeach
+                <div class="space-y-3">
+                    <p class="text-xs uppercase tracking-wider text-taupe">Visible fields</p>
+                    @foreach(config('aura.print.packing_slip') as $key => $label)
+                        <label class="flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                name="packing_slip_fields[]"
+                                value="{{ $key }}"
+                                @checked(in_array($key, $selectedPacking, true))
+                            >
+                            {{ $label }}
+                        </label>
+                    @endforeach
+                </div>
             </div>
         </div>
     </section>

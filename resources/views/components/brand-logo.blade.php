@@ -23,7 +23,7 @@
         <img
             src="{{ $logoUrl }}"
             alt="{{ $storeName }}"
-            class="{{ $height }} w-auto max-w-[200px] object-contain"
+            class="{{ $height }} w-auto max-w-[160px] sm:max-w-[200px] object-contain"
         >
     @endif
     @if($showName || ! $logoUrl)

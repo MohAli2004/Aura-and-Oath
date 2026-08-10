@@ -4,10 +4,11 @@
     'markAllUrl',
     'indexUrl',
     'align' => 'end',
+    'pollMs' => 15000,
 ])
 
 @php
-    $panelAlign = $align === 'start' ? 'start-0' : 'end-0';
+    $panelAlign = $align === 'start' ? 'sm:start-0 sm:end-auto' : 'sm:end-0 sm:start-auto';
 @endphp
 
 <div
@@ -17,28 +18,57 @@
         loading: false,
         unread: 0,
         items: [],
+        justArrived: false,
+        pollTimer: null,
         feedUrl: @js($feedUrl),
         markReadUrl: @js($markReadUrl),
         markAllUrl: @js($markAllUrl),
         csrf: @js(csrf_token()),
-        async refresh() {
+        pollMs: {{ (int) $pollMs }},
+        async refresh({ silent = true } = {}) {
             try {
+                if (! silent) this.loading = true;
                 const res = await fetch(this.feedUrl, {
                     headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     credentials: 'same-origin',
+                    cache: 'no-store',
                 });
-                if (!res.ok) return;
+                if (! res.ok) return;
                 const data = await res.json();
-                this.unread = data.unread_count ?? 0;
+                const nextUnread = data.unread_count ?? 0;
+                if (nextUnread > this.unread) {
+                    this.flashNew();
+                }
+                this.unread = nextUnread;
                 this.items = data.notifications ?? [];
-            } catch (e) {}
+            } catch (e) {
+            } finally {
+                if (! silent) this.loading = false;
+            }
+        },
+        flashNew() {
+            this.justArrived = true;
+            window.clearTimeout(this._flashTimer);
+            this._flashTimer = window.setTimeout(() => { this.justArrived = false; }, 2200);
+        },
+        startPolling() {
+            this.stopPolling();
+            this.pollTimer = window.setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    this.refresh({ silent: true });
+                }
+            }, this.pollMs);
+        },
+        stopPolling() {
+            if (this.pollTimer) {
+                window.clearInterval(this.pollTimer);
+                this.pollTimer = null;
+            }
         },
         async toggle() {
-            this.open = !this.open;
+            this.open = ! this.open;
             if (this.open) {
-                this.loading = true;
-                await this.refresh();
-                this.loading = false;
+                await this.refresh({ silent: false });
             }
         },
         async markRead(item) {
@@ -81,53 +111,97 @@
             } catch (e) {}
         },
     }"
-    x-init="refresh()"
+    x-init="
+        refresh({ silent: true });
+        startPolling();
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') refresh({ silent: true });
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('focus', onVisible);
+    "
     @keydown.escape.window="open = false"
     @click.outside="open = false"
 >
     <button
         type="button"
-        class="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm border border-beige bg-[#FFFCFA] px-2.5 text-charcoal hover:bg-beige/40 transition-colors"
+        class="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm border px-2.5 transition-colors duration-200"
+        :class="{
+            'border-charcoal bg-charcoal text-ivory hover:bg-[#1a1918]': unread > 0,
+            'border-beige bg-[#FFFCFA] text-charcoal hover:bg-beige/40': unread === 0,
+            'bell-ring': justArrived,
+        }"
         @click="toggle()"
         :aria-expanded="open.toString()"
-        aria-label="Notifications"
+        :aria-label="unread > 0 ? (unread + ' unread notification' + (unread === 1 ? '' : 's')) : 'Notifications'"
         title="Notifications"
     >
         <x-icon name="bell" class="w-5 h-5" />
         <span
             x-show="unread > 0"
             x-cloak
-            class="absolute -top-1.5 -end-1.5 min-w-[1.15rem] rounded-full bg-blush px-1 py-0.5 text-center text-[10px] font-medium leading-none text-white"
+            x-transition.opacity
+            class="absolute -top-1.5 -end-1.5 z-10 inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[#B85C5C] px-1.5 py-0.5 text-center text-[11px] font-semibold leading-none text-white shadow-sm ring-2 ring-[#FFFCFA]"
+            :class="justArrived ? 'scale-110' : ''"
             x-text="unread > 99 ? '99+' : unread"
         ></span>
     </button>
+
+    {{-- Mobile backdrop --}}
+    <div
+        x-show="open"
+        x-cloak
+        x-transition.opacity
+        class="fixed inset-0 z-[60] bg-charcoal/25 sm:hidden"
+        @click="open = false"
+        aria-hidden="true"
+    ></div>
 
     <div
         x-show="open"
         x-cloak
         x-transition:enter="transition ease-out duration-150"
-        x-transition:enter-start="opacity-0 translate-y-1"
+        x-transition:enter-start="opacity-0 translate-y-2 sm:translate-y-1"
         x-transition:enter-end="opacity-100 translate-y-0"
         x-transition:leave="transition ease-in duration-100"
         x-transition:leave-start="opacity-100 translate-y-0"
-        x-transition:leave-end="opacity-0 translate-y-1"
-        class="absolute {{ $panelAlign }} top-full z-50 mt-2 w-[min(22rem,calc(100vw-1.5rem))] border border-beige bg-[#FFFCFA] shadow-md"
+        x-transition:leave-end="opacity-0 translate-y-2 sm:translate-y-1"
+        class="fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] flex max-h-[min(32rem,calc(100dvh-1.5rem))] flex-col overflow-hidden border border-beige bg-[#FFFCFA] shadow-lg sm:absolute sm:inset-x-auto sm:top-full sm:z-50 sm:mt-2 sm:max-h-[min(28rem,70vh)] sm:w-[min(22rem,calc(100vw-1.5rem))] sm:shadow-md {{ $panelAlign }}"
         role="menu"
         aria-label="Notifications list"
+        @click.stop
     >
-        <div class="flex items-center justify-between gap-2 border-b border-beige px-3 py-2.5">
-            <span class="font-display text-lg text-charcoal">Notifications</span>
-            <button
-                type="button"
-                class="text-xs text-taupe hover:text-charcoal disabled:opacity-40"
-                @click="markAll()"
-                :disabled="unread === 0"
-            >
-                Mark all read
-            </button>
+        <div class="flex shrink-0 items-center justify-between gap-2 border-b border-beige px-3 py-2.5">
+            <span class="min-w-0 font-display text-base text-charcoal sm:text-lg">
+                Notifications
+                <span
+                    x-show="unread > 0"
+                    x-cloak
+                    class="ms-1 align-middle text-sm text-[#B85C5C]"
+                    x-text="'(' + unread + ')'"
+                ></span>
+            </span>
+            <div class="flex shrink-0 items-center gap-3">
+                <button
+                    type="button"
+                    class="text-xs text-taupe hover:text-charcoal disabled:opacity-40"
+                    @click="markAll()"
+                    :disabled="unread === 0"
+                >
+                    Mark all read
+                </button>
+                <button
+                    type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center text-taupe hover:text-charcoal sm:hidden"
+                    @click="open = false"
+                    aria-label="Close notifications"
+                >
+                    <x-icon name="close" class="w-4 h-4" />
+                </button>
+            </div>
         </div>
 
-        <div class="max-h-80 overflow-y-auto">
+        <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <template x-if="loading">
                 <p class="px-3 py-6 text-center text-sm text-taupe">Loading…</p>
             </template>
@@ -138,24 +212,24 @@
                 <button
                     type="button"
                     class="flex w-full flex-col gap-0.5 border-b border-beige/80 px-3 py-3 text-start transition-colors hover:bg-beige/30"
-                    :class="item.unread ? 'bg-ivory/80' : ''"
+                    :class="item.unread ? 'bg-[#F7F3EE] border-s-2 border-s-[#B85C5C]' : ''"
                     @click="markRead(item)"
                 >
                     <span class="flex items-start justify-between gap-2">
-                        <span class="text-sm font-medium text-charcoal" x-text="item.title"></span>
+                        <span class="min-w-0 break-words text-sm font-medium text-charcoal" x-text="item.title"></span>
                         <span
                             x-show="item.unread"
-                            class="mt-1 h-2 w-2 shrink-0 rounded-full bg-gold"
+                            class="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#B85C5C]"
                             aria-hidden="true"
                         ></span>
                     </span>
-                    <span class="text-xs leading-relaxed text-taupe" x-text="item.message"></span>
+                    <span class="break-words text-xs leading-relaxed text-taupe" x-text="item.message"></span>
                     <span class="mt-1 text-[11px] text-taupe/80" x-text="item.created_at"></span>
                 </button>
             </template>
         </div>
 
-        <div class="border-t border-beige px-3 py-2.5">
+        <div class="shrink-0 border-t border-beige px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
             <a href="{{ $indexUrl }}" class="text-xs text-taupe underline hover:text-charcoal">View all notifications</a>
         </div>
     </div>
