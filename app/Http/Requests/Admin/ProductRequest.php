@@ -21,7 +21,8 @@ class ProductRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'category_id' => ['nullable', 'exists:categories,id'],
+            'categories' => ['nullable', 'array'],
+            'categories.*' => ['integer', 'exists:categories,id'],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255'],
@@ -31,7 +32,7 @@ class ProductRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'ingredients' => ['nullable', 'string'],
             'how_to_use' => ['nullable', 'string'],
-            'price' => ['nullable', 'numeric', 'min:0'],
+            'price' => ['required', 'numeric', 'min:0'],
             'compare_at_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'stock_quantity' => ['nullable', 'integer', 'min:0'],
@@ -71,7 +72,6 @@ class ProductRequest extends FormRequest
             'is_featured' => $this->boolean('is_featured'),
             'is_bestseller' => $this->boolean('is_bestseller'),
             'is_new' => $this->boolean('is_new'),
-            'price' => $this->filled('price') ? $this->input('price') : 0,
             'stock_quantity' => $this->filled('stock_quantity') ? $this->input('stock_quantity') : 0,
             'low_stock_threshold' => $this->filled('low_stock_threshold') ? $this->input('low_stock_threshold') : 5,
             'status' => $this->filled('status') ? $this->input('status') : ProductStatus::Active->value,
@@ -84,6 +84,7 @@ class ProductRequest extends FormRequest
             'cost_price' => $this->filled('cost_price') ? $this->input('cost_price') : null,
             'size' => $this->filled('size') ? $this->input('size') : null,
             'unit' => in_array($unit, $allowedUnits, true) ? $unit : null,
+            'categories' => array_map('intval', $this->input('categories', []) ?: []),
         ]);
     }
 

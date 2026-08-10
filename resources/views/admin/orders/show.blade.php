@@ -15,31 +15,54 @@
                 <div class="text-taupe">{{ money($order->total) }} total</div>
             </div>
             @foreach($order->items as $item)
-                <div class="flex justify-between border-t border-beige py-3 text-sm">
-                    <div>
-                        <div>{{ $item->product_name }} @if($item->variant_name)— {{ $item->variant_name }}@endif</div>
-                        <div class="text-taupe">{{ $item->sku }} · {{ $item->barcode }} · qty {{ $item->quantity }}</div>
+                @php
+                    $images = app(\App\Services\ImageService::class);
+                    $imagePath = $item->variant?->image_path ?: $item->product?->primaryImagePath();
+                    $imageUrl = $images->url($imagePath);
+                @endphp
+                <div class="flex justify-between gap-4 border-t border-beige py-3 text-sm">
+                    <div class="flex gap-3 min-w-0">
+                        <div class="shrink-0 h-14 w-14 overflow-hidden border border-beige bg-beige/30">
+                            <img src="{{ $imageUrl }}" alt="{{ $item->product_name }}" class="h-full w-full object-cover">
+                        </div>
+                        <div class="min-w-0">
+                            <div>{{ $item->product_name }} @if($item->variant_name)— {{ $item->variant_name }}@endif</div>
+                            <div class="text-taupe">{{ $item->sku }} · {{ $item->barcode }} · qty {{ $item->quantity }}</div>
+                        </div>
                     </div>
-                    <div>{{ money($item->line_total) }}</div>
+                    <div class="shrink-0">{{ money($item->line_total) }}</div>
                 </div>
             @endforeach
         </div>
 
         <div class="flex flex-wrap gap-2">
-            <a class="btn btn-secondary" href="{{ route('admin.orders.invoice', $order) }}" target="_blank">Invoice</a>
-            <a class="btn btn-secondary" href="{{ route('admin.orders.packing-slip', $order) }}" target="_blank">Packing slip</a>
+            <a class="btn btn-secondary" href="{{ route('admin.orders.invoice', $order) }}" target="_blank">
+                <x-icon name="invoice" /> Invoice
+            </a>
+            <a class="btn btn-secondary" href="{{ route('admin.orders.packing-slip', $order) }}" target="_blank">
+                <x-icon name="packing-slip" /> Packing slip
+            </a>
             @if($order->status === \App\Enums\OrderStatus::PendingApproval)
-                <form method="POST" action="{{ route('admin.orders.approve', $order) }}">@csrf<button class="btn btn-primary" type="submit">Approve</button></form>
+                <form method="POST" action="{{ route('admin.orders.approve', $order) }}">
+                    @csrf
+                    <button class="btn btn-primary" type="submit">
+                        <x-icon name="check" /> Approve
+                    </button>
+                </form>
                 <form method="POST" action="{{ route('admin.orders.reject', $order) }}" class="flex gap-2">
                     @csrf
                     <input class="input" name="reason" placeholder="Rejection reason" required>
-                    <button class="btn btn-danger" type="submit">Reject</button>
+                    <button class="btn btn-danger" type="submit">
+                        <x-icon name="x" /> Reject
+                    </button>
                 </form>
             @endif
             @if($order->payment_status !== \App\Enums\PaymentStatus::Paid)
                 <form method="POST" action="{{ route('admin.orders.mark-paid', $order) }}">
                     @csrf
-                    <button class="btn btn-secondary" type="submit">Mark payment paid</button>
+                    <button class="btn btn-secondary" type="submit">
+                        <x-icon name="payment" /> Mark payment paid
+                    </button>
                 </form>
             @endif
         </div>
@@ -54,7 +77,9 @@
             </select>
             <input class="input" name="tracking_number" placeholder="Tracking number" value="{{ $order->tracking_number }}">
             <input class="input" name="note" placeholder="Note">
-            <button class="btn btn-secondary" type="submit" @disabled(count($order->status->allowedTransitions())===0)>Update</button>
+            <button class="btn btn-secondary" type="submit" @disabled(count($order->status->allowedTransitions())===0)>
+                <x-icon name="refresh" /> Update
+            </button>
         </form>
 
         @if(in_array($order->status, [\App\Enums\OrderStatus::OnTheWay, \App\Enums\OrderStatus::Delivered], true))
@@ -63,7 +88,9 @@
                 <h2 class="font-display text-xl">Confirm return</h2>
                 <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="resellable" value="1" checked> Restock as resellable</label>
                 <input class="input" name="note" placeholder="Note">
-                <button class="btn btn-secondary" type="submit">Process return</button>
+                <button class="btn btn-secondary" type="submit">
+                    <x-icon name="return" /> Process return
+                </button>
             </form>
         @endif
     </div>
@@ -86,7 +113,9 @@
             <h2 class="font-display text-xl">Add note</h2>
             <textarea name="body" class="input" rows="3" required></textarea>
             <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="is_customer_visible" value="1"> Visible to customer</label>
-            <button class="btn btn-secondary" type="submit">Save note</button>
+            <button class="btn btn-secondary" type="submit">
+                <x-icon name="note" /> Save note
+            </button>
         </form>
         @foreach($order->notes as $note)
             <div class="text-sm border-b border-beige py-2">{{ $note->body }} <span class="text-taupe">{{ $note->is_customer_visible ? '(customer)' : '(internal)' }}</span></div>

@@ -30,10 +30,15 @@ class LowStockNotification extends Notification implements ShouldQueue
 
     public function toArray(object $notifiable): array
     {
+        $available = $this->product->availableStock();
+
         return [
+            'title' => 'Low stock alert',
+            'message' => $this->product->name.' ('.$this->product->sku.') has '.$available.' available.',
+            'url' => route('admin.inventory.index'),
             'product_id' => $this->product->id,
             'sku' => $this->product->sku,
-            'available' => $this->product->availableStock(),
+            'available' => $available,
         ];
     }
 }

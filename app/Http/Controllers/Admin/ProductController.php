@@ -50,7 +50,6 @@ class ProductController extends Controller
                 'status' => ProductStatus::Active,
                 'visibility' => ProductVisibility::Public,
                 'gender' => ProductGender::Unisex,
-                'price' => 0,
                 'is_new' => true,
             ]),
             'categories' => Category::query()->orderBy('name')->get(),
@@ -62,7 +61,10 @@ class ProductController extends Controller
 
     public function store(ProductRequest $request): RedirectResponse
     {
-        $data = $request->safe()->except(['image', 'variant_images', 'pending_image', 'pending_variant_images']);
+        $data = $request->safe()->except(['image', 'variant_images', 'pending_image', 'pending_variant_images', 'categories']);
+        $categoryIds = array_values(array_unique(array_map('intval', $request->input('categories', []) ?: [])));
+        $data['category_id'] = $categoryIds[0] ?? null;
+
         if (empty($data['sku'])) {
             $data['sku'] = $this->barcodes->generateSku();
         }
@@ -80,6 +82,7 @@ class ProductController extends Controller
 
         $data['slug'] = $data['slug'] ?? Str::slug($data['name']).'-'.Str::lower(Str::random(4));
         $product = Product::query()->create($data);
+        $product->categories()->sync($categoryIds);
 
         if ($hasVariants) {
             $variantIds = $this->variants->syncVariants($product, $variants);
@@ -98,7 +101,7 @@ class ProductController extends Controller
 
     public function edit(Product $product): View
     {
-        $product->load(['images', 'variants.attributeValues.attribute']);
+        $product->load(['images', 'variants.attributeValues.attribute', 'categories']);
 
         return view('admin.products.form', [
             'product' => $product,
@@ -111,7 +114,9 @@ class ProductController extends Controller
 
     public function update(ProductRequest $request, Product $product): RedirectResponse
     {
-        $data = $request->safe()->except(['image', 'variant_images', 'pending_image', 'pending_variant_images']);
+        $data = $request->safe()->except(['image', 'variant_images', 'pending_image', 'pending_variant_images', 'categories']);
+        $categoryIds = array_values(array_unique(array_map('intval', $request->input('categories', []) ?: [])));
+        $data['category_id'] = $categoryIds[0] ?? null;
         // Keep the existing SKU; do not require manual entry on edit.
         $data['sku'] = $product->sku;
 
@@ -126,6 +131,7 @@ class ProductController extends Controller
         }
 
         $product->update($data);
+        $product->categories()->sync($categoryIds);
 
         if ($hasVariants) {
             $variantIds = $this->variants->syncVariants($product, $variants);

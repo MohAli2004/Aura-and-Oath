@@ -13,7 +13,7 @@ class ProductController extends Controller
     public function show(Request $request, string $slug): View
     {
         $product = Product::query()
-            ->with(['images', 'brand', 'category', 'activeVariants.attributeValues.attribute'])
+            ->with(['images', 'brand', 'categories', 'activeVariants.attributeValues.attribute'])
             ->active()
             ->published()
             ->where('slug', $slug)
@@ -31,11 +31,16 @@ class ProductController extends Controller
             $request->session()->put($recentKey, true);
         }
 
+        $categoryIds = $product->categories->pluck('id');
         $related = Product::query()
             ->with(['images', 'brand', 'activeVariants'])
             ->active()
             ->published()
-            ->where('category_id', $product->category_id)
+            ->when(
+                $categoryIds->isNotEmpty(),
+                fn ($q) => $q->whereHas('categories', fn ($c) => $c->whereIn('categories.id', $categoryIds)),
+                fn ($q) => $q->whereRaw('0 = 1')
+            )
             ->where('id', '!=', $product->id)
             ->take(4)
             ->get();

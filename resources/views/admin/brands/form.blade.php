@@ -11,7 +11,6 @@
     action="{{ $brand->exists ? route('admin.brands.update', $brand) : route('admin.brands.store') }}"
     enctype="multipart/form-data"
     class="max-w-xl space-y-4"
-    x-data="{ preview: @js($initialPreview) }"
 >
     @csrf @if($brand->exists) @method('PUT') @endif
     <x-input label="Name" name="name" value="{{ old('name', $brand->name) }}" required />
@@ -22,24 +21,49 @@
     </div>
     <x-input label="Website" name="website" value="{{ old('website', $brand->website) }}" />
 
+    @php
+        $selectedCategoryIds = collect(old('categories', $brand->exists ? $brand->categories->pluck('id')->all() : []))
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    @endphp
     <div>
-        <label class="label" for="logo">Brand image / logo</label>
-        <input
-            id="logo"
-            type="file"
+        <span class="label">Categories</span>
+        <p class="mb-2 text-xs text-taupe leading-snug">Select one or more categories for this brand.</p>
+        @if($categories->isEmpty())
+            <p class="text-sm text-taupe">No categories yet. Create categories first.</p>
+        @else
+            <div class="max-h-48 space-y-2 overflow-y-auto border border-beige bg-ivory/40 p-3">
+                @foreach($categories as $category)
+                    <label class="flex gap-2 text-sm">
+                        <input
+                            type="checkbox"
+                            name="categories[]"
+                            value="{{ $category->id }}"
+                            @checked(in_array($category->id, $selectedCategoryIds, true))
+                        >
+                        {{ $category->name }}
+                    </label>
+                @endforeach
+            </div>
+        @endif
+        @error('categories')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
+        @error('categories.*')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
+    </div>
+
+    <div>
+        <span class="label" id="logo-label">Brand image / logo</span>
+        <x-admin.image-upload
             name="logo"
-            class="input"
+            id="logo"
+            frame="square-lg"
+            alt="Brand logo preview"
+            empty="No logo — click to upload"
+            :src="$initialPreview"
             accept=".png,image/png,.jpg,.jpeg,image/jpeg,.webp,image/webp,.svg,image/svg+xml,.gif,image/gif"
-            @change="preview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : preview"
-        >
+            aria-labelledby="logo-label"
+        />
         <p class="mt-1 text-xs text-taupe leading-snug">PNG recommended (also JPG, WebP, SVG). Shown in the brands list and storefront.</p>
         @error('logo')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
-        <div class="mt-3 flex items-center gap-3" x-show="preview" x-cloak>
-            <div class="h-16 w-16 shrink-0 overflow-hidden border border-beige bg-ivory/60">
-                <img :src="preview" alt="Brand logo preview" class="h-full w-full object-contain">
-            </div>
-            <span class="text-xs text-taupe">Preview</span>
-        </div>
     </div>
 
     <x-input label="Sort order" name="sort_order" type="number" value="{{ old('sort_order', $brand->sort_order ?? 0) }}" />

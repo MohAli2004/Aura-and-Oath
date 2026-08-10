@@ -466,6 +466,12 @@
                         this.formError = 'Variant ' + (i + 1) + ': stock is required (use 0 if none).';
                         return false;
                     }
+                    if (variant.price === '' || variant.price === null || Number.isNaN(Number(variant.price)) || Number(variant.price) < 0) {
+                        event.preventDefault();
+                        this.tab = 'variants';
+                        this.formError = 'Variant ' + (i + 1) + ': price is required (set the main price first, or enter one here).';
+                        return false;
+                    }
                 }
 
                 const defaultVariant = this.variants.find((variant) => variant.is_default) || this.variants[0];
@@ -576,16 +582,34 @@
                 </p>
             </div>
             <div>
-                <label class="label" for="category_id">
-                    Category <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
-                </label>
-                <select id="category_id" name="category_id" class="input">
-                    <option value="">—</option>
-                    @foreach($categories as $cat)
-                        <option value="{{ $cat->id }}" @selected(old('category_id', $product->category_id)==$cat->id)>{{ $cat->name }}</option>
-                    @endforeach
-                </select>
-                <p class="mt-1 text-xs text-taupe leading-snug">Shop group this product belongs to (e.g. Serums, Face Care).</p>
+                <span class="label">
+                    Categories <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
+                </span>
+                <p class="mb-2 text-xs text-taupe leading-snug">Select one or more shop groups this product belongs to (e.g. Serums, Face Care).</p>
+                @php
+                    $selectedCategoryIds = collect(old('categories', $product->exists ? $product->categories->pluck('id')->all() : []))
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+                @endphp
+                @if($categories->isEmpty())
+                    <p class="text-sm text-taupe">No categories yet. Create categories first.</p>
+                @else
+                    <div class="max-h-48 space-y-2 overflow-y-auto border border-beige bg-ivory/40 p-3">
+                        @foreach($categories as $category)
+                            <label class="flex gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    name="categories[]"
+                                    value="{{ $category->id }}"
+                                    @checked(in_array($category->id, $selectedCategoryIds, true))
+                                >
+                                {{ $category->name }}
+                            </label>
+                        @endforeach
+                    </div>
+                @endif
+                @error('categories')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
+                @error('categories.*')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
             </div>
             <div>
                 <label class="label" for="brand_id">
@@ -646,19 +670,24 @@
         <div x-show="tab==='pricing'" class="grid sm:grid-cols-2 gap-4">
             <div>
                 <label class="label" for="price">
-                    Price <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
+                    Price <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required</span>
                 </label>
                 <input
                     id="price"
                     class="input"
                     type="number"
                     step="0.01"
+                    min="0"
                     name="price"
                     x-model="mainPrice"
                     @input="onMainPriceInput($event)"
                     value="{{ old('price', $product->price) }}"
+                    data-required="true"
+                    data-required-tab="pricing"
+                    data-required-label="Price"
                 >
-                <p class="mt-1 text-xs text-taupe leading-snug">Main selling price (USD). New variants copy this price automatically (you can still change each one).</p>
+                @error('price')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
+                <p class="mt-1 text-xs text-taupe leading-snug">Main selling price (USD). Required for every product. New variants copy this price automatically (you can still change each one).</p>
             </div>
             <x-input
                 label="Compare at"
@@ -769,26 +798,26 @@
                 <p>When this product has variants, the storefront shows the image of the variant marked <strong>Show first</strong>. Upload option images in the Variants tab.</p>
             </div>
             <div x-show="!hasVariants" x-cloak>
-                <label class="label" for="image">
+                <span class="label" id="product-image-label">
                     Product image <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required</span>
-                </label>
-                <p class="mb-3 text-xs text-taupe leading-snug">Upload a clear photo of the product. A new upload replaces the previous image.</p>
-                <div class="mb-3 w-40 aspect-square overflow-hidden border border-beige bg-beige/30">
-                    <img x-show="imagePreview" x-cloak :src="imagePreview" alt="Product image preview" class="h-full w-full object-cover">
-                    <div x-show="!imagePreview" class="flex h-full items-center justify-center px-3 text-center text-sm text-taupe">No image</div>
-                </div>
-                <input
-                    id="image"
-                    type="file"
+                </span>
+                <p class="mb-3 text-xs text-taupe leading-snug">Upload a clear photo of the product. A new upload replaces the previous image. Click the preview to choose a file.</p>
+                <x-admin.image-upload
+                    alpine="imagePreview"
+                    frame="square-md"
+                    fit="contain"
+                    alt="Product image preview"
+                    empty="Click to upload"
                     name="image"
+                    id="image"
                     accept="image/*"
-                    class="input"
                     data-required="true"
                     data-required-when="no-variants"
                     data-required-tab="media"
                     data-required-label="Product image"
-                    @change="onImageFile($event)"
-                >
+                    aria-labelledby="product-image-label"
+                    x-on:change="onImageFile($event)"
+                />
             </div>
         </div>
 
@@ -934,7 +963,7 @@
                                 </div>
                                 <div>
                                     <label class="label">
-                                        Price <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
+                                        Price <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required</span>
                                     </label>
                                     <input
                                         class="input"
@@ -960,7 +989,7 @@
                                     >
                                     <p class="mt-1 text-xs text-taupe">Auto-filled from main cost; admin only.</p>
                                 </div>
-                                <div>
+                            <div>
                                     <label class="label">
                                         Stock <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required</span>
                                     </label>
@@ -987,26 +1016,25 @@
                             </div>
 
                             <div class="pt-1 border-t border-beige space-y-2">
-                                <label class="label">
+                                <span class="label">
                                     Option image
                                     <span
                                         class="normal-case tracking-wide text-[10px] font-normal"
                                         :class="variant.is_default ? 'text-blush' : 'text-taupe'"
                                         x-text="variant.is_default ? 'Required for Show first' : 'Optional'"
                                     ></span>
-                                </label>
-                                <p class="text-xs text-taupe">Photo for this option. The “Show first” option’s image replaces the main product image.</p>
-                                <div class="w-28 aspect-square overflow-hidden border border-beige bg-beige/30">
-                                    <img x-show="variant.imagePreview" x-cloak :src="variant.imagePreview" alt="" class="h-full w-full object-cover">
-                                    <div x-show="!variant.imagePreview" class="flex h-full items-center justify-center px-2 text-center text-xs text-taupe">No image</div>
-                                </div>
-                                <input
-                                    type="file"
+                                </span>
+                                <p class="text-xs text-taupe">Photo for this option. The “Show first” option’s image replaces the main product image. Click the preview to upload.</p>
+                                <x-admin.image-upload
+                                    alpine="variant.imagePreview"
+                                    frame="square-sm"
+                                    fit="contain"
+                                    alt="Variant image preview"
+                                    empty="Click to upload"
                                     accept="image/*"
-                                    class="input"
-                                    :name="'variant_images[' + index + ']'"
-                                    @change="onVariantImage($event, index)"
-                                >
+                                    x-bind:name="'variant_images[' + index + ']'"
+                                    x-on:change="onVariantImage($event, index)"
+                                />
                             </div>
                         </div>
                     </template>

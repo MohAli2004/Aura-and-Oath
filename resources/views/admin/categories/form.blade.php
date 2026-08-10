@@ -1,12 +1,16 @@
 @extends('layouts.admin')
 @section('heading', $category->exists ? 'Edit category' : 'New category')
 @section('content')
+@php
+    $hasCustomIcon = filled($category->image_path)
+        && ! str_contains((string) $category->image_path, 'placeholders/category');
+    $initialPreview = $hasCustomIcon ? $category->iconUrl() : null;
+@endphp
 <form
     method="POST"
     action="{{ $category->exists ? route('admin.categories.update', $category) : route('admin.categories.store') }}"
     enctype="multipart/form-data"
     class="max-w-xl space-y-4"
-    x-data="{ preview: @js($category->exists ? $category->iconUrl() : null) }"
 >
     @csrf @if($category->exists) @method('PUT') @endif
     <x-input label="Name" name="name" value="{{ old('name', $category->name) }}" required />
@@ -19,23 +23,19 @@
     <div><label class="label">Description</label><textarea name="description" class="input" rows="3">{{ old('description', $category->description) }}</textarea></div>
 
     <div>
-        <label class="label" for="icon">Icon</label>
-        <input
-            id="icon"
-            type="file"
+        <span class="label" id="icon-label">Icon</span>
+        <x-admin.image-upload
             name="icon"
-            class="input"
+            id="icon"
+            frame="square-sm"
+            alt="Category icon preview"
+            empty="Click to upload"
+            :src="$initialPreview"
             accept=".png,image/png,.jpg,.jpeg,image/jpeg,.webp,image/webp,.svg,image/svg+xml,.gif,image/gif"
-            @change="preview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : preview"
-        >
+            aria-labelledby="icon-label"
+        />
         <p class="mt-1 text-xs text-taupe leading-snug">PNG recommended (also JPG, WebP, SVG). Shown in shop navigation and category cards.</p>
         @error('icon')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
-        <div class="mt-3 flex items-center gap-3" x-show="preview" x-cloak>
-            <div class="flex h-14 w-14 items-center justify-center border border-beige bg-ivory/60 p-2">
-                <img :src="preview" alt="Category icon preview" class="max-h-full max-w-full object-contain">
-            </div>
-            <span class="text-xs text-taupe">Preview</span>
-        </div>
     </div>
 
     <x-input label="Sort order" name="sort_order" type="number" value="{{ old('sort_order', $category->sort_order ?? 0) }}" />

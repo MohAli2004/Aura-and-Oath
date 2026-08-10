@@ -16,8 +16,8 @@
         <div class="flex items-center justify-between gap-3 border-b border-beige p-3 text-sm">
             <div class="flex items-center gap-3 min-w-0">
                 <x-admin.bulk-checkbox :id="$category->id" />
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center border border-beige bg-ivory/60 p-1.5">
-                    <img src="{{ $category->iconUrl() }}" alt="" class="max-h-full max-w-full object-contain">
+                <div class="h-10 w-10 shrink-0 overflow-hidden border border-beige bg-ivory/60">
+                    <img src="{{ $category->iconUrl() }}" alt="" class="h-full w-full object-contain">
                 </div>
                 <div class="truncate">{{ $category->name }} @if($category->parent)<span class="text-taupe">/ {{ $category->parent->name }}</span>@endif</div>
             </div>

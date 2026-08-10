@@ -54,14 +54,28 @@ class DatabaseSeeder extends Seeder
     {
         $rows = [
             ['group' => 'general', 'key' => 'store_name', 'value' => 'Aura & Oath', 'type' => 'string', 'is_public' => true],
-            ['group' => 'general', 'key' => 'support_email', 'value' => 'hello@auraandoath.com', 'type' => 'string', 'is_public' => true],
+            ['group' => 'general', 'key' => 'support_email', 'value' => 'auraandouth@gmail.com', 'type' => 'string', 'is_public' => true],
             ['group' => 'general', 'key' => 'logo_path', 'value' => '', 'type' => 'string', 'is_public' => true],
             ['group' => 'general', 'key' => 'favicon_path', 'value' => '', 'type' => 'string', 'is_public' => true],
             ['group' => 'general', 'key' => 'home_background_path', 'value' => '', 'type' => 'string', 'is_public' => true],
             ['group' => 'store', 'key' => 'tax_rate', 'value' => '0', 'type' => 'decimal', 'is_public' => true],
             ['group' => 'store', 'key' => 'currency', 'value' => 'USD', 'type' => 'string', 'is_public' => true],
             ['group' => 'store', 'key' => 'currency_symbol', 'value' => '$', 'type' => 'string', 'is_public' => true],
-            ['group' => 'shipping', 'key' => 'default_delivery_note', 'value' => 'Delivery within 2–5 business days.', 'type' => 'string', 'is_public' => true],
+            ['group' => 'shipping', 'key' => 'default_delivery_note', 'value' => 'Delivery within Lebanon in 1–3 business days, depending on distance.', 'type' => 'string', 'is_public' => true],
+            [
+                'group' => 'print',
+                'key' => 'invoice_fields',
+                'value' => json_encode(array_keys(config('aura.print.invoice', []))),
+                'type' => 'json',
+                'is_public' => false,
+            ],
+            [
+                'group' => 'print',
+                'key' => 'packing_slip_fields',
+                'value' => json_encode(array_keys(config('aura.print.packing_slip', []))),
+                'type' => 'json',
+                'is_public' => false,
+            ],
         ];
 
         foreach ($rows as $row) {
@@ -304,6 +318,8 @@ class DatabaseSeeder extends Seeder
                 ]
             );
 
+            $product->categories()->sync([$categories[$i % $categories->count()]->id]);
+
             ProductImage::query()->updateOrCreate(
                 ['product_id' => $product->id, 'is_primary' => true],
                 [
@@ -483,8 +499,8 @@ class DatabaseSeeder extends Seeder
         foreach ([
             ['Privacy Policy', 'privacy-policy', 'We respect your privacy. This policy explains how Aura & Oath collects and uses information.'],
             ['Terms of Service', 'terms-of-service', 'By shopping with Aura & Oath you agree to these terms.'],
-            ['Shipping Policy', 'shipping-policy', 'We deliver across Lebanon. Fees depend on your area: Beirut Central ($3), Metn & Coastal Suburbs ($5), Mountain & Southern Coastal ($6), Major Cities North & South ($7), and Remote & Eastern Districts ($8). Delivery times vary by region.'],
-            ['Returns Policy', 'returns-policy', 'Returns are accepted for eligible items within 14 days, subject to inspection.'],
+            ['Shipping Policy', 'shipping-policy', 'We deliver across Lebanon. Fees depend on your area: Beirut Central ($3), Metn & Coastal Suburbs ($5), Mountain & Southern Coastal ($6), Major Cities North & South ($7), and Remote & Eastern Districts ($8). Delivery takes 1–3 business days depending on distance.'],
+            ['Returns Policy', 'returns-policy', 'Returns are accepted for eligible items within 24 hours, subject to inspection.'],
         ] as [$title, $slug, $content]) {
             Page::query()->updateOrCreate(
                 ['slug' => $slug],

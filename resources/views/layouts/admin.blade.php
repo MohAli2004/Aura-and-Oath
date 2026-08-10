@@ -36,6 +36,7 @@
             ['admin.banners.index', 'Banners', 'banners'],
         ],
         'System' => [
+            ['admin.notifications.index', 'Notifications', 'bell'],
             ['admin.settings.edit', 'Settings', 'settings'],
             ['admin.audit-logs.index', 'Audit Log', 'audit'],
         ],
@@ -143,7 +144,15 @@
                 </button>
                 <h1 class="font-display truncate text-xl sm:text-2xl">@yield('heading', 'Admin')</h1>
             </div>
-            <div class="truncate text-xs text-taupe sm:text-sm">{{ auth()->user()->name }}</div>
+            <div class="flex items-center gap-3">
+                <x-notification-bell
+                    :feed-url="route('admin.notifications.feed')"
+                    :mark-read-url="route('admin.notifications.read', ['id' => '__ID__'])"
+                    :mark-all-url="route('admin.notifications.read-all')"
+                    :index-url="route('admin.notifications.index')"
+                />
+                <div class="truncate text-xs text-taupe sm:text-sm">{{ auth()->user()->name }}</div>
+            </div>
         </header>
 
         <div class="p-3 sm:p-6">

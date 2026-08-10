@@ -36,6 +36,9 @@ class OrderStatusChangedNotification extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
+            'title' => 'Order '.$this->to->label(),
+            'message' => 'Order '.$this->order->order_number.' updated from '.$this->from->label().' to '.$this->to->label().'.',
+            'url' => route('account.orders.show', $this->order),
             'order_id' => $this->order->id,
             'order_number' => $this->order->order_number,
             'from' => $this->from->value,

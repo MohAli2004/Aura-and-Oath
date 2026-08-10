@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
@@ -54,12 +55,19 @@ class Brand extends Model
     public static function flushStorefrontCache(): void
     {
         Cache::forget('storefront.shop_brands');
+        Cache::forget('storefront.nav_brands');
+        Cache::forget('storefront.nav_brands_total');
         Cache::forget('storefront.home');
     }
 
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class);
     }
 
     public function scopeActive(Builder $query): Builder

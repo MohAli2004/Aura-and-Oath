@@ -75,3 +75,37 @@ if (! function_exists('store_home_background_url')) {
         return asset('images/home-hero.png');
     }
 }
+
+if (! function_exists('print_fields')) {
+    /**
+     * @return list<string>
+     */
+    function print_fields(string $document): array
+    {
+        $available = array_keys(config("aura.print.{$document}", []));
+        $stored = setting("{$document}_fields");
+
+        if (! is_array($stored)) {
+            return $available;
+        }
+
+        // Legacy: customer_contact covered name + email + phone.
+        if ($document === 'invoice' && in_array('customer_contact', $stored, true)) {
+            $stored = array_merge($stored, ['customer_name', 'customer_email', 'customer_phone']);
+        }
+
+        // Legacy: ship_to included the customer/recipient name.
+        if (in_array('ship_to', $stored, true) && ! in_array('customer_name', $stored, true)) {
+            $stored[] = 'customer_name';
+        }
+
+        return array_values(array_intersect($available, $stored));
+    }
+}
+
+if (! function_exists('print_shows')) {
+    function print_shows(string $document, string $field): bool
+    {
+        return in_array($field, print_fields($document), true);
+    }
+}

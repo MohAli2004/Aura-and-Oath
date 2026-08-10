@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Admin\Concerns\BulkDestroysResources;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
+use App\Models\Category;
 use App\Models\Product;
 use App\Services\ImageService;
 use Illuminate\Http\RedirectResponse;
@@ -27,31 +28,44 @@ class BrandController extends Controller
 
     public function create(): View
     {
-        return view('admin.brands.form', ['brand' => new Brand(['is_active' => true])]);
+        return view('admin.brands.form', [
+            'brand' => new Brand(['is_active' => true]),
+            'categories' => Category::query()->orderBy('name')->get(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
+        $categoryIds = $data['categories'] ?? [];
+        unset($data['categories']);
         $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
 
         if ($request->hasFile('logo')) {
             $data['logo_path'] = $this->images->store($request->file('logo'), 'brands');
         }
 
-        Brand::query()->create($data);
+        $brand = Brand::query()->create($data);
+        $brand->categories()->sync($categoryIds);
 
         return redirect()->route('admin.brands.index')->with('success', 'Brand created.');
     }
 
     public function edit(Brand $brand): View
     {
-        return view('admin.brands.form', compact('brand'));
+        $brand->load('categories');
+
+        return view('admin.brands.form', [
+            'brand' => $brand,
+            'categories' => Category::query()->orderBy('name')->get(),
+        ]);
     }
 
     public function update(Request $request, Brand $brand): RedirectResponse
     {
         $data = $this->validated($request);
+        $categoryIds = $data['categories'] ?? [];
+        unset($data['categories']);
 
         if ($request->hasFile('logo')) {
             if ($brand->logo_path && ! str_starts_with($brand->logo_path, 'images/')) {
@@ -61,6 +75,7 @@ class BrandController extends Controller
         }
 
         $brand->update($data);
+        $brand->categories()->sync($categoryIds);
 
         return redirect()->route('admin.brands.index')->with('success', 'Brand updated.');
     }
@@ -102,6 +117,8 @@ class BrandController extends Controller
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
             'is_featured' => ['nullable', 'boolean'],
+            'categories' => ['nullable', 'array'],
+            'categories.*' => ['integer', 'exists:categories,id'],
             'logo' => [
                 'nullable',
                 'file',
@@ -112,6 +129,7 @@ class BrandController extends Controller
         ]);
         $data['is_active'] = $request->boolean('is_active');
         $data['is_featured'] = $request->boolean('is_featured');
+        $data['categories'] = array_map('intval', $data['categories'] ?? []);
         unset($data['logo']);
 
         return $data;

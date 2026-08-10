@@ -19,9 +19,17 @@ class SettingController extends Controller
 
     public function edit(): View
     {
+        $hiddenKeys = [
+            'logo_path',
+            'favicon_path',
+            'home_background_path',
+            'invoice_fields',
+            'packing_slip_fields',
+        ];
+
         return view('admin.settings.edit', [
             'settings' => Setting::query()
-                ->whereNotIn('key', ['logo_path', 'favicon_path', 'home_background_path'])
+                ->whereNotIn('key', $hiddenKeys)
                 ->orderBy('group')
                 ->orderBy('key')
                 ->get(),
@@ -31,14 +39,23 @@ class SettingController extends Controller
             'logoUrl' => store_logo_url(),
             'faviconUrl' => store_favicon_url(),
             'homeBackgroundUrl' => store_home_background_url(),
+            'invoiceFields' => print_fields('invoice'),
+            'packingSlipFields' => print_fields('packing_slip'),
         ]);
     }
 
     public function update(Request $request): RedirectResponse
     {
+        $invoiceKeys = array_keys(config('aura.print.invoice', []));
+        $packingKeys = array_keys(config('aura.print.packing_slip', []));
+
         $data = $request->validate([
             'settings' => ['nullable', 'array'],
             'settings.*' => ['nullable'],
+            'invoice_fields' => ['nullable', 'array'],
+            'invoice_fields.*' => ['string', 'in:'.implode(',', $invoiceKeys)],
+            'packing_slip_fields' => ['nullable', 'array'],
+            'packing_slip_fields.*' => ['string', 'in:'.implode(',', $packingKeys)],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,svg', 'max:10240'],
             'favicon' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,ico,svg', 'max:2048'],
             'home_background' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
@@ -48,7 +65,13 @@ class SettingController extends Controller
         ]);
 
         foreach ($data['settings'] ?? [] as $key => $value) {
-            if (in_array($key, ['logo_path', 'favicon_path', 'home_background_path'], true)) {
+            if (in_array($key, [
+                'logo_path',
+                'favicon_path',
+                'home_background_path',
+                'invoice_fields',
+                'packing_slip_fields',
+            ], true)) {
                 continue;
             }
 
@@ -57,6 +80,22 @@ class SettingController extends Controller
             $group = $existing?->group ?? 'general';
             $this->settings->set($key, $value ?? '', $type, $group, $existing?->is_public ?? true);
         }
+
+        $this->settings->set(
+            'invoice_fields',
+            array_values(array_intersect($invoiceKeys, $data['invoice_fields'] ?? [])),
+            'json',
+            'print',
+            false,
+        );
+
+        $this->settings->set(
+            'packing_slip_fields',
+            array_values(array_intersect($packingKeys, $data['packing_slip_fields'] ?? [])),
+            'json',
+            'print',
+            false,
+        );
 
         if ($request->boolean('remove_logo')) {
             $this->images->delete($this->settings->get('logo_path'));

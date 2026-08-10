@@ -33,11 +33,11 @@ class ProductSearchService
         }
 
         if (! empty($filters['category'])) {
-            $query->whereHas('category', fn (Builder $b) => $b->where('slug', $filters['category']));
+            $query->whereHas('categories', fn (Builder $b) => $b->where('slug', $filters['category']));
         }
 
         if (! empty($filters['category_id'])) {
-            $query->where('category_id', $filters['category_id']);
+            $query->whereHas('categories', fn (Builder $b) => $b->where('categories.id', $filters['category_id']));
         }
 
         if (! empty($filters['brand'])) {
@@ -82,7 +82,7 @@ class ProductSearchService
 
     public function adminSearch(array $filters = [], int $perPage = 20): LengthAwarePaginator
     {
-        $query = Product::query()->with(['category', 'brand', 'images', 'activeVariants']);
+        $query = Product::query()->with(['categories', 'brand', 'images', 'activeVariants']);
 
         if (! empty($filters['q'])) {
             $q = trim((string) $filters['q']);
@@ -103,7 +103,7 @@ class ProductSearchService
         }
 
         if (! empty($filters['category_id'])) {
-            $query->where('category_id', $filters['category_id']);
+            $query->whereHas('categories', fn (Builder $b) => $b->where('categories.id', $filters['category_id']));
         }
 
         if (! empty($filters['gender'])) {

@@ -4,55 +4,345 @@
     <meta charset="utf-8">
     <title>Invoice {{ $order->order_number }}</title>
     <style>
-        body { font-family: Georgia, 'Times New Roman', serif; padding: 40px; color: #2C2A28; }
-        .brand { font-size: 28px; margin: 0; }
-        .muted { color: #8B7E74; }
-        table { width: 100%; border-collapse: collapse; margin-top: 24px; }
-        th, td { border-bottom: 1px solid #E8DFD4; padding: 10px 8px; text-align: left; font-family: 'Segoe UI', sans-serif; font-size: 14px; }
-        .totals { margin-top: 24px; width: 280px; margin-left: auto; font-family: 'Segoe UI', sans-serif; font-size: 14px; }
-        .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
-        .totals .grand { font-weight: 600; border-top: 1px solid #E8DFD4; margin-top: 8px; padding-top: 8px; }
-        .no-print { margin-bottom: 16px; }
-        @media print { .no-print { display: none !important; } }
+        @page { size: A4 portrait; margin: 14mm; }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            color: #2C2A28;
+            background: #F0EBE4;
+            font-family: Georgia, 'Times New Roman', serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: economy;
+        }
+
+        .toolbar {
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 16px 0 0;
+        }
+
+        .toolbar button {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 13px;
+            padding: 8px 14px;
+            cursor: pointer;
+            border: 1px solid #8B7E74;
+            background: #fff;
+            color: #2C2A28;
+        }
+
+        .sheet {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 16px auto 32px;
+            padding: 14mm;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(44, 42, 40, 0.08);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sheet-body { flex: 1 1 auto; }
+
+        .label {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 10px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #8B7E74;
+            margin: 0 0 4px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 24px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #2C2A28;
+        }
+
+        .brand {
+            font-size: 26px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            margin: 0;
+        }
+
+        .doc-type {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 12px;
+            color: #8B7E74;
+            margin: 6px 0 0;
+        }
+
+        .header-meta {
+            font-family: 'Segoe UI', sans-serif;
+            text-align: right;
+            line-height: 1.45;
+        }
+
+        .header-meta .order-no {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0 0 6px;
+        }
+
+        .header-meta .meta-line {
+            font-size: 12px;
+            color: #5C534C;
+            margin: 0;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 18px 0 0;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .meta-grid .value {
+            color: #2C2A28;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 26px;
+        }
+
+        thead th {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #8B7E74;
+            text-align: left;
+            padding: 0 8px 8px;
+            border-bottom: 1px solid #2C2A28;
+            background: transparent;
+        }
+
+        tbody td {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 13px;
+            padding: 10px 8px;
+            border-bottom: 1px solid #E5DDD3;
+            vertical-align: top;
+            background: transparent;
+        }
+
+        th.num, td.num { text-align: right; }
+        th.center, td.center { text-align: center; }
+
+        .item-name { font-weight: 500; }
+        .item-variant {
+            display: block;
+            margin-top: 2px;
+            font-size: 12px;
+            color: #8B7E74;
+            font-weight: 400;
+        }
+
+        .totals {
+            margin-top: auto;
+            padding-top: 28px;
+            width: 260px;
+            align-self: flex-end;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 13px;
+        }
+
+        .totals .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 24px;
+            padding: 5px 0;
+            color: #5C534C;
+        }
+
+        .totals .row span:last-child {
+            color: #2C2A28;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .totals .grand {
+            margin-top: 6px;
+            padding-top: 10px;
+            border-top: 1px solid #2C2A28;
+            font-size: 15px;
+            font-weight: 600;
+            color: #2C2A28;
+        }
+
+        .footer-note {
+            margin-top: 18px;
+            padding-top: 10px;
+            border-top: 1px solid #E5DDD3;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 11px;
+            color: #8B7E74;
+            text-align: center;
+        }
+
+        @media print {
+            html, body {
+                background: #fff !important;
+                height: 100%;
+            }
+            .toolbar { display: none !important; }
+            .sheet {
+                width: auto;
+                min-height: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+        }
     </style>
 </head>
 <body>
-<div class="no-print"><button onclick="window.print()">Print invoice</button></div>
-<h1 class="brand">Aura &amp; Oath</h1>
-<p class="muted">Tax invoice / receipt</p>
-<h2>{{ $order->order_number }}</h2>
-<p>
-    {{ $order->customer_name }}<br>
-    {{ $order->customer_email }}<br>
-    {{ $order->customer_phone }}<br>
-    {{ $order->created_at?->format('Y-m-d H:i') }}
-</p>
-@if($order->shippingAddress)
-    <p><strong>Ship to:</strong><br>{{ $order->shippingAddress->full_name }}<br>{{ $order->shippingAddress->formatted() }}</p>
-@endif
-<table>
-    <thead>
-    <tr><th>Item</th><th>SKU</th><th>Qty</th><th>Price</th><th>Total</th></tr>
-    </thead>
-    <tbody>
-    @foreach($order->items as $item)
-        <tr>
-            <td>{{ $item->product_name }}@if($item->variant_name) — {{ $item->variant_name }}@endif</td>
-            <td>{{ $item->sku }}</td>
-            <td>{{ $item->quantity }}</td>
-            <td>{{ money($item->unit_price) }}</td>
-            <td>{{ money($item->line_total) }}</td>
-        </tr>
-    @endforeach
-    </tbody>
-</table>
-<div class="totals">
-    <div><span>Subtotal</span><span>{{ money($order->subtotal) }}</span></div>
-    <div><span>Discount</span><span>{{ money($order->discount_amount) }}</span></div>
-    <div><span>Delivery</span><span>{{ money($order->delivery_fee) }}</span></div>
-    <div><span>Tax</span><span>{{ money($order->tax_amount) }}</span></div>
-    <div class="grand"><span>Total</span><span>{{ money($order->total) }}</span></div>
+<div class="toolbar">
+    <button type="button" onclick="window.print()">Print invoice</button>
 </div>
-<script>window.addEventListener('load', () => setTimeout(() => window.print(), 250));</script>
+
+<div class="sheet">
+    <div class="sheet-body">
+        <div class="header">
+            <div>
+                @if(print_shows('invoice', 'brand'))
+                    <h1 class="brand">{{ setting('store_name', config('aura.name')) }}</h1>
+                    <p class="doc-type">Tax invoice / receipt</p>
+                @else
+                    <p class="label">Invoice</p>
+                @endif
+            </div>
+            <div class="header-meta">
+                <p class="order-no">{{ $order->order_number }}</p>
+                @if(print_shows('invoice', 'order_date') && $order->created_at)
+                    <p class="meta-line">{{ $order->created_at->format('Y-m-d') }}</p>
+                    <p class="meta-line">{{ $order->created_at->format('H:i') }}</p>
+                @endif
+            </div>
+        </div>
+
+        @if(
+            print_shows('invoice', 'customer_name')
+            || print_shows('invoice', 'customer_email')
+            || print_shows('invoice', 'customer_phone')
+            || (print_shows('invoice', 'ship_to') && $order->shippingAddress)
+        )
+            <div class="meta-grid">
+                @if(
+                    print_shows('invoice', 'customer_name')
+                    || print_shows('invoice', 'customer_email')
+                    || print_shows('invoice', 'customer_phone')
+                )
+                    <div>
+                        <p class="label">Bill to</p>
+                        <div class="value">
+                            @if(print_shows('invoice', 'customer_name'))
+                                {{ $order->customer_name }}@if(print_shows('invoice', 'customer_email') || print_shows('invoice', 'customer_phone'))<br>@endif
+                            @endif
+                            @if(print_shows('invoice', 'customer_email'))
+                                {{ $order->customer_email }}@if(print_shows('invoice', 'customer_phone'))<br>@endif
+                            @endif
+                            @if(print_shows('invoice', 'customer_phone'))
+                                {{ $order->customer_phone }}
+                            @endif
+                        </div>
+                    </div>
+                @endif
+
+                @if(print_shows('invoice', 'ship_to') && $order->shippingAddress)
+                    <div>
+                        <p class="label">Ship to</p>
+                        <div class="value">{{ $order->shippingAddress->formatted() }}</div>
+                    </div>
+                @endif
+            </div>
+        @endif
+
+        @php
+            $columns = collect([
+                'item' => ['label' => 'Item', 'class' => ''],
+                'sku' => ['label' => 'SKU', 'class' => ''],
+                'quantity' => ['label' => 'Qty', 'class' => 'center'],
+                'unit_price' => ['label' => 'Price', 'class' => 'num'],
+                'line_total' => ['label' => 'Total', 'class' => 'num'],
+            ])->filter(fn ($col, $key) => print_shows('invoice', $key));
+        @endphp
+
+        @if($columns->isNotEmpty())
+            <table>
+                <thead>
+                <tr>
+                    @foreach($columns as $col)
+                        <th class="{{ $col['class'] }}">{{ $col['label'] }}</th>
+                    @endforeach
+                </tr>
+                </thead>
+                <tbody>
+                @foreach($order->items as $item)
+                    <tr>
+                        @foreach($columns->keys() as $key)
+                            <td class="{{ $columns[$key]['class'] }}">
+                                @switch($key)
+                                    @case('item')
+                                        <span class="item-name">{{ $item->product_name }}</span>
+                                        @if($item->variant_name)
+                                            <span class="item-variant">{{ $item->variant_name }}</span>
+                                        @endif
+                                        @break
+                                    @case('sku') {{ $item->sku }} @break
+                                    @case('quantity') {{ $item->quantity }} @break
+                                    @case('unit_price') {{ money($item->unit_price) }} @break
+                                    @case('line_total') {{ money($item->line_total) }} @break
+                                @endswitch
+                            </td>
+                        @endforeach
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        @endif
+    </div>
+
+    @if(
+        print_shows('invoice', 'subtotal')
+        || print_shows('invoice', 'discount')
+        || print_shows('invoice', 'delivery')
+        || print_shows('invoice', 'tax')
+        || print_shows('invoice', 'total')
+    )
+        <div class="totals">
+            @if(print_shows('invoice', 'subtotal'))
+                <div class="row"><span>Subtotal</span><span>{{ money($order->subtotal) }}</span></div>
+            @endif
+            @if(print_shows('invoice', 'discount'))
+                <div class="row"><span>Discount</span><span>{{ money($order->discount_amount) }}</span></div>
+            @endif
+            @if(print_shows('invoice', 'delivery'))
+                <div class="row"><span>Delivery</span><span>{{ money($order->delivery_fee) }}</span></div>
+            @endif
+            @if(print_shows('invoice', 'tax'))
+                <div class="row"><span>Tax</span><span>{{ money($order->tax_amount) }}</span></div>
+            @endif
+            @if(print_shows('invoice', 'total'))
+                <div class="row grand"><span>Total</span><span>{{ money($order->total) }}</span></div>
+            @endif
+        </div>
+    @endif
+
+    <p class="footer-note">Thank you for your order</p>
+</div>
 </body>
 </html>

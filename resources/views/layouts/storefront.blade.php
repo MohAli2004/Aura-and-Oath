@@ -74,6 +74,45 @@
                     @endif
                 @endisset
 
+                @isset($navBrands)
+                    @if($navBrands->isNotEmpty())
+                        <div class="relative" @click.outside="nav === 'brands' && (nav = '')">
+                            <button type="button" class="inline-flex items-center gap-1 min-h-11" @click="nav = nav === 'brands' ? '' : 'brands'" :aria-expanded="nav === 'brands'">
+                                Brands <span class="text-taupe text-xs" :class="nav === 'brands' && 'rotate-90'">›</span>
+                            </button>
+                            <div
+                                x-show="nav === 'brands'"
+                                x-cloak
+                                class="absolute start-0 top-full z-50 mt-1 min-w-[14rem] max-h-80 overflow-y-auto border border-beige bg-[#FFFCFA] py-1"
+                            >
+                                @foreach($navBrands as $navBrand)
+                                    <a class="flex items-center gap-2.5 px-4 py-2.5 hover:bg-beige/40" href="{{ route('shop', ['brand' => $navBrand->slug]) }}">
+                                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden border border-beige bg-ivory/60">
+                                            <img
+                                                src="{{ $navBrand->logoUrl() }}"
+                                                alt=""
+                                                width="20"
+                                                height="20"
+                                                class="h-5 w-5 object-contain"
+                                                loading="eager"
+                                            >
+                                        </span>
+                                        <span>{{ $navBrand->name }}</span>
+                                    </a>
+                                @endforeach
+                                @if(($navBrandsTotal ?? $navBrands->count()) > 8)
+                                    <a
+                                        href="{{ route('brands.index') }}"
+                                        class="block w-full px-4 py-2.5 text-sm text-taupe hover:bg-beige/40 hover:text-charcoal border-t border-beige"
+                                    >
+                                        Show more
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                @endisset
+
                 <div class="relative" @click.outside="nav === 'help' && (nav = '')">
                     <button type="button" class="inline-flex items-center gap-1 min-h-11" @click="nav = nav === 'help' ? '' : 'help'" :aria-expanded="nav === 'help'">
                         Help <span class="text-taupe text-xs" :class="nav === 'help' && 'rotate-90'">›</span>
@@ -91,6 +130,12 @@
                 </div>
 
                 @auth
+                    <x-notification-bell
+                        :feed-url="route('account.notifications.feed')"
+                        :mark-read-url="route('account.notifications.read', ['id' => '__ID__'])"
+                        :mark-all-url="route('account.notifications.read-all')"
+                        :index-url="route('account.notifications.index')"
+                    />
                     <div class="relative" @click.outside="nav === 'account' && (nav = '')">
                         <button type="button" class="inline-flex items-center gap-1 min-h-11" @click="nav = nav === 'account' ? '' : 'account'" :aria-expanded="nav === 'account'">
                             Account <span class="text-taupe text-xs" :class="nav === 'account' && 'rotate-90'">›</span>
@@ -101,6 +146,7 @@
                             class="absolute end-0 top-full z-50 mt-1 min-w-[14rem] border border-beige bg-[#FFFCFA] py-1"
                         >
                             <x-nav-item class="px-4 py-2.5" :href="route('account.index')" icon="account" label="My account" />
+                            <x-nav-item class="px-4 py-2.5" :href="route('account.notifications.index')" icon="bell" label="Notifications" />
                             <x-nav-item class="px-4 py-2.5" :href="route('wishlist.index')" icon="wishlist" label="Wishlist" />
                             @if(auth()->user()->isAdmin())
                                 <x-nav-item class="px-4 py-2.5" :href="route('admin.dashboard')" icon="admin" label="Admin" />
@@ -131,6 +177,14 @@
             </nav>
 
             <div class="flex items-center gap-2 lg:hidden">
+                @auth
+                    <x-notification-bell
+                        :feed-url="route('account.notifications.feed')"
+                        :mark-read-url="route('account.notifications.read', ['id' => '__ID__'])"
+                        :mark-all-url="route('account.notifications.read-all')"
+                        :index-url="route('account.notifications.index')"
+                    />
+                @endauth
                 <a href="{{ route('cart.index') }}" class="btn btn-secondary px-3 py-2 relative inline-flex items-center gap-2" aria-label="Bag">
                     <x-icon name="bag" class="w-5 h-5" />
                     Bag
@@ -235,6 +289,46 @@
                     @endif
                 @endisset
 
+                @isset($navBrands)
+                    @if($navBrands->isNotEmpty())
+                        <div class="border border-beige overflow-hidden">
+                            <button type="button" class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left bg-ivory/50" @click="section = section === 'brands' ? '' : 'brands'">
+                                <span class="inline-flex items-center gap-2.5">
+                                    <x-nav-icon name="brands" />
+                                    <span class="font-medium">Brands</span>
+                                </span>
+                                <span class="text-taupe text-xs transition-transform" x-bind:class="section === 'brands' && 'rotate-90'">›</span>
+                            </button>
+                            <div class="border-t border-beige bg-[#FFFCFA] px-2 py-1.5 space-y-0.5 max-h-64 overflow-y-auto" x-show="section === 'brands'" x-cloak>
+                                @foreach($navBrands as $navBrand)
+                                    <a class="flex items-center gap-2.5 px-3 py-2.5 rounded-sm hover:bg-beige/40" href="{{ route('shop', ['brand' => $navBrand->slug]) }}" @click="open = false">
+                                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden border border-beige bg-ivory/60">
+                                            <img
+                                                src="{{ $navBrand->logoUrl() }}"
+                                                alt=""
+                                                width="20"
+                                                height="20"
+                                                class="h-5 w-5 object-contain"
+                                                loading="eager"
+                                            >
+                                        </span>
+                                        <span>{{ $navBrand->name }}</span>
+                                    </a>
+                                @endforeach
+                                @if(($navBrandsTotal ?? $navBrands->count()) > 8)
+                                    <a
+                                        href="{{ route('brands.index') }}"
+                                        class="block w-full px-3 py-2.5 text-sm text-taupe rounded-sm hover:bg-beige/40 hover:text-charcoal border-t border-beige mt-1"
+                                        @click="open = false"
+                                    >
+                                        Show more
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                @endisset
+
                 {{-- Account --}}
                 <div class="border border-beige overflow-hidden">
                     <button type="button" class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left bg-ivory/50" @click="section = section === 'account' ? '' : 'account'">
@@ -247,6 +341,7 @@
                     <div class="border-t border-beige bg-[#FFFCFA] px-2 py-1.5 space-y-0.5" x-show="section === 'account'" x-cloak>
                         @auth
                             <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.index')" icon="account" label="My account" @click="open = false" />
+                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.notifications.index')" icon="bell" label="Notifications" @click="open = false" />
                             <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.orders.index')" icon="orders" label="Orders" @click="open = false" />
                             <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('wishlist.index')" icon="wishlist" label="Wishlist" @click="open = false" />
                             @if(auth()->user()->isAdmin())

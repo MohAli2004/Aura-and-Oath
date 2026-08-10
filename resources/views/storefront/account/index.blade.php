@@ -23,6 +23,7 @@
     </div>
     <div class="mt-10 flex flex-wrap gap-4 text-sm">
         <a class="btn btn-secondary" href="{{ route('account.orders.index') }}">Orders</a>
+        <a class="btn btn-secondary" href="{{ route('account.notifications.index') }}">Notifications</a>
         <a class="btn btn-secondary" href="{{ route('account.addresses') }}">Addresses</a>
         <a class="btn btn-secondary" href="{{ route('wishlist.index') }}">Wishlist</a>
         <form method="POST" action="{{ route('logout') }}">

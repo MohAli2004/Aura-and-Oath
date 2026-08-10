@@ -37,13 +37,36 @@
 
     <div class="space-y-3 mb-8">
         @foreach($order->items as $item)
-            <div class="flex justify-between border-b border-beige py-3 text-sm">
-                <div>
-                    <div>{{ $item->product_name }}</div>
-                    @if($item->variant_name)<div class="text-taupe">{{ $item->variant_name }}</div>@endif
-                    <div class="text-taupe">Qty {{ $item->quantity }}</div>
+            @php
+                $images = app(\App\Services\ImageService::class);
+                $imagePath = $item->variant?->image_path ?: $item->product?->primaryImagePath();
+                $imageUrl = $images->url($imagePath);
+                $productUrl = $item->product?->slug
+                    ? route('products.show', $item->product->slug)
+                    : null;
+            @endphp
+            <div class="flex justify-between gap-4 border-b border-beige py-3 text-sm">
+                <div class="flex gap-3 min-w-0">
+                    @if($productUrl)
+                        <a href="{{ $productUrl }}" class="shrink-0 h-14 w-14 sm:h-16 sm:w-16 overflow-hidden border border-beige bg-beige/30">
+                            <img src="{{ $imageUrl }}" alt="{{ $item->product_name }}" class="h-full w-full object-cover">
+                        </a>
+                    @else
+                        <div class="shrink-0 h-14 w-14 sm:h-16 sm:w-16 overflow-hidden border border-beige bg-beige/30">
+                            <img src="{{ $imageUrl }}" alt="{{ $item->product_name }}" class="h-full w-full object-cover">
+                        </div>
+                    @endif
+                    <div class="min-w-0">
+                        @if($productUrl)
+                            <a href="{{ $productUrl }}" class="hover:text-gold transition">{{ $item->product_name }}</a>
+                        @else
+                            <div>{{ $item->product_name }}</div>
+                        @endif
+                        @if($item->variant_name)<div class="text-taupe">{{ $item->variant_name }}</div>@endif
+                        <div class="text-taupe">Qty {{ $item->quantity }}</div>
+                    </div>
                 </div>
-                <div>{{ money($item->line_total) }}</div>
+                <div class="shrink-0">{{ money($item->line_total) }}</div>
             </div>
         @endforeach
     </div>

@@ -10,23 +10,28 @@
             <p class="text-sm text-taupe mt-1">Shown in the storefront header, footer, login pages, and admin sidebar.</p>
         </div>
 
-        @if($logoUrl)
-            <div class="flex items-center gap-4 p-4 border border-beige bg-ivory/60">
-                <img src="{{ $logoUrl }}" alt="Current logo" class="h-16 w-auto max-w-[220px] object-contain">
-                <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="remove_logo" value="1">
-                    Remove current logo
-                </label>
-            </div>
-        @else
-            <p class="text-sm text-taupe">No logo uploaded yet. The store name will be shown as text.</p>
-        @endif
-
         <div>
-            <label class="label" for="logo">Upload logo</label>
-            <input id="logo" class="input" type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+            <span class="label" id="logo-label">Logo</span>
+            <x-admin.image-upload
+                name="logo"
+                id="logo"
+                frame="logo-wide"
+                fit="contain"
+                alt="Brand logo preview"
+                empty="Click to upload"
+                :src="$logoUrl"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                aria-labelledby="logo-label"
+            />
             <p class="text-xs text-taupe mt-1">PNG, JPG, WEBP, or SVG. Max 10MB. Transparent PNG works best.</p>
         </div>
+
+        @if($logoUrl)
+            <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="remove_logo" value="1">
+                Remove current logo
+            </label>
+        @endif
     </section>
 
     <section class="border border-beige bg-[#FFFCFA] p-6 space-y-4">
@@ -35,45 +40,50 @@
             <p class="text-sm text-taupe mt-1">Browser tab icon for the storefront and admin.</p>
         </div>
 
-        @if($faviconUrl)
-            <div class="flex items-center gap-4 p-4 border border-beige bg-ivory/60">
-                <img src="{{ $faviconUrl }}" alt="Current favicon" class="h-10 w-10 object-contain">
-                <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="remove_favicon" value="1">
-                    Remove current favicon
-                </label>
-            </div>
-        @endif
-
         <div>
-            <label class="label" for="favicon">Upload favicon</label>
-            <input id="favicon" class="input" type="file" name="favicon" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,.ico">
+            <span class="label" id="favicon-label">Favicon</span>
+            <x-admin.image-upload
+                name="favicon"
+                id="favicon"
+                frame="favicon"
+                fit="contain"
+                alt="Favicon preview"
+                empty="Click to upload"
+                :src="$faviconUrl"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,.ico"
+                aria-labelledby="favicon-label"
+            />
             <p class="text-xs text-taupe mt-1">PNG or ICO recommended. Max 2MB.</p>
         </div>
+
+        @if($faviconUrl)
+            <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="remove_favicon" value="1">
+                Remove current favicon
+            </label>
+        @endif
     </section>
 
-    <section
-        class="border border-beige bg-[#FFFCFA] p-6 space-y-4"
-        x-data="{
-            preview: @js($homeBackgroundUrl),
-            onFile(event) {
-                const file = event.target.files?.[0];
-                if (!file) return;
-                if (this.preview && String(this.preview).startsWith('blob:')) {
-                    URL.revokeObjectURL(this.preview);
-                }
-                this.preview = URL.createObjectURL(file);
-            }
-        }"
-    >
+    <section class="border border-beige bg-[#FFFCFA] p-6 space-y-4">
         <div>
             <h2 class="font-display text-2xl">Homepage background</h2>
             <p class="text-sm text-taupe mt-1">Hero background image on the main storefront page. Uploading a new image replaces the current one.</p>
         </div>
 
-        <div class="overflow-hidden border border-beige bg-ivory/60 aspect-[16/7] max-w-xl">
-            <img x-show="preview" x-cloak :src="preview" alt="Homepage background preview" class="h-full w-full object-cover">
-            <div x-show="!preview" class="flex h-full items-center justify-center text-sm text-taupe">No background uploaded</div>
+        <div>
+            <span class="label" id="home-background-label">Background</span>
+            <x-admin.image-upload
+                name="home_background"
+                id="home_background"
+                frame="wide"
+                fit="cover"
+                alt="Homepage background preview"
+                empty="Click to upload"
+                :src="$homeBackgroundUrl"
+                accept="image/png,image/jpeg,image/webp"
+                aria-labelledby="home-background-label"
+            />
+            <p class="text-xs text-taupe mt-1">JPG, PNG, or WEBP. Max 10MB. Wide images work best.</p>
         </div>
 
         @if($homeBackgroundUrl)
@@ -82,12 +92,6 @@
                 Remove current background
             </label>
         @endif
-
-        <div>
-            <label class="label" for="home_background">Upload background</label>
-            <input id="home_background" class="input" type="file" name="home_background" accept="image/png,image/jpeg,image/webp" @change="onFile($event)">
-            <p class="text-xs text-taupe mt-1">JPG, PNG, or WEBP. Max 10MB. Wide images work best.</p>
-        </div>
     </section>
 
     <section class="border border-beige bg-[#FFFCFA] p-6 space-y-4">
@@ -106,6 +110,47 @@
                 >
             </div>
         @endforeach
+    </section>
+
+    <section class="border border-beige bg-[#FFFCFA] p-6 space-y-6">
+        <div>
+            <h2 class="font-display text-2xl">Print documents</h2>
+            <p class="text-sm text-taupe mt-1">Choose which fields appear on invoices and packing slips.</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-6">
+            <div class="space-y-3">
+                <h3 class="font-medium text-sm uppercase tracking-wider text-taupe">Invoice</h3>
+                @php $selectedInvoice = old('invoice_fields', $invoiceFields); @endphp
+                @foreach(config('aura.print.invoice') as $key => $label)
+                    <label class="flex items-center gap-2 text-sm">
+                        <input
+                            type="checkbox"
+                            name="invoice_fields[]"
+                            value="{{ $key }}"
+                            @checked(in_array($key, $selectedInvoice, true))
+                        >
+                        {{ $label }}
+                    </label>
+                @endforeach
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="font-medium text-sm uppercase tracking-wider text-taupe">Packing slip</h3>
+                @php $selectedPacking = old('packing_slip_fields', $packingSlipFields); @endphp
+                @foreach(config('aura.print.packing_slip') as $key => $label)
+                    <label class="flex items-center gap-2 text-sm">
+                        <input
+                            type="checkbox"
+                            name="packing_slip_fields[]"
+                            value="{{ $key }}"
+                            @checked(in_array($key, $selectedPacking, true))
+                        >
+                        {{ $label }}
+                    </label>
+                @endforeach
+            </div>
+        </div>
     </section>
 
     <button class="btn btn-primary" type="submit">Save settings</button>

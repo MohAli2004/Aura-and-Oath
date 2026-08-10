@@ -21,9 +21,9 @@ return [
     |--------------------------------------------------------------------------
     */
     'contact' => [
-        'email' => env('AURA_CONTACT_EMAIL', 'hello@auraandoath.com'),
-        'phone' => env('AURA_CONTACT_PHONE', '+961 71 000 000'),
-        'whatsapp' => env('AURA_WHATSAPP', '+96171000000'),
+        'email' => env('AURA_CONTACT_EMAIL', 'auraandouth@gmail.com'),
+        'phone' => env('AURA_CONTACT_PHONE', '+961 81 031 612'),
+        'whatsapp' => env('AURA_WHATSAPP', '+96181031612'),
         'address' => env('AURA_ADDRESS', 'Beirut, Lebanon'),
         'support_hours' => env('AURA_SUPPORT_HOURS', 'Mon–Fri, 10:00–18:00'),
     ],
@@ -36,7 +36,7 @@ return [
     'payments' => [
         'wish' => [
             'account_name' => env('AURA_WISH_ACCOUNT_NAME', 'Aura & Oath'),
-            'account_number' => env('AURA_WISH_ACCOUNT_NUMBER', '71000000'),
+            'account_number' => env('AURA_WISH_ACCOUNT_NUMBER', '81031612'),
             'instructions' => env(
                 'AURA_WISH_INSTRUCTIONS',
                 'Send the order total to our Wish account, then include your order number in the transfer note. We will confirm payment before preparing your order.'
@@ -117,6 +117,48 @@ return [
         'number_prefix' => 'AO',
         'idempotency_ttl_minutes' => 60,
         'guest_checkout' => false,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Print documents (invoice / packing slip field labels)
+    |--------------------------------------------------------------------------
+    |
+    | Keys are stored in settings as invoice_fields / packing_slip_fields (JSON
+    | arrays of enabled field keys). Missing settings means all fields shown.
+    |
+    */
+    'print' => [
+        'invoice' => [
+            'brand' => 'Brand name',
+            'customer_name' => 'Customer name',
+            'customer_email' => 'Customer email',
+            'customer_phone' => 'Customer phone',
+            'order_date' => 'Order date & time',
+            'ship_to' => 'Ship-to address',
+            'item' => 'Item name',
+            'sku' => 'SKU',
+            'quantity' => 'Quantity',
+            'unit_price' => 'Unit price',
+            'line_total' => 'Line total',
+            'subtotal' => 'Subtotal',
+            'discount' => 'Discount',
+            'delivery' => 'Delivery fee',
+            'tax' => 'Tax',
+            'total' => 'Grand total',
+        ],
+        'packing_slip' => [
+            'order_date' => 'Order date & time',
+            'customer_name' => 'Customer name',
+            'ship_to' => 'Ship-to address',
+            'phone' => 'Customer phone',
+            'tracking' => 'Tracking number',
+            'sku' => 'SKU',
+            'barcode' => 'Barcode',
+            'item' => 'Item name',
+            'quantity' => 'Quantity',
+            'picked' => 'Picked checkbox',
+        ],
     ],
 
     /*

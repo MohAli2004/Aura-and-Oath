@@ -6,9 +6,11 @@ use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Notifications\ContactMessageNotification;
 use App\Notifications\LowStockNotification;
 use App\Notifications\OrderPlacedNotification;
 use App\Notifications\OrderStatusChangedNotification;
+use App\Notifications\WishPaymentReceivedNotification;
 use Illuminate\Support\Facades\Notification;
 
 class NotificationService
@@ -19,8 +21,7 @@ class NotificationService
             $order->user->notify(new OrderPlacedNotification($order));
         }
 
-        $admins = User::query()->where('role', 'admin')->where('is_active', true)->get();
-        Notification::send($admins, new OrderPlacedNotification($order, forAdmin: true));
+        Notification::send($this->activeAdmins(), new OrderPlacedNotification($order, forAdmin: true));
     }
 
     public function notifyOrderStatusChanged(Order $order, OrderStatus $from, OrderStatus $to): void
@@ -32,12 +33,21 @@ class NotificationService
 
     public function notifyLowStock(Product $product): void
     {
-        $admins = User::query()->where('role', 'admin')->where('is_active', true)->get();
-        Notification::send($admins, new LowStockNotification($product));
+        Notification::send($this->activeAdmins(), new LowStockNotification($product));
+    }
+
+    public function notifyContactMessage(string $name, string $email, string $message): void
+    {
+        Notification::send(
+            $this->activeAdmins(),
+            new ContactMessageNotification($name, $email, $message)
+        );
     }
 
     public function notifyAdminWishPayment(Order $order): void
     {
+        Notification::send($this->activeAdmins(), new WishPaymentReceivedNotification($order));
+
         $message = sprintf(
             '%s: Wish payment received for %s. Amount %s.',
             config('aura.name', 'Aura & Oath'),
@@ -57,5 +67,11 @@ class NotificationService
         logger()->info('SMS placeholder', compact('phone', 'message'));
 
         return false;
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Collection<int, User> */
+    protected function activeAdmins()
+    {
+        return User::query()->where('role', 'admin')->where('is_active', true)->get();
     }
 }

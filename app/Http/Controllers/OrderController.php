@@ -25,7 +25,9 @@ class OrderController extends Controller
     {
         $this->authorize('view', $order);
         $order->load([
-            'items',
+            'items.product.images',
+            'items.product.activeVariants',
+            'items.variant',
             'addresses',
             'statusHistories' => fn ($q) => $q->where('is_customer_visible', true),
             'notes' => fn ($q) => $q->where('is_customer_visible', true),

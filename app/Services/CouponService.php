@@ -83,7 +83,16 @@ class CouponService
                     return true;
                 }
 
-                return $categoryIds->contains($item->product?->category_id);
+                if ($categoryIds->isEmpty()) {
+                    return false;
+                }
+
+                $item->product?->loadMissing('categories');
+
+                return $item->product?->categories
+                    ->pluck('id')
+                    ->intersect($categoryIds)
+                    ->isNotEmpty() ?? false;
             })
             ->sum(fn (CartItem $item) => $item->lineTotal());
     }

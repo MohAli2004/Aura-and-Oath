@@ -14,9 +14,15 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', DashboardController::class)->name('dashboard');
+
+Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+Route::get('notifications/feed', [NotificationController::class, 'feed'])->name('notifications.feed');
+Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+Route::post('notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
 
 Route::delete('products/bulk', [ProductController::class, 'bulkDestroy'])->name('products.bulk-destroy');
 Route::resource('products', ProductController::class)->except(['show']);

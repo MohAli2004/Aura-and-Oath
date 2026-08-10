@@ -47,6 +47,13 @@ class OrderPlacedNotification extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
+            'title' => $this->forAdmin ? 'New order placed' : 'Order received',
+            'message' => $this->forAdmin
+                ? $this->order->customer_name.' placed order '.$this->order->order_number.' ('.money($this->order->total).'). Awaiting approval.'
+                : 'We received your order '.$this->order->order_number.' ('.money($this->order->total).'). It is pending approval.',
+            'url' => $this->forAdmin
+                ? route('admin.orders.show', $this->order)
+                : route('account.orders.show', $this->order),
             'order_id' => $this->order->id,
             'order_number' => $this->order->order_number,
             'total' => $this->order->total,

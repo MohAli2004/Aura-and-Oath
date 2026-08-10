@@ -69,7 +69,10 @@
             <tbody>
             @foreach($products as $product)
                 <tr class="border-t border-beige">
-                    <td class="p-3">{{ $product->name }}<div class="text-taupe text-xs">{{ $product->sku }} · {{ $product->barcode }}</div></td>
+                    <td class="p-3">
+                        <a class="underline" href="{{ route('admin.products.edit', $product) }}">{{ $product->name }}</a>
+                        <div class="text-taupe text-xs">{{ $product->sku }} · {{ $product->barcode }}</div>
+                    </td>
                     <td class="p-3">{{ $product->stock_quantity }}</td>
                     <td class="p-3">{{ $product->reserved_quantity }}</td>
                     <td class="p-3">{{ $product->availableStock() }}</td>

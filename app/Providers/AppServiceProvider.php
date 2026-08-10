@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Listeners\MergeGuestCartOnLogin;
+use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
@@ -55,9 +56,28 @@ class AppServiceProvider extends ServiceProvider
                 $navCategories = collect();
             }
 
+            try {
+                $navBrands = Cache::remember('storefront.nav_brands', 300, function () {
+                    return Brand::query()
+                        ->active()
+                        ->orderBy('sort_order')
+                        ->orderBy('name')
+                        ->take(8)
+                        ->get(['id', 'name', 'slug', 'logo_path']);
+                });
+                $navBrandsTotal = Cache::remember('storefront.nav_brands_total', 300, function () {
+                    return Brand::query()->active()->count();
+                });
+            } catch (\Throwable) {
+                $navBrands = collect();
+                $navBrandsTotal = 0;
+            }
+
             $view->with([
                 'cartCount' => $cartCount,
                 'navCategories' => $navCategories,
+                'navBrands' => $navBrands,
+                'navBrandsTotal' => $navBrandsTotal,
             ]);
         });
     }
