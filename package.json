@@ -7,9 +7,7 @@
         "dev": "vite"
     },
     "dependencies": {
-        "@tailwindcss/oxide-win32-x64-msvc": "^4.3.3",
-        "alpinejs": "^3.14.8",
-        "lightningcss-win32-x64-msvc": "^1.33.0"
+        "alpinejs": "^3.14.8"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
