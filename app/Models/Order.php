@@ -146,4 +146,27 @@ class Order extends Model
     {
         return $user && $this->user_id && (int) $this->user_id === (int) $user->id;
     }
+
+    public function canMarkAsPaid(): bool
+    {
+        return in_array($this->status, [
+            OrderStatus::Approved,
+            OrderStatus::Preparing,
+            OrderStatus::OnTheWay,
+            OrderStatus::Delivered,
+        ], true);
+    }
+
+    public function canTogglePayment(): bool
+    {
+        if (in_array($this->status, [
+            OrderStatus::Cancelled,
+            OrderStatus::Refunded,
+            OrderStatus::Rejected,
+        ], true)) {
+            return false;
+        }
+
+        return $this->canMarkAsPaid();
+    }
 }

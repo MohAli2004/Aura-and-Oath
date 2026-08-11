@@ -104,4 +104,14 @@
         </form>
     @endcan
 </div>
+@if(session('order_just_placed'))
+<script>
+    // Keep Back from returning to the completed checkout form.
+    history.replaceState({ orderPlaced: true }, '', location.href);
+    history.pushState({ orderPlaced: true }, '', location.href);
+    window.addEventListener('popstate', () => {
+        window.location.replace(@js(route('account.orders.index')));
+    });
+</script>
+@endif
 @endsection

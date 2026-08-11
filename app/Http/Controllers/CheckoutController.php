@@ -11,6 +11,7 @@ use App\Services\OrderPricingService;
 use App\Services\WhishPayService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use RuntimeException;
@@ -25,12 +26,20 @@ class CheckoutController extends Controller
         protected WhishPayService $whishPayService
     ) {}
 
-    public function create(Request $request): View|RedirectResponse
+    public function create(Request $request): View|RedirectResponse|Response
     {
         $cart = $this->cartService->getOrCreateCart();
         $cart->load(['items.product.images', 'items.variant']);
 
         if ($cart->items->isEmpty()) {
+            $completedOrderId = $request->session()->pull('last_completed_order_id');
+
+            if ($completedOrderId) {
+                return redirect()
+                    ->route('account.orders.show', $completedOrderId)
+                    ->with('info', 'Your order was already placed.');
+            }
+
             return redirect()->route('cart.index')->with('error', 'Your bag is empty.');
         }
 
@@ -47,17 +56,20 @@ class CheckoutController extends Controller
             Auth::user()
         );
 
-        return view('storefront.checkout', [
-            'cart' => $cart,
-            'quote' => $quote,
-            'regions' => $this->deliveryFeeService->activeRegions(),
-            'paymentMethods' => PaymentMethod::cases(),
-            'idempotencyToken' => $token,
-            'addresses' => Auth::user()->addresses ?? collect(),
-            'whishPayEnabled' => $this->whishPayService->isConfigured(),
-            'draft' => $draft,
-            'hasServerDraft' => $request->session()->hasOldInput() || filled($draft),
-        ]);
+        return response()
+            ->view('storefront.checkout', [
+                'cart' => $cart,
+                'quote' => $quote,
+                'regions' => $this->deliveryFeeService->activeRegions(),
+                'paymentMethods' => PaymentMethod::cases(),
+                'idempotencyToken' => $token,
+                'addresses' => Auth::user()->addresses ?? collect(),
+                'whishPayEnabled' => $this->whishPayService->isConfigured(),
+                'draft' => $draft,
+                'hasServerDraft' => $request->session()->hasOldInput() || filled($draft),
+            ])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     public function applyCoupon(Request $request): RedirectResponse
@@ -86,6 +98,7 @@ class CheckoutController extends Controller
         ]);
 
         $request->session()->forget(['checkout_idempotency', 'checkout_coupon', 'checkout_draft']);
+        $request->session()->put('last_completed_order_id', $order->id);
 
         if ($order->payment_method === PaymentMethod::WishAccount && $this->whishPayService->isConfigured()) {
             try {
@@ -95,11 +108,15 @@ class CheckoutController extends Controller
             } catch (RuntimeException $e) {
                 return redirect()
                     ->route('account.orders.show', $order)
-                    ->with('error', 'Order placed, but Wish Pay could not start: '.$e->getMessage());
+                    ->with('error', 'Order placed, but Wish Pay could not start: '.$e->getMessage())
+                    ->with('order_just_placed', true);
             }
         }
 
-        return redirect()->route('account.orders.show', $order)->with('success', 'Order placed successfully. Awaiting approval.');
+        return redirect()
+            ->route('account.orders.show', $order)
+            ->with('success', 'Order placed successfully. Awaiting approval.')
+            ->with('order_just_placed', true);
     }
 
     /**

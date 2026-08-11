@@ -4,32 +4,32 @@
 @section('content')
 @php
     $list = $list ?? 'active';
-    $filterQuery = array_filter([
+    // Keep search when switching tabs, but reset status (different options per list).
+    $tabQuery = array_filter([
         'q' => request('q'),
-        'status' => request('status'),
     ], fn ($value) => filled($value));
 @endphp
 
 <div class="flex flex-wrap gap-2 mb-6">
     <a
-        href="{{ route('admin.orders.index', array_merge($filterQuery, ['list' => 'active'])) }}"
+        href="{{ route('admin.orders.index', array_merge($tabQuery, ['list' => 'active'])) }}"
         class="btn {{ $list === 'active' ? 'btn-primary' : 'btn-secondary' }}"
     >
         Active orders
         <span class="opacity-70">({{ $activeCount }})</span>
     </a>
     <a
-        href="{{ route('admin.orders.index', array_merge($filterQuery, ['list' => 'finished'])) }}"
+        href="{{ route('admin.orders.index', array_merge($tabQuery, ['list' => 'finished'])) }}"
         class="btn {{ $list === 'finished' ? 'btn-primary' : 'btn-secondary' }}"
     >
         Finished orders
         <span class="opacity-70">({{ $finishedCount }})</span>
     </a>
     <a
-        href="{{ route('admin.orders.index', array_merge($filterQuery, ['list' => 'closed'])) }}"
+        href="{{ route('admin.orders.index', array_merge($tabQuery, ['list' => 'closed'])) }}"
         class="btn {{ $list === 'closed' ? 'btn-primary' : 'btn-secondary' }}"
     >
-        Cancelled, refunded &amp; returned
+        Cancelled, rejected, refunded &amp; returned
         <span class="opacity-70">({{ $closedCount }})</span>
     </a>
 </div>
@@ -75,11 +75,7 @@
         @forelse($orders as $order)
             @php
                 $isPaid = $order->payment_status === \App\Enums\PaymentStatus::Paid;
-                $canTogglePaid = ! in_array($order->status, [
-                    \App\Enums\OrderStatus::Cancelled,
-                    \App\Enums\OrderStatus::Refunded,
-                    \App\Enums\OrderStatus::Rejected,
-                ], true);
+                $canTogglePaid = $order->canTogglePayment();
             @endphp
             <tr class="border-t border-beige {{ $order->status->rowClass() }}">
                 <td class="p-3">
@@ -99,7 +95,7 @@
                             >
                         </form>
                     @else
-                        <span class="text-taupe" title="Payment cannot be changed for {{ strtolower($order->status->label()) }} orders">—</span>
+                        <span class="text-taupe" title="{{ $order->status === \App\Enums\OrderStatus::PendingApproval ? 'Approve the order before marking payment' : 'Payment cannot be changed for '.$order->status->label().' orders' }}">—</span>
                     @endif
                 </td>
                 <td class="p-3"><a class="underline" href="{{ route('admin.orders.show', $order) }}">{{ $order->order_number }}</a></td>
@@ -113,8 +109,8 @@
             <tr>
                 <td colspan="7" class="p-6 text-taupe text-center">
                     {{ match ($list) {
-                        'finished' => 'No finished (paid) orders yet.',
-                        'closed' => 'No cancelled, refunded, or returned orders.',
+                        'finished' => 'No finished orders yet (delivered and paid).',
+                        'closed' => 'No cancelled, rejected, refunded, or returned orders.',
                         default => 'No active unpaid orders.',
                     } }}
                 </td>
@@ -124,4 +120,12 @@
     </table>
 </div>
 <div class="mt-6">{{ $orders->links() }}</div>
+<script>
+    // Always refresh when returning via browser Back (bfcache).
+    window.addEventListener('pageshow', (event) => {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
+</script>
 @endsection

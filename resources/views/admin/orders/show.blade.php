@@ -6,11 +6,7 @@
     $isPending = $order->status === \App\Enums\OrderStatus::PendingApproval;
     $acceptedCount = $order->items->filter(fn ($item) => $item->isAccepted())->count();
     $isPaid = $order->payment_status === \App\Enums\PaymentStatus::Paid;
-    $canTogglePaid = ! in_array($order->status, [
-        \App\Enums\OrderStatus::Cancelled,
-        \App\Enums\OrderStatus::Refunded,
-        \App\Enums\OrderStatus::Rejected,
-    ], true);
+    $canTogglePaid = $order->canTogglePayment();
 @endphp
 
 <style>
@@ -69,7 +65,13 @@
                     </label>
                 </form>
             @else
-                <p class="mb-4 text-sm text-taupe">Payment cannot be changed for {{ strtolower($order->status->label()) }} orders.</p>
+                <p class="mb-4 text-sm text-taupe">
+                    @if($order->status === \App\Enums\OrderStatus::PendingApproval)
+                        Approve this order before you can mark it as paid.
+                    @else
+                        Payment cannot be changed for {{ strtolower($order->status->label()) }} orders.
+                    @endif
+                </p>
             @endif
 
             @foreach($order->items as $index => $item)
@@ -391,6 +393,17 @@
             event.preventDefault();
             alert('Select at least one item to reject.');
         }
+    });
+</script>
+@endif
+@if(session('refresh_orders_list'))
+<script>
+    history.replaceState({ orderChanged: true }, '', location.href);
+    history.pushState({ orderChanged: true }, '', location.href);
+    window.addEventListener('popstate', () => {
+        window.location.replace(@js(route('admin.orders.index', [
+            'list' => session('orders_list_after_change', 'active'),
+        ])));
     });
 </script>
 @endif

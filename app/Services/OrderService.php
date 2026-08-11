@@ -350,9 +350,9 @@ class OrderService
             return $order;
         }
 
-        if (in_array($order->status, [OrderStatus::Cancelled, OrderStatus::Refunded, OrderStatus::Rejected], true)) {
+        if (! $order->canMarkAsPaid()) {
             throw ValidationException::withMessages([
-                'payment_status' => 'Cancelled, refunded, or rejected orders cannot be marked as paid.',
+                'payment_status' => 'Payment can only be marked after the order is approved.',
             ]);
         }
 
@@ -465,9 +465,9 @@ class OrderService
             ]);
         }
 
-        if (in_array($order->status, [OrderStatus::Cancelled, OrderStatus::Refunded, OrderStatus::Rejected], true)) {
+        if (! $order->canTogglePayment()) {
             throw ValidationException::withMessages([
-                'payment_status' => 'Cancelled, refunded, or rejected orders cannot have payment changed.',
+                'payment_status' => 'Payment cannot be changed for this order status.',
             ]);
         }
 

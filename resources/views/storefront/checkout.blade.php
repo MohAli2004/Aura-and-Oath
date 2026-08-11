@@ -213,4 +213,13 @@
         </aside>
     </div>
 </div>
+<script>
+    // After placing an order, browser Back can restore checkout from cache.
+    // Force a fresh load so empty-cart / completed-order redirects run.
+    window.addEventListener('pageshow', (event) => {
+        if (event.persisted) {
+            window.location.reload();
+        }
+    });
+</script>
 @endsection
