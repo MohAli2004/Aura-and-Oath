@@ -9,6 +9,7 @@ use App\Notifications\OrderCancelledByCustomerNotification;
 use App\Notifications\OrderPaymentStatusChangedNotification;
 use App\Notifications\OrderPlacedNotification;
 use App\Notifications\OrderStatusChangedNotification;
+use App\Notifications\OrderUpdatedNotification;
 use App\Notifications\WishPaymentReceivedNotification;
 use Illuminate\Notifications\DatabaseNotification;
 
@@ -41,6 +42,7 @@ class NotificationPresenter
                 ? 'New order placed'
                 : 'Order received',
             OrderStatusChangedNotification::class => 'Order status updated',
+            OrderUpdatedNotification::class => 'Order updated',
             OrderPaymentStatusChangedNotification::class => 'Payment status updated',
             OrderCancelledByCustomerNotification::class => 'Order cancelled by customer',
             NewUserRegisteredNotification::class => 'New customer registered',
@@ -62,6 +64,11 @@ class NotificationPresenter
             OrderStatusChangedNotification::class => isset($data['order_number'], $data['to'])
                 ? 'Order '.$data['order_number'].' is now '.str_replace('_', ' ', (string) $data['to']).'.'
                 : 'Your order status was updated.',
+            OrderUpdatedNotification::class => isset($data['message'])
+                ? (string) $data['message']
+                : (isset($data['order_number'])
+                    ? 'Order '.$data['order_number'].' was updated.'
+                    : 'Your order was updated.'),
             OrderPaymentStatusChangedNotification::class => isset($data['order_number'], $data['to'])
                 ? 'Payment for order '.$data['order_number'].' is now '.str_replace('_', ' ', (string) $data['to']).'.'
                 : 'Your payment status was updated.',
@@ -93,7 +100,7 @@ class NotificationPresenter
                     ? url('/admin/orders/'.$data['order_id'])
                     : url('/account/orders/'.$data['order_id']))
                 : null,
-            OrderStatusChangedNotification::class, OrderPaymentStatusChangedNotification::class => isset($data['order_id'])
+            OrderStatusChangedNotification::class, OrderPaymentStatusChangedNotification::class, OrderUpdatedNotification::class => isset($data['order_id'])
                 ? url('/account/orders/'.$data['order_id'])
                 : null,
             NewUserRegisteredNotification::class => isset($data['user_id'])

@@ -14,25 +14,32 @@ use App\Notifications\OrderCancelledByCustomerNotification;
 use App\Notifications\OrderPaymentStatusChangedNotification;
 use App\Notifications\OrderPlacedNotification;
 use App\Notifications\OrderStatusChangedNotification;
+use App\Notifications\OrderUpdatedNotification;
 use App\Notifications\WishPaymentReceivedNotification;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Throwable;
 
 class NotificationService
 {
     public function notifyOrderPlaced(Order $order): void
     {
-        if ($order->user) {
-            $order->user->notify(new OrderPlacedNotification($order));
-        }
+        $this->safe(function () use ($order) {
+            if ($order->user) {
+                $order->user->notify(new OrderPlacedNotification($order));
+            }
 
-        Notification::send($this->activeAdmins(), new OrderPlacedNotification($order, forAdmin: true));
+            Notification::send($this->activeAdmins(), new OrderPlacedNotification($order, forAdmin: true));
+        }, 'order.placed', ['order_id' => $order->id]);
     }
 
     public function notifyOrderStatusChanged(Order $order, OrderStatus $from, OrderStatus $to): void
     {
-        if ($order->user) {
-            $order->user->notify(new OrderStatusChangedNotification($order, $from, $to));
-        }
+        $this->safe(function () use ($order, $from, $to) {
+            if ($order->user) {
+                $order->user->notify(new OrderStatusChangedNotification($order, $from, $to));
+            }
+        }, 'order.status_changed', ['order_id' => $order->id]);
     }
 
     public function notifyOrderPaymentStatusChanged(Order $order, PaymentStatus $from, PaymentStatus $to): void
@@ -41,17 +48,30 @@ class NotificationService
             return;
         }
 
-        if ($order->user) {
-            $order->user->notify(new OrderPaymentStatusChangedNotification($order, $from, $to));
-        }
+        $this->safe(function () use ($order, $from, $to) {
+            if ($order->user) {
+                $order->user->notify(new OrderPaymentStatusChangedNotification($order, $from, $to));
+            }
+        }, 'order.payment_status_changed', ['order_id' => $order->id]);
+    }
+
+    public function notifyOrderUpdated(Order $order, string $summary): void
+    {
+        $this->safe(function () use ($order, $summary) {
+            if ($order->user) {
+                $order->user->notify(new OrderUpdatedNotification($order, $summary));
+            }
+        }, 'order.updated', ['order_id' => $order->id]);
     }
 
     public function notifyAdminsOrderCancelledByCustomer(Order $order): void
     {
-        Notification::send(
-            $this->activeAdmins(),
-            new OrderCancelledByCustomerNotification($order)
-        );
+        $this->safe(function () use ($order) {
+            Notification::send(
+                $this->activeAdmins(),
+                new OrderCancelledByCustomerNotification($order)
+            );
+        }, 'order.cancelled_by_customer', ['order_id' => $order->id]);
     }
 
     public function notifyAdminsNewUser(User $user, string $method = 'email'): void
@@ -60,37 +80,45 @@ class NotificationService
             return;
         }
 
-        Notification::send(
-            $this->activeAdmins(),
-            new NewUserRegisteredNotification($user, $method)
-        );
+        $this->safe(function () use ($user, $method) {
+            Notification::send(
+                $this->activeAdmins(),
+                new NewUserRegisteredNotification($user, $method)
+            );
+        }, 'user.registered', ['user_id' => $user->id]);
     }
 
     public function notifyLowStock(Product $product): void
     {
-        Notification::send($this->activeAdmins(), new LowStockNotification($product));
+        $this->safe(function () use ($product) {
+            Notification::send($this->activeAdmins(), new LowStockNotification($product));
+        }, 'product.low_stock', ['product_id' => $product->id]);
     }
 
     public function notifyContactMessage(string $name, string $email, string $message): void
     {
-        Notification::send(
-            $this->activeAdmins(),
-            new ContactMessageNotification($name, $email, $message)
-        );
+        $this->safe(function () use ($name, $email, $message) {
+            Notification::send(
+                $this->activeAdmins(),
+                new ContactMessageNotification($name, $email, $message)
+            );
+        }, 'contact.message');
     }
 
     public function notifyAdminWishPayment(Order $order): void
     {
-        Notification::send($this->activeAdmins(), new WishPaymentReceivedNotification($order));
+        $this->safe(function () use ($order) {
+            Notification::send($this->activeAdmins(), new WishPaymentReceivedNotification($order));
 
-        $message = sprintf(
-            '%s: Wish payment received for %s. Amount %s.',
-            config('aura.name', 'Aura & Oath'),
-            $order->order_number,
-            money($order->total)
-        );
+            $message = sprintf(
+                '%s: Wish payment received for %s. Amount %s.',
+                config('aura.name', 'Aura & Oath'),
+                $order->order_number,
+                money($order->total)
+            );
 
-        app(WhatsAppService::class)->notifyAdmin($message);
+            app(WhatsAppService::class)->notifyAdmin($message);
+        }, 'order.wish_payment', ['order_id' => $order->id]);
     }
 
     /**
@@ -108,5 +136,16 @@ class NotificationService
     protected function activeAdmins()
     {
         return User::query()->where('role', 'admin')->where('is_active', true)->get();
+    }
+
+    protected function safe(callable $callback, string $context, array $extra = []): void
+    {
+        try {
+            $callback();
+        } catch (Throwable $e) {
+            Log::warning('Notification failed: '.$context, array_merge($extra, [
+                'error' => $e->getMessage(),
+            ]));
+        }
     }
 }

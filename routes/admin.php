@@ -63,6 +63,7 @@ Route::post('orders/{order}/undo-approve', [OrderController::class, 'undoApprove
 Route::post('orders/{order}/reject', [OrderController::class, 'reject'])->name('orders.reject');
 Route::post('orders/{order}/reject-items', [OrderController::class, 'rejectItems'])->name('orders.reject-items');
 Route::post('orders/{order}/items/{item}/restore', [OrderController::class, 'restoreItem'])->name('orders.items.restore');
+Route::post('orders/{order}/items/{item}/quantity', [OrderController::class, 'updateItemQuantity'])->name('orders.items.quantity');
 Route::post('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.status');
 Route::post('orders/{order}/notes', [OrderController::class, 'addNote'])->name('orders.notes');
 Route::post('orders/{order}/return', [OrderController::class, 'confirmReturn'])->name('orders.return');

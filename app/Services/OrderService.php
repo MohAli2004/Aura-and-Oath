@@ -142,7 +142,15 @@ class OrderService
                 );
             }
 
-            return $order->fresh(['items', 'statusHistories', 'notes']);
+            $fresh = $order->fresh(['items', 'statusHistories', 'notes', 'user']);
+            $this->notifications->notifyOrderUpdated(
+                $fresh,
+                'Some items on order '.$fresh->order_number.' were unavailable and removed: '
+                .implode(', ', $rejectedNames)
+                .'. Updated total: '.money($fresh->total).'.'
+            );
+
+            return $fresh;
         });
     }
 
@@ -207,6 +215,108 @@ class OrderService
         });
     }
 
+    public function updateItemQuantity(Order $order, OrderItem $item, int $quantity, User $admin, ?string $note = null): Order
+    {
+        return DB::transaction(function () use ($order, $item, $quantity, $admin, $note) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $item = OrderItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
+
+            if ((int) $item->order_id !== (int) $order->id) {
+                throw ValidationException::withMessages([
+                    'item' => 'Item does not belong to this order.',
+                ]);
+            }
+
+            if ($order->status !== OrderStatus::PendingApproval) {
+                throw ValidationException::withMessages([
+                    'status' => 'Quantities can only be edited while the order is pending approval.',
+                ]);
+            }
+
+            if ($item->isRejected()) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Rejected items cannot have their quantity changed. Restore the item first.',
+                ]);
+            }
+
+            if ($quantity < 1) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Quantity must be at least 1. Reject the item to remove it.',
+                ]);
+            }
+
+            $fromQty = (int) $item->quantity;
+            if ($fromQty === $quantity) {
+                return $order->fresh(['items']);
+            }
+
+            $item->load(['product', 'variant']);
+            $delta = $quantity - $fromQty;
+
+            if ($item->product?->track_inventory) {
+                try {
+                    if ($delta > 0) {
+                        $this->inventoryService->reserve(
+                            $item->product,
+                            $delta,
+                            $item->variant,
+                            $order,
+                            $admin
+                        );
+                    } else {
+                        $this->inventoryService->release(
+                            $item->product,
+                            abs($delta),
+                            $item->variant,
+                            $order,
+                            $admin
+                        );
+                    }
+                } catch (\RuntimeException $e) {
+                    throw ValidationException::withMessages([
+                        'quantity' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            $item->quantity = $quantity;
+            $item->line_total = round((float) $item->unit_price * $quantity, 2);
+            $item->save();
+
+            $this->recalculateTotals($order);
+
+            $label = $item->product_name.($item->variant_name ? ' — '.$item->variant_name : '');
+            $summary = sprintf(
+                'Quantity for %s changed from %d to %d on order %s. New total: %s.',
+                $label,
+                $fromQty,
+                $quantity,
+                $order->order_number,
+                money($order->fresh()->total)
+            );
+
+            if (filled($note)) {
+                $summary .= ' Note: '.trim($note);
+            }
+
+            $this->addNote($order, $admin, $summary, true);
+
+            $this->audit->log(
+                'order.item_quantity_updated',
+                $order,
+                ['item_id' => $item->id, 'quantity' => $fromQty],
+                ['item_id' => $item->id, 'quantity' => $quantity],
+                $note,
+                $admin
+            );
+
+            $fresh = $order->fresh(['items', 'notes', 'user']);
+            $this->notifications->notifyOrderUpdated($fresh, $summary);
+
+            return $fresh;
+        });
+    }
+
     public function reject(Order $order, User $admin, string $reason): Order
     {
         return $this->transition($order, OrderStatus::Rejected, $admin, $reason, function (Order $order) use ($admin, $reason) {
@@ -238,6 +348,12 @@ class OrderService
     {
         if ($order->payment_status === PaymentStatus::Paid) {
             return $order;
+        }
+
+        if (in_array($order->status, [OrderStatus::Cancelled, OrderStatus::Refunded, OrderStatus::Rejected], true)) {
+            throw ValidationException::withMessages([
+                'payment_status' => 'Cancelled, refunded, or rejected orders cannot be marked as paid.',
+            ]);
         }
 
         return DB::transaction(function () use ($order, $admin, $note) {
@@ -346,6 +462,12 @@ class OrderService
         if ($order->payment_status !== PaymentStatus::Paid) {
             throw ValidationException::withMessages([
                 'payment_status' => 'Only paid orders can have payment unmarked.',
+            ]);
+        }
+
+        if (in_array($order->status, [OrderStatus::Cancelled, OrderStatus::Refunded, OrderStatus::Rejected], true)) {
+            throw ValidationException::withMessages([
+                'payment_status' => 'Cancelled, refunded, or rejected orders cannot have payment changed.',
             ]);
         }
 

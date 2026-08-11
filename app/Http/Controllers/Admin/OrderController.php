@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\OrderItemQuantityRequest;
 use App\Http\Requests\Admin\OrderRejectItemsRequest;
 use App\Http\Requests\Admin\OrderRejectRequest;
 use App\Http\Requests\Admin\OrderStatusRequest;
@@ -21,6 +23,21 @@ class OrderController extends Controller
 
     public function index(Request $request): View
     {
+        $list = $this->ordersList($request);
+        $closedStatuses = $this->closedOrderStatuses();
+
+        $activeCount = Order::query()
+            ->whereNotIn('status', $closedStatuses)
+            ->where('payment_status', '!=', PaymentStatus::Paid)
+            ->count();
+        $finishedCount = Order::query()
+            ->whereNotIn('status', $closedStatuses)
+            ->where('payment_status', PaymentStatus::Paid)
+            ->count();
+        $closedCount = Order::query()
+            ->whereIn('status', $closedStatuses)
+            ->count();
+
         $orders = $this->filteredOrdersQuery($request)
             ->latest()
             ->paginate(20)
@@ -29,6 +46,10 @@ class OrderController extends Controller
         return view('admin.orders.index', [
             'orders' => $orders,
             'statuses' => OrderStatus::cases(),
+            'list' => $list,
+            'activeCount' => $activeCount,
+            'finishedCount' => $finishedCount,
+            'closedCount' => $closedCount,
         ]);
     }
 
@@ -47,6 +68,7 @@ class OrderController extends Controller
             'orders' => $orders,
             'statusFilter' => $status,
             'search' => $request->string('q')->toString() ?: null,
+            'list' => $this->ordersList($request),
             'printedAt' => now(),
         ]);
     }
@@ -100,6 +122,21 @@ class OrderController extends Controller
         $this->orders->restoreItem($order, $item, Auth::user());
 
         return back()->with('success', 'Item restored and stock re-reserved.');
+    }
+
+    public function updateItemQuantity(OrderItemQuantityRequest $request, Order $order, OrderItem $item): RedirectResponse
+    {
+        $data = $request->validated();
+
+        $this->orders->updateItemQuantity(
+            $order,
+            $item,
+            (int) $data['quantity'],
+            Auth::user(),
+            $data['note'] ?? null
+        );
+
+        return back()->with('success', 'Item quantity updated. Customer has been notified.');
     }
 
     public function updateStatus(OrderStatusRequest $request, Order $order): RedirectResponse
@@ -171,7 +208,19 @@ class OrderController extends Controller
 
     protected function filteredOrdersQuery(Request $request)
     {
+        $list = $this->ordersList($request);
+        $closedStatuses = $this->closedOrderStatuses();
+
         return Order::query()
+            ->when($list === 'closed', fn ($q) => $q->whereIn('status', $closedStatuses))
+            ->when($list === 'finished', function ($q) use ($closedStatuses) {
+                $q->whereNotIn('status', $closedStatuses)
+                    ->where('payment_status', PaymentStatus::Paid);
+            })
+            ->when($list === 'active', function ($q) use ($closedStatuses) {
+                $q->whereNotIn('status', $closedStatuses)
+                    ->where('payment_status', '!=', PaymentStatus::Paid);
+            })
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->q, function ($q) use ($request) {
                 $term = $request->q;
@@ -182,5 +231,22 @@ class OrderController extends Controller
                         ->orWhere('customer_phone', 'like', "%{$term}%");
                 });
             });
+    }
+
+    protected function ordersList(Request $request): string
+    {
+        $list = $request->string('list')->toString();
+
+        return in_array($list, ['finished', 'closed'], true) ? $list : 'active';
+    }
+
+    /** @return list<string> */
+    protected function closedOrderStatuses(): array
+    {
+        return [
+            OrderStatus::Cancelled->value,
+            OrderStatus::Refunded->value,
+            OrderStatus::Returned->value,
+        ];
     }
 }
