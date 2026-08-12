@@ -87,6 +87,12 @@
         selectVariant(id) {
             this.variantId = String(id);
             this.stageError = '';
+            this.$nextTick(() => {
+                const preview = this.$refs.variantPreview;
+                if (! preview) return;
+                const active = preview.querySelector('[aria-selected=true]');
+                active?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+            });
         },
         stagedKey(variantId) {
             return variantId ? String(variantId) : 'product';
@@ -196,12 +202,52 @@
     }"
 >
     <div class="grid lg:grid-cols-2 gap-10">
-        <div class="bg-beige/40 aspect-[4/5] overflow-hidden">
-            <img
-                :src="selected?.image || @js($defaultImage)"
-                alt="{{ $product->name }}"
-                class="w-full h-full object-cover"
-            >
+        <div class="space-y-3">
+            <div class="bg-beige/40 aspect-[4/5] overflow-hidden">
+                <img
+                    :src="selected?.image || @js($defaultImage)"
+                    alt="{{ $product->name }}"
+                    class="w-full h-full object-cover"
+                >
+            </div>
+
+            @if($product->has_variants && $product->activeVariants->isNotEmpty())
+                <div
+                    x-ref="variantPreview"
+                    class="flex gap-2 overflow-x-auto pb-1"
+                    role="listbox"
+                    aria-label="Variant preview"
+                >
+                    <template x-for="variant in variants" :key="'preview-' + variant.id">
+                        <button
+                            type="button"
+                            role="option"
+                            class="group relative shrink-0 overflow-hidden border bg-beige/30 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                            :class="variantId === variant.id
+                                ? 'border-charcoal ring-1 ring-charcoal'
+                                : 'border-beige hover:border-gold'"
+                            :aria-selected="variantId === variant.id"
+                            :aria-label="variant.name"
+                            :title="variant.name"
+                            @click="selectVariant(variant.id)"
+                        >
+                            <span class="block h-16 w-16 sm:h-20 sm:w-20">
+                                <img
+                                    :src="variant.image"
+                                    :alt="variant.name"
+                                    class="h-full w-full object-cover transition"
+                                    :class="!variant.purchasable ? 'opacity-40 grayscale' : ''"
+                                >
+                            </span>
+                            <span
+                                x-show="!variant.purchasable"
+                                x-cloak
+                                class="absolute inset-x-0 bottom-0 bg-charcoal/70 px-1 py-0.5 text-center text-[10px] leading-tight text-ivory"
+                            >Sold out</span>
+                        </button>
+                    </template>
+                </div>
+            @endif
         </div>
         <div>
             @if($product->brand)
@@ -378,10 +424,17 @@
 
     @if($related->isNotEmpty())
         <section class="mt-20">
-            <h2 class="font-display text-3xl mb-6">You may also like</h2>
+            <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+                <h2 class="font-display text-3xl">You may also like</h2>
+                <p class="text-sm text-taupe">Ranked by how closely each product matches this one</p>
+            </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
                 @foreach($related as $item)
-                    <x-product-card :product="$item" />
+                    <x-product-card
+                        :product="$item"
+                        :match-percent="$item->match_percent ?? null"
+                        :match-reason="$item->match_reason ?? null"
+                    />
                 @endforeach
             </div>
         </section>

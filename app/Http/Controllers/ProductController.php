@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\RecentlyViewedProduct;
+use App\Services\ProductRecommendationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class ProductController extends Controller
 {
-    public function show(Request $request, string $slug): View
+    public function show(Request $request, string $slug, ProductRecommendationService $recommendations): View
     {
         $product = Product::query()
             ->with(['images', 'brand', 'categories', 'activeVariants.attributeValues.attribute'])
@@ -31,19 +32,12 @@ class ProductController extends Controller
             $request->session()->put($recentKey, true);
         }
 
-        $categoryIds = $product->categories->pluck('id');
-        $related = Product::query()
-            ->with(['images', 'brand', 'activeVariants'])
-            ->active()
-            ->published()
-            ->when(
-                $categoryIds->isNotEmpty(),
-                fn ($q) => $q->whereHas('categories', fn ($c) => $c->whereIn('categories.id', $categoryIds)),
-                fn ($q) => $q->whereRaw('0 = 1')
-            )
-            ->where('id', '!=', $product->id)
-            ->take(4)
-            ->get();
+        $related = $recommendations->forProduct(
+            $product,
+            Auth::user(),
+            $sessionId,
+            4,
+        );
 
         return view('storefront.product', compact('product', 'related'));
     }
