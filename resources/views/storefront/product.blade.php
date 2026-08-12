@@ -27,12 +27,43 @@
         ];
     })->values();
 
+    $galleryPayload = $product->has_variants && $product->activeVariants->isNotEmpty()
+        ? $product->activeVariants->map(function ($variant) use ($images, $product) {
+            return [
+                'id' => 'variant-'.$variant->id,
+                'variantId' => (string) $variant->id,
+                'image' => $variant->image_path ? $images->url($variant->image_path) : $images->url(null),
+                'label' => $variant->displayName(),
+                'purchasable' => ! $product->track_inventory || $variant->availableStock() > 0,
+            ];
+        })->values()
+        : $product->images->map(function ($image, $index) use ($images, $product) {
+            return [
+                'id' => 'image-'.$image->id,
+                'variantId' => null,
+                'image' => $images->url($image->path),
+                'label' => $image->alt ?: ($product->name.' photo '.($index + 1)),
+                'purchasable' => true,
+            ];
+        })->values();
+
+    if ($galleryPayload->isEmpty()) {
+        $galleryPayload = collect([[
+            'id' => 'fallback',
+            'variantId' => $product->has_variants ? (string) ($firstVariant?->id ?? '') : null,
+            'image' => $defaultImage,
+            'label' => $product->name,
+            'purchasable' => true,
+        ]]);
+    }
+
     $initialVariantId = (string) ($firstVariant?->id ?? '');
+    $initialGalleryId = (string) ($galleryPayload->first()['id'] ?? 'fallback');
     $currencySymbol = config('aura.currency_symbol', '$');
 @endphp
 
 <div
-    class="max-w-7xl mx-auto px-4 sm:px-6 py-10"
+    class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10"
     x-data="{
         productId: @js((string) $product->id),
         productName: @js($product->name),
@@ -47,7 +78,9 @@
         cartIndexUrl: @js(route('cart.index')),
         csrf: @js(csrf_token()),
         variants: @js($variantsPayload),
+        gallery: @js($galleryPayload),
         variantId: @js($initialVariantId),
+        galleryId: @js($initialGalleryId),
         quantity: 1,
         staged: [],
         stageError: '',
@@ -55,6 +88,14 @@
         confirming: false,
         get selected() {
             return this.variants.find((item) => item.id === String(this.variantId)) || this.variants[0] || null;
+        },
+        get activeGalleryItem() {
+            return this.gallery.find((item) => item.id === String(this.galleryId)) || this.gallery[0] || null;
+        },
+        get activeImage() {
+            return this.activeGalleryItem?.image
+                || this.selected?.image
+                || this.productImage;
         },
         get hasVariants() {
             return this.variants.length > 0;
@@ -84,15 +125,30 @@
         lineTotal(item) {
             return Number(item.unitPrice || 0) * Number(item.quantity || 0);
         },
+        selectGallery(id) {
+            const item = this.gallery.find((entry) => entry.id === String(id));
+            if (! item) return;
+            this.galleryId = String(item.id);
+            if (item.variantId) {
+                this.variantId = String(item.variantId);
+                this.stageError = '';
+            }
+            this.$nextTick(() => this.scrollPreviewIntoView());
+        },
         selectVariant(id) {
             this.variantId = String(id);
             this.stageError = '';
-            this.$nextTick(() => {
-                const preview = this.$refs.variantPreview;
-                if (! preview) return;
-                const active = preview.querySelector('[aria-selected=true]');
-                active?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
-            });
+            const match = this.gallery.find((item) => String(item.variantId) === String(id));
+            if (match) {
+                this.galleryId = String(match.id);
+            }
+            this.$nextTick(() => this.scrollPreviewIntoView());
+        },
+        scrollPreviewIntoView() {
+            const preview = this.$refs.variantPreview;
+            if (! preview) return;
+            const active = preview.querySelector('[aria-selected=true]');
+            active?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         },
         stagedKey(variantId) {
             return variantId ? String(variantId) : 'product';
@@ -137,8 +193,8 @@
                 ? (this.selected?.priceLabel || this.formatMoney(unitPrice))
                 : this.productPriceLabel;
             const image = this.hasVariants
-                ? (this.selected?.image || this.productImage)
-                : this.productImage;
+                ? (this.selected?.image || this.activeImage || this.productImage)
+                : (this.activeImage || this.productImage);
 
             if (existing) {
                 existing.quantity = nextQty;
@@ -201,53 +257,62 @@
         }
     }"
 >
-    <div class="grid lg:grid-cols-2 gap-10">
-        <div class="space-y-3">
-            <div class="bg-beige/40 aspect-[4/5] overflow-hidden">
-                <img
-                    :src="selected?.image || @js($defaultImage)"
-                    alt="{{ $product->name }}"
-                    class="w-full h-full object-cover"
-                >
+    <div class="grid lg:grid-cols-2 gap-6 lg:gap-10">
+        <div class="space-y-3 min-w-0">
+            <div class="relative w-full overflow-hidden bg-beige/40 -mx-4 sm:-mx-6 lg:mx-0">
+                <div class="flex min-h-[280px] max-h-[75vh] w-full items-center justify-center sm:min-h-[360px]">
+                    <img
+                        :src="activeImage"
+                        alt="{{ $product->name }}"
+                        class="h-auto max-h-[75vh] w-full object-contain"
+                        decoding="async"
+                    >
+                </div>
             </div>
 
-            @if($product->has_variants && $product->activeVariants->isNotEmpty())
+            <div
+                x-show="gallery.length > 1"
+                x-cloak
+                class="min-w-0"
+            >
                 <div
                     x-ref="variantPreview"
-                    class="flex gap-2 overflow-x-auto pb-1"
+                    class="product-gallery-scroll flex gap-2 overflow-x-auto overscroll-x-contain touch-pan-x snap-x snap-mandatory pb-1 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0"
                     role="listbox"
-                    aria-label="Variant preview"
+                    aria-label="Image preview"
                 >
-                    <template x-for="variant in variants" :key="'preview-' + variant.id">
+                    <template x-for="item in gallery" :key="item.id">
                         <button
                             type="button"
                             role="option"
-                            class="group relative shrink-0 overflow-hidden border bg-beige/30 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
-                            :class="variantId === variant.id
+                            class="group relative shrink-0 snap-start overflow-hidden border bg-beige/30 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                            :class="galleryId === item.id
                                 ? 'border-charcoal ring-1 ring-charcoal'
                                 : 'border-beige hover:border-gold'"
-                            :aria-selected="variantId === variant.id"
-                            :aria-label="variant.name"
-                            :title="variant.name"
-                            @click="selectVariant(variant.id)"
+                            :aria-selected="galleryId === item.id"
+                            :aria-label="item.label"
+                            :title="item.label"
+                            @click="selectGallery(item.id)"
                         >
                             <span class="block h-16 w-16 sm:h-20 sm:w-20">
                                 <img
-                                    :src="variant.image"
-                                    :alt="variant.name"
-                                    class="h-full w-full object-cover transition"
-                                    :class="!variant.purchasable ? 'opacity-40 grayscale' : ''"
+                                    :src="item.image"
+                                    :alt="item.label"
+                                    class="h-full w-full object-cover"
+                                    :class="item.purchasable === false ? 'opacity-40 grayscale' : ''"
+                                    loading="lazy"
+                                    decoding="async"
                                 >
                             </span>
                             <span
-                                x-show="!variant.purchasable"
+                                x-show="item.purchasable === false"
                                 x-cloak
                                 class="absolute inset-x-0 bottom-0 bg-charcoal/70 px-1 py-0.5 text-center text-[10px] leading-tight text-ivory"
                             >Sold out</span>
                         </button>
                     </template>
                 </div>
-            @endif
+            </div>
         </div>
         <div>
             @if($product->brand)

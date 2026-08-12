@@ -294,6 +294,25 @@
         transform: scale(1.03);
     }
 
+    .product-gallery-scroll {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in srgb, var(--color-taupe) 55%, transparent) transparent;
+    }
+
+    .product-gallery-scroll::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    .product-gallery-scroll::-webkit-scrollbar-thumb {
+        background: color-mix(in srgb, var(--color-taupe) 55%, transparent);
+        border-radius: 999px;
+    }
+
+    .product-gallery-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
     .admin-sidebar {
         z-index: 99999 !important;
         isolation: isolate;
