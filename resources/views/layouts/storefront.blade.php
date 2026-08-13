@@ -5,6 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', config('aura.name'))</title>
+    @php
+        $metaDescription = trim($__env->yieldContent('meta_description', config('aura.tagline', '')));
+        $ogTitle = trim($__env->yieldContent('og_title', $__env->yieldContent('title', config('aura.name'))));
+        $ogImage = trim($__env->yieldContent('og_image', store_logo_url() ?: ''));
+        $canonical = trim($__env->yieldContent('canonical', url()->current()));
+    @endphp
+    @if($metaDescription !== '')
+        <meta name="description" content="{{ $metaDescription }}">
+    @endif
+    <link rel="canonical" href="{{ $canonical }}">
+    <meta property="og:type" content="@yield('og_type', 'website')">
+    <meta property="og:site_name" content="{{ config('aura.name') }}">
+    <meta property="og:title" content="{{ $ogTitle }}">
+    @if($metaDescription !== '')
+        <meta property="og:description" content="{{ $metaDescription }}">
+    @endif
+    <meta property="og:url" content="{{ $canonical }}">
+    @if($ogImage !== '')
+        <meta property="og:image" content="{{ $ogImage }}">
+    @endif
+    <meta name="twitter:card" content="{{ $ogImage !== '' ? 'summary_large_image' : 'summary' }}">
+    <meta name="twitter:title" content="{{ $ogTitle }}">
+    @if($metaDescription !== '')
+        <meta name="twitter:description" content="{{ $metaDescription }}">
+    @endif
+    @if($ogImage !== '')
+        <meta name="twitter:image" content="{{ $ogImage }}">
+    @endif
     @if(store_favicon_url())
         <link rel="icon" href="{{ store_favicon_url() }}">
     @endif
@@ -426,14 +454,47 @@
                     <x-nav-item class="py-1.5" :href="route('pages.show', 'returns-policy')" icon="returns" label="Returns" />
                 </div>
                 <div class="label mt-8 mb-3">Newsletter</div>
-                <form method="POST" action="{{ route('newsletter.store') }}" class="space-y-2">
+                <form
+                    method="POST"
+                    action="{{ route('newsletter.store') }}"
+                    class="space-y-2"
+                    x-data="{ submitting: false, done: false }"
+                    @submit.prevent="
+                        if (submitting || done) return;
+                        submitting = true;
+                        const form = $event.target;
+                        const body = new FormData(form);
+                        window.auraHttp(form.action, { method: 'POST', body })
+                            .then((data) => {
+                                done = true;
+                                form.reset();
+                                window.dispatchEvent(new CustomEvent('aura:toast', {
+                                    detail: { message: data.message || 'Subscribed.', type: 'success' },
+                                }));
+                            })
+                            .catch((error) => {
+                                window.dispatchEvent(new CustomEvent('aura:toast', {
+                                    detail: { message: error.message || 'Could not subscribe.', type: 'error' },
+                                }));
+                            })
+                            .finally(() => { submitting = false; });
+                    "
+                >
                     @csrf
-                    <input type="email" name="email" required placeholder="Email" class="input" aria-label="Newsletter email">
-                    <button class="btn btn-primary w-full" type="submit">Subscribe</button>
+                    <input type="email" name="email" required placeholder="Email" class="input" aria-label="Newsletter email" :disabled="submitting || done">
+                    <button class="btn btn-primary w-full" type="submit" :disabled="submitting || done">
+                        <span x-show="!submitting && !done">Subscribe</span>
+                        <span x-show="submitting" x-cloak>Saving…</span>
+                        <span x-show="done && !submitting" x-cloak>Subscribed</span>
+                    </button>
                 </form>
                 <p class="mt-4 text-taupe text-xs break-words">{{ config('aura.contact.email') }} · {{ config('aura.contact.phone') }}</p>
             </div>
         </div>
     </footer>
+    <x-toast />
+    @auth
+        <x-push-prompt />
+    @endauth
 </body>
 </html>

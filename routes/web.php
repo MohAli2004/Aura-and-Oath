@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CartController;
@@ -24,6 +25,7 @@ Route::get('/products/{slug}', [ProductController::class, 'show'])->name('produc
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
+Route::post('/cart/batch', [CartController::class, 'storeBatch'])->name('cart.batch');
 Route::patch('/cart/{item}', [CartController::class, 'update'])->name('cart.update');
 Route::delete('/cart/{item}', [CartController::class, 'destroy'])->name('cart.destroy');
 
@@ -69,6 +71,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/account/notifications/feed', [NotificationController::class, 'feed'])->name('account.notifications.feed');
     Route::post('/account/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('account.notifications.read-all');
     Route::post('/account/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('account.notifications.read');
+
+    Route::get('/push/status', [PushSubscriptionController::class, 'status'])->name('push.status');
+    Route::post('/push/subscribe', [PushSubscriptionController::class, 'store'])->name('push.store');
+    Route::delete('/push/subscribe', [PushSubscriptionController::class, 'destroy'])->name('push.destroy');
 
     Route::get('/account/orders', [OrderController::class, 'index'])->name('account.orders.index');
     Route::get('/account/orders/{order}', [OrderController::class, 'show'])->name('account.orders.show');

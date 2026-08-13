@@ -330,9 +330,17 @@ class OrderService
     public function cancel(Order $order, User $actor, ?string $note = null): Order
     {
         $order = $this->transition($order, OrderStatus::Cancelled, $actor, $note, function (Order $order) use ($actor) {
+            // Callback runs before status flips, so $order->status is still the prior state.
             if ($order->status === OrderStatus::PendingApproval) {
                 $this->releaseReservations($order, $actor);
+            } elseif (in_array($order->status, [
+                OrderStatus::Approved,
+                OrderStatus::Preparing,
+                OrderStatus::OnTheWay,
+            ], true)) {
+                $this->restoreSoldStock($order, $actor);
             }
+
             $order->cancelled_at = now();
             $order->save();
         });
@@ -352,7 +360,7 @@ class OrderService
 
         if (! $order->canMarkAsPaid()) {
             throw ValidationException::withMessages([
-                'payment_status' => 'Payment can only be marked after the order is approved.',
+                'payment_status' => 'This order cannot be marked as paid in its current status.',
             ]);
         }
 
@@ -673,6 +681,28 @@ class OrderService
                     $item->variant,
                     $order,
                     $actor
+                );
+            }
+        }
+    }
+
+    protected function restoreSoldStock(Order $order, User $actor): void
+    {
+        $order->load('items.product', 'items.variant');
+
+        foreach ($order->items as $item) {
+            if ($item->isRejected()) {
+                continue;
+            }
+
+            if ($item->product?->track_inventory) {
+                $this->inventoryService->restore(
+                    $item->product,
+                    $item->quantity,
+                    $item->variant,
+                    $order,
+                    $actor,
+                    'Order cancelled — sold stock restored'
                 );
             }
         }

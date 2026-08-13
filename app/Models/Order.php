@@ -150,6 +150,7 @@ class Order extends Model
     public function canMarkAsPaid(): bool
     {
         return in_array($this->status, [
+            OrderStatus::PendingApproval,
             OrderStatus::Approved,
             OrderStatus::Preparing,
             OrderStatus::OnTheWay,

@@ -1,13 +1,22 @@
 @extends('layouts.storefront')
-@section('title', $product->name.' — '.config('aura.name'))
-@section('content')
 @php
     $images = app(\App\Services\ImageService::class);
     $firstVariant = $product->activeVariants->first();
     $defaultImage = $product->has_variants
         ? $images->url($firstVariant?->image_path)
         : $images->url($product->primaryImagePath());
-
+    $seoTitle = $product->meta_title ?: ($product->name.' — '.config('aura.name'));
+    $seoDescription = $product->meta_description
+        ?: ($product->short_description ?: Str::limit(strip_tags((string) $product->description), 160));
+@endphp
+@section('title', $seoTitle)
+@section('meta_description', $seoDescription)
+@section('og_title', $seoTitle)
+@section('og_type', 'product')
+@section('og_image', $defaultImage)
+@section('canonical', route('products.show', $product->slug))
+@section('content')
+@php
     $variantsPayload = $product->activeVariants->map(function ($variant) use ($images, $product) {
         $image = $variant->image_path
             ? $images->url($variant->image_path)
@@ -75,6 +84,7 @@
         trackInventory: @js((bool) $product->track_inventory),
         currencySymbol: @js($currencySymbol),
         cartStoreUrl: @js(route('cart.store')),
+        cartBatchUrl: @js(route('cart.batch')),
         cartIndexUrl: @js(route('cart.index')),
         csrf: @js(csrf_token()),
         variants: @js($variantsPayload),
@@ -225,34 +235,74 @@
             this.confirmError = '';
 
             try {
-                for (const item of this.staged) {
-                    const body = new FormData();
-                    body.append('_token', this.csrf);
-                    body.append('product_id', this.productId);
+                const body = new FormData();
+                body.append('_token', this.csrf);
+                body.append('product_id', this.productId);
+
+                this.staged.forEach((item, index) => {
                     if (item.variantId) {
-                        body.append('product_variant_id', item.variantId);
+                        body.append(`items[${index}][product_variant_id]`, item.variantId);
                     }
-                    body.append('quantity', String(item.quantity));
+                    body.append(`items[${index}][quantity]`, String(item.quantity));
+                });
 
-                    const response = await fetch(this.cartStoreUrl, {
-                        method: 'POST',
-                        body,
-                        credentials: 'same-origin',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                        },
-                    });
+                const response = await fetch(this.cartBatchUrl, {
+                    method: 'POST',
+                    body,
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
 
-                    if (! response.ok && response.status !== 302) {
-                        throw new Error('Cart request failed');
-                    }
+                let payload = null;
+                try {
+                    payload = await response.json();
+                } catch (e) {
+                    payload = null;
+                }
+
+                if (! response.ok || payload?.ok === false) {
+                    const message = payload?.message
+                        || payload?.errors?.items?.[0]
+                        || payload?.errors?.quantity?.[0]
+                        || 'Could not add to bag. Please try again.';
+                    throw new Error(message);
                 }
 
                 this.staged = [];
-                window.location.href = this.cartIndexUrl;
+                window.location.href = payload?.redirect || this.cartIndexUrl;
             } catch (error) {
-                this.confirmError = 'Could not add to bag. Please try again.';
+                this.confirmError = error?.message || 'Could not add to bag. Please try again.';
                 this.confirming = false;
+            }
+        },
+        wishlistSaving: false,
+        wishlistSaved: false,
+        async saveWishlist() {
+            if (this.wishlistSaving || this.wishlistSaved) return;
+            this.wishlistSaving = true;
+            try {
+                const body = new FormData();
+                body.append('product_id', this.productId);
+                if (this.hasVariants && this.variantId) {
+                    body.append('product_variant_id', this.variantId);
+                }
+                const data = await window.auraHttp(@js(route('wishlist.store')), {
+                    method: 'POST',
+                    body,
+                });
+                this.wishlistSaved = true;
+                window.dispatchEvent(new CustomEvent('aura:toast', {
+                    detail: { message: data.message || 'Saved to wishlist.', type: 'success' },
+                }));
+            } catch (error) {
+                window.dispatchEvent(new CustomEvent('aura:toast', {
+                    detail: { message: error?.message || 'Could not save to wishlist.', type: 'error' },
+                }));
+            } finally {
+                this.wishlistSaving = false;
             }
         }
     }"
@@ -464,11 +514,18 @@
             </div>
 
             @auth
-                <form method="POST" action="{{ route('wishlist.store') }}" class="mt-3 max-w-sm">
-                    @csrf
-                    <input type="hidden" name="product_id" value="{{ $product->id }}">
-                    <button class="btn btn-secondary w-full" type="submit">Save to wishlist</button>
-                </form>
+                <div class="mt-3 max-w-sm">
+                    <button
+                        class="btn btn-secondary w-full"
+                        type="button"
+                        :disabled="wishlistSaving || wishlistSaved"
+                        @click="saveWishlist()"
+                    >
+                        <span x-show="!wishlistSaving && !wishlistSaved">Save to wishlist</span>
+                        <span x-show="wishlistSaving" x-cloak>Saving…</span>
+                        <span x-show="wishlistSaved && !wishlistSaving" x-cloak>Saved to wishlist</span>
+                    </button>
+                </div>
             @endauth
 
             <div class="mt-10 space-y-6 text-sm leading-relaxed">

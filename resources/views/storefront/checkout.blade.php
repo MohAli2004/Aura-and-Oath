@@ -32,6 +32,16 @@
         method: @js($defaultPaymentMethod),
         currency: @js(config('aura.currency', 'USD')),
         hasServerDraft: @js((bool) ($hasServerDraft ?? false)),
+        addresses: @js(($addresses ?? collect())->map(fn ($address) => [
+            'id' => (string) $address->id,
+            'label' => $address->label ?: ($address->is_default ? 'Default' : 'Saved address'),
+            'full_name' => $address->full_name,
+            'phone' => $address->phone,
+            'line1' => $address->line1,
+            'line2' => $address->line2,
+            'city' => $address->city,
+            'governorate' => $address->governorate,
+        ])->values()),
     })"
 >
     <h1 class="font-display text-5xl mb-8">Checkout</h1>
@@ -52,6 +62,23 @@
             </div>
 
             <div x-show="formError" x-cloak class="alert alert-error" x-text="formError"></div>
+
+            <div x-show="addresses.length" x-cloak>
+                <h2 class="font-display text-2xl mb-3">Saved addresses</h2>
+                <div class="space-y-2">
+                    <template x-for="address in addresses" :key="address.id">
+                        <button
+                            type="button"
+                            class="w-full text-start border border-beige bg-[#FFFCFA] p-4 transition hover:border-gold"
+                            @click="applyAddress(address)"
+                        >
+                            <div class="text-xs uppercase tracking-[0.14em] text-taupe" x-text="address.label"></div>
+                            <div class="mt-1 font-medium" x-text="address.full_name"></div>
+                            <div class="text-sm text-taupe" x-text="[address.line1, address.city].filter(Boolean).join(', ')"></div>
+                        </button>
+                    </template>
+                </div>
+            </div>
 
             <div>
                 <h2 class="font-display text-2xl mb-3">Shipping address</h2>
@@ -208,6 +235,12 @@
                 @csrf
                 <label class="label">Coupon</label>
                 <input class="input" name="coupon_code" placeholder="AURA10" value="{{ old('coupon_code', session('checkout_coupon')) }}">
+                @error('coupon')
+                    <p class="text-sm text-blush">{{ $message }}</p>
+                @enderror
+                @error('coupon_code')
+                    <p class="text-sm text-blush">{{ $message }}</p>
+                @enderror
                 <button class="btn btn-secondary w-full" type="submit">Apply coupon</button>
             </form>
         </aside>

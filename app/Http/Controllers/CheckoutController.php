@@ -6,6 +6,7 @@ use App\Enums\PaymentMethod;
 use App\Http\Requests\CheckoutRequest;
 use App\Services\CartService;
 use App\Services\CheckoutService;
+use App\Services\CouponService;
 use App\Services\DeliveryFeeService;
 use App\Services\OrderPricingService;
 use App\Services\WhishPayService;
@@ -13,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -23,7 +25,8 @@ class CheckoutController extends Controller
         protected CheckoutService $checkoutService,
         protected OrderPricingService $pricingService,
         protected DeliveryFeeService $deliveryFeeService,
-        protected WhishPayService $whishPayService
+        protected WhishPayService $whishPayService,
+        protected CouponService $couponService
     ) {}
 
     public function create(Request $request): View|RedirectResponse|Response
@@ -48,13 +51,44 @@ class CheckoutController extends Controller
 
         $draft = $request->session()->get('checkout_draft', []);
         $regionId = old('delivery_region_id', data_get($draft, 'delivery_region_id'));
+        $couponCode = $request->session()->get('checkout_coupon');
 
-        $quote = $this->pricingService->quote(
-            $cart,
-            $request->session()->get('checkout_coupon'),
-            $regionId ? (int) $regionId : null,
-            Auth::user()
-        );
+        try {
+            $quote = $this->pricingService->quote(
+                $cart,
+                $couponCode,
+                $regionId ? (int) $regionId : null,
+                Auth::user()
+            );
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
+
+            if ($couponCode && isset($errors['coupon'])) {
+                $request->session()->forget('checkout_coupon');
+                $couponCode = null;
+            }
+
+            if (isset($errors['delivery_region_id'])) {
+                $regionId = null;
+            }
+
+            $quote = $this->pricingService->quote(
+                $cart,
+                $couponCode,
+                $regionId ? (int) $regionId : null,
+                Auth::user()
+            );
+
+            $request->session()->flash(
+                'error',
+                collect($errors)->flatten()->first() ?: 'Checkout details could not be applied.'
+            );
+        }
+
+        $addresses = Auth::user()?->addresses()
+            ->orderByDesc('is_default')
+            ->orderByDesc('id')
+            ->get() ?? collect();
 
         return response()
             ->view('storefront.checkout', [
@@ -63,7 +97,7 @@ class CheckoutController extends Controller
                 'regions' => $this->deliveryFeeService->activeRegions(),
                 'paymentMethods' => PaymentMethod::cases(),
                 'idempotencyToken' => $token,
-                'addresses' => Auth::user()->addresses ?? collect(),
+                'addresses' => $addresses,
                 'whishPayEnabled' => $this->whishPayService->isConfigured(),
                 'draft' => $draft,
                 'hasServerDraft' => $request->session()->hasOldInput() || filled($draft),
@@ -74,11 +108,30 @@ class CheckoutController extends Controller
 
     public function applyCoupon(Request $request): RedirectResponse
     {
-        $request->validate(['coupon_code' => ['required', 'string']]);
-        $request->session()->put('checkout_coupon', $request->string('coupon_code')->toString());
+        $data = $request->validate(['coupon_code' => ['required', 'string', 'max:50']]);
+        $code = trim($data['coupon_code']);
         $this->storeCheckoutDraft($request);
 
-        return back()->with('success', 'Coupon applied.')->withInput($request->except(['_token', 'coupon_code']));
+        $cart = $this->cartService->getOrCreateCart();
+        $cart->load(['items.product.categories', 'items.variant']);
+
+        try {
+            $coupon = $this->couponService->findValid($code);
+            $subtotal = (float) $this->cartService->subtotal($cart);
+            $this->couponService->validateForCart($coupon, $cart, $subtotal, Auth::user());
+        } catch (ValidationException $e) {
+            $request->session()->forget('checkout_coupon');
+
+            return back()
+                ->withErrors($e->errors())
+                ->withInput($request->except(['_token']));
+        }
+
+        $request->session()->put('checkout_coupon', $code);
+
+        return back()
+            ->with('success', 'Coupon applied.')
+            ->withInput($request->except(['_token', 'coupon_code']));
     }
 
     public function store(CheckoutRequest $request): RedirectResponse
@@ -89,13 +142,21 @@ class CheckoutController extends Controller
 
         $user = Auth::user();
 
-        $order = $this->checkoutService->placeOrder($user, [
-            ...$request->validated(),
-            'coupon_code' => $request->session()->get('checkout_coupon'),
-            'idempotency_token' => $token,
-            'shipping' => $request->input('shipping'),
-            'billing' => $request->input('billing'),
-        ]);
+        try {
+            $order = $this->checkoutService->placeOrder($user, [
+                ...$request->validated(),
+                'coupon_code' => $request->session()->get('checkout_coupon'),
+                'idempotency_token' => $token,
+                'shipping' => $request->input('shipping'),
+                'billing' => $request->input('billing'),
+            ]);
+        } catch (ValidationException $e) {
+            if ($request->session()->has('checkout_coupon') && isset($e->errors()['coupon'])) {
+                $request->session()->forget('checkout_coupon');
+            }
+
+            throw $e;
+        }
 
         $request->session()->forget(['checkout_idempotency', 'checkout_coupon', 'checkout_draft']);
         $request->session()->put('last_completed_order_id', $order->id);

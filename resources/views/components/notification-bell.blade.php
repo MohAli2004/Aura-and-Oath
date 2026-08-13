@@ -71,43 +71,36 @@
                 await this.refresh({ silent: false });
             }
         },
-        async markRead(item) {
+        async markRead(item, { openUrl = false } = {}) {
             if (item.unread) {
                 try {
-                    await fetch(this.markReadUrl.replace('__ID__', item.id), {
+                    const data = await window.auraHttp(this.markReadUrl.replace('__ID__', item.id), {
                         method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'X-CSRF-TOKEN': this.csrf,
-                            'Content-Type': 'application/json',
-                        },
-                        credentials: 'same-origin',
-                        body: '{}',
+                        body: {},
                     });
                     item.unread = false;
-                    if (this.unread > 0) this.unread--;
+                    this.unread = typeof data.unread_count === 'number'
+                        ? data.unread_count
+                        : Math.max(0, this.unread - 1);
+                    window.dispatchEvent(new CustomEvent('aura:notifications-changed', {
+                        detail: { unread_count: this.unread },
+                    }));
                 } catch (e) {}
             }
-            if (item.url) {
+
+            if (openUrl && item.url) {
                 window.location.href = item.url;
             }
         },
         async markAll() {
+            if (this.unread === 0) return;
             try {
-                await fetch(this.markAllUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': this.csrf,
-                        'Content-Type': 'application/json',
-                    },
-                    credentials: 'same-origin',
-                    body: '{}',
-                });
-                this.items = this.items.map(i => ({ ...i, unread: false }));
+                await window.auraHttp(this.markAllUrl, { method: 'POST', body: {} });
+                this.items = this.items.map((i) => ({ ...i, unread: false }));
                 this.unread = 0;
+                window.dispatchEvent(new CustomEvent('aura:notifications-changed', {
+                    detail: { unread_count: 0 },
+                }));
             } catch (e) {}
         },
     }"
@@ -119,6 +112,7 @@
         };
         document.addEventListener('visibilitychange', onVisible);
         window.addEventListener('focus', onVisible);
+        window.addEventListener('aura:notifications-changed', () => refresh({ silent: true }));
     "
     @keydown.escape.window="open = false"
     @click.outside="open = false"
@@ -147,7 +141,6 @@
         ></span>
     </button>
 
-    {{-- Mobile backdrop --}}
     <div
         x-show="open"
         x-cloak
@@ -209,23 +202,42 @@
                 <p class="px-3 py-8 text-center text-sm text-taupe">No notifications</p>
             </template>
             <template x-for="item in items" :key="item.id">
-                <button
-                    type="button"
-                    class="flex w-full flex-col gap-0.5 border-b border-beige/80 px-3 py-3 text-start transition-colors hover:bg-beige/30"
+                <div
+                    class="border-b border-beige/80 px-3 py-3 transition-colors"
                     :class="item.unread ? 'bg-[#F7F3EE] border-s-2 border-s-[#B85C5C]' : ''"
-                    @click="markRead(item)"
                 >
-                    <span class="flex items-start justify-between gap-2">
-                        <span class="min-w-0 break-words text-sm font-medium text-charcoal" x-text="item.title"></span>
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0 flex-1">
+                            <div class="break-words text-sm font-medium text-charcoal" x-text="item.title"></div>
+                            <div class="mt-0.5 break-words text-xs leading-relaxed text-taupe" x-text="item.message"></div>
+                            <div class="mt-1 text-[11px] text-taupe/80" x-text="item.created_at"></div>
+                        </div>
                         <span
                             x-show="item.unread"
                             class="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#B85C5C]"
                             aria-hidden="true"
                         ></span>
-                    </span>
-                    <span class="break-words text-xs leading-relaxed text-taupe" x-text="item.message"></span>
-                    <span class="mt-1 text-[11px] text-taupe/80" x-text="item.created_at"></span>
-                </button>
+                    </div>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            class="text-xs text-taupe underline hover:text-charcoal disabled:no-underline disabled:opacity-40"
+                            :disabled="!item.unread"
+                            @click="markRead(item)"
+                        >
+                            Mark as read
+                        </button>
+                        <button
+                            type="button"
+                            class="text-xs text-charcoal underline"
+                            x-show="item.url"
+                            x-cloak
+                            @click="markRead(item, { openUrl: true })"
+                        >
+                            Open
+                        </button>
+                    </div>
+                </div>
             </template>
         </div>
 

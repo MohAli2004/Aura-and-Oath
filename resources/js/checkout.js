@@ -7,6 +7,7 @@ export default function checkoutPage(config) {
         method: String(config.method ?? ''),
         currency: String(config.currency ?? 'USD'),
         formError: '',
+        addresses: Array.isArray(config.addresses) ? config.addresses : [],
         storageKey: 'aura.checkoutDraft',
 
         init() {
@@ -28,6 +29,30 @@ export default function checkoutPage(config) {
                 this.syncDraftIntoCouponForm();
                 this.persistDraft();
             });
+        },
+
+        applyAddress(address) {
+            const form = document.getElementById('checkout-form');
+            if (!form || !address) {
+                return;
+            }
+
+            const setValue = (name, next) => {
+                const field = form.elements[name];
+                if (!field) {
+                    return;
+                }
+                field.value = next == null ? '' : String(next);
+                this.clearFieldError(field);
+            };
+
+            setValue('shipping[full_name]', address.full_name);
+            setValue('shipping[phone]', address.phone);
+            setValue('shipping[line1]', address.line1);
+            setValue('shipping[line2]', address.line2);
+            setValue('shipping[city]', address.city);
+            setValue('shipping[governorate]', address.governorate);
+            this.persistDraft();
         },
 
         format(amount) {

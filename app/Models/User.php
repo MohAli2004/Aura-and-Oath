@@ -75,6 +75,11 @@ class User extends Authenticatable
         return $this->hasOne(Wishlist::class);
     }
 
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
+    }
+
     public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class);

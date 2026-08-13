@@ -18,7 +18,10 @@ class CheckoutRequest extends FormRequest
         return [
             'customer_note' => ['nullable', 'string', 'max:1000'],
             'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
-            'delivery_region_id' => ['required', 'exists:delivery_regions,id'],
+            'delivery_region_id' => [
+                'required',
+                Rule::exists('delivery_regions', 'id')->where('is_active', true),
+            ],
             'idempotency_token' => ['required', 'string', 'max:100'],
             'shipping.full_name' => ['required', 'string', 'max:255'],
             'shipping.phone' => ['required', 'string', 'max:30'],

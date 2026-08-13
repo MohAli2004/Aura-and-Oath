@@ -3,12 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\NewsletterSubscriber;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class NewsletterController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): JsonResponse|RedirectResponse
     {
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255'],
@@ -25,6 +26,15 @@ class NewsletterController extends Controller
             ]
         );
 
-        return back()->with('success', 'You are subscribed to our newsletter.');
+        $message = 'You are subscribed to our newsletter.';
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'message' => $message,
+            ]);
+        }
+
+        return back()->with('success', $message);
     }
 }

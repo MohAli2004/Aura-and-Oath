@@ -3,18 +3,23 @@
 namespace App\Providers;
 
 use App\Listeners\MergeGuestCartOnLogin;
+use App\Listeners\SendWebPushOnDatabaseNotification;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
 use App\Policies\OrderPolicy;
 use App\Policies\ProductPolicy;
+use App\Services\AdminNavBadgeService;
 use App\Services\CartService;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -34,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('admin', fn ($user) => $user->isAdmin() && $user->is_active);
 
         Event::listen(Login::class, MergeGuestCartOnLogin::class);
+        Event::listen(NotificationSent::class, SendWebPushOnDatabaseNotification::class);
 
         view()->composer('layouts.storefront', function ($view) {
             try {
@@ -82,6 +88,21 @@ class AppServiceProvider extends ServiceProvider
                 'navBrands' => $navBrands,
                 'navBrandsTotal' => $navBrandsTotal,
             ]);
+        });
+
+        View::composer('layouts.admin', function ($view) {
+            $badges = [];
+
+            try {
+                $user = Auth::user();
+                if ($user && $user->isAdmin()) {
+                    $badges = app(AdminNavBadgeService::class)->countsFor($user);
+                }
+            } catch (\Throwable) {
+                $badges = [];
+            }
+
+            $view->with('adminNavBadges', $badges);
         });
     }
 

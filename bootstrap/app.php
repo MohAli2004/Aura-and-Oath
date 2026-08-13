@@ -13,7 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
             Illuminate\Support\Facades\Route::middleware('web')
                 ->group(base_path('routes/auth.php'));
 
-            Illuminate\Support\Facades\Route::middleware(['web', 'auth', 'admin'])
+            Illuminate\Support\Facades\Route::middleware(['web', 'auth', 'admin', 'admin.nav'])
                 ->prefix('admin')
                 ->name('admin.')
                 ->group(base_path('routes/admin.php'));
@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
+            'admin.nav' => \App\Http\Middleware\MarkAdminNavSeen::class,
             'inventory.unlocked' => \App\Http\Middleware\EnsureInventoryUnlocked::class,
         ]);
 

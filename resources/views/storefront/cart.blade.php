@@ -59,7 +59,7 @@
             @auth
                 <a href="{{ route('checkout.create') }}" class="btn btn-primary">Checkout</a>
             @else
-                <a href="{{ route('login') }}" class="btn btn-primary">Sign in to checkout</a>
+                <a href="{{ route('checkout.create') }}" class="btn btn-primary">Sign in to checkout</a>
             @endauth
         </div>
     @endif

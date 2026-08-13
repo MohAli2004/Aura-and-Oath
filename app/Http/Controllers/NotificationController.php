@@ -57,7 +57,10 @@ class NotificationController extends Controller
         $notification->markAsRead();
 
         if (request()->expectsJson() || request()->ajax()) {
-            return response()->json(['ok' => true]);
+            return response()->json([
+                'ok' => true,
+                'unread_count' => Auth::user()->unreadNotifications()->count(),
+            ]);
         }
 
         $url = NotificationPresenter::present($notification)['url'];
@@ -72,7 +75,10 @@ class NotificationController extends Controller
         Auth::user()->unreadNotifications->markAsRead();
 
         if (request()->expectsJson() || request()->ajax()) {
-            return response()->json(['ok' => true]);
+            return response()->json([
+                'ok' => true,
+                'unread_count' => 0,
+            ]);
         }
 
         return back()->with('success', 'All notifications marked as read.');

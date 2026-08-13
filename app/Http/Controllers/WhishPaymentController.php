@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class WhishPaymentController extends Controller
@@ -164,7 +165,18 @@ class WhishPaymentController extends Controller
         }
 
         $before = $order->payment_status;
-        $order = $this->orders->markPaid($order, null, 'Wish payment confirmed via Whish Pay.');
+
+        try {
+            $order = $this->orders->markPaid($order, null, 'Wish payment confirmed via Whish Pay.');
+        } catch (ValidationException $e) {
+            Log::warning('Whish mark-paid rejected', [
+                'order' => $order->order_number,
+                'status' => $order->status?->value,
+                'messages' => $e->errors(),
+            ]);
+
+            return;
+        }
 
         if ($before !== PaymentStatus::Paid && $order->payment_status === PaymentStatus::Paid) {
             $this->notifications->notifyAdminWishPayment($order);

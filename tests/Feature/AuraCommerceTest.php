@@ -810,4 +810,152 @@ class AuraCommerceTest extends TestCase
         $this->assertSame($originalPassword, $user->fresh()->password);
         $this->assertSame('Return User Updated', $user->fresh()->name);
     }
+
+    public function test_cancel_after_approval_restores_sold_stock(): void
+    {
+        $product = $this->createProduct(['stock_quantity' => 8]);
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->customer()->create();
+        $region = $this->createRegion('BEI-CANCEL-SOLD');
+
+        $this->actingAs($user);
+        app(CartService::class)->add($product, 3);
+        $order = app(CheckoutService::class)->placeOrder($user, [
+            'customer_phone' => '01000000000',
+            'payment_method' => PaymentMethod::CashOnDelivery->value,
+            'delivery_region_id' => $region->id,
+            'idempotency_token' => 'cancel-after-approve-1',
+            'shipping' => ['full_name' => $user->name, 'phone' => '010', 'line1' => 'A', 'city' => 'Beirut'],
+        ]);
+
+        $orders = app(OrderService::class);
+        $orders->approve($order, $admin);
+
+        $this->assertEquals(5, $product->fresh()->stock_quantity);
+        $this->assertEquals(0, $product->fresh()->reserved_quantity);
+
+        $orders->cancel($order->fresh(), $admin, 'Customer changed mind');
+
+        $this->assertEquals(OrderStatus::Cancelled, $order->fresh()->status);
+        $this->assertEquals(8, $product->fresh()->stock_quantity);
+        $this->assertEquals(0, $product->fresh()->reserved_quantity);
+    }
+
+    public function test_pending_approval_order_can_be_marked_paid(): void
+    {
+        $product = $this->createProduct(['stock_quantity' => 5]);
+        $user = User::factory()->customer()->create();
+        $region = $this->createRegion('BEI-PAID-PENDING');
+
+        $this->actingAs($user);
+        app(CartService::class)->add($product, 1);
+        $order = app(CheckoutService::class)->placeOrder($user, [
+            'customer_phone' => '01000000000',
+            'payment_method' => PaymentMethod::WishAccount->value,
+            'delivery_region_id' => $region->id,
+            'idempotency_token' => 'mark-paid-pending-1',
+            'shipping' => ['full_name' => $user->name, 'phone' => '010', 'line1' => 'A', 'city' => 'Beirut'],
+        ]);
+
+        $this->assertEquals(OrderStatus::PendingApproval, $order->status);
+        $this->assertTrue($order->canMarkAsPaid());
+
+        $paid = app(OrderService::class)->markPaid($order, null, 'Wish payment confirmed');
+        $this->assertEquals(PaymentStatus::Paid, $paid->payment_status);
+    }
+
+    public function test_inactive_delivery_region_is_rejected_at_checkout(): void
+    {
+        $product = $this->createProduct();
+        $user = User::factory()->customer()->create();
+        $region = $this->createRegion('BEI-INACTIVE');
+        $region->update(['is_active' => false]);
+
+        $this->actingAs($user);
+        app(CartService::class)->add($product, 1);
+
+        $this->post('/checkout', [
+            'payment_method' => PaymentMethod::CashOnDelivery->value,
+            'delivery_region_id' => $region->id,
+            'idempotency_token' => 'inactive-region-1',
+            'shipping' => [
+                'full_name' => $user->name,
+                'phone' => '01000000000',
+                'line1' => 'Street 1',
+                'city' => 'Beirut',
+            ],
+        ])->assertSessionHasErrors('delivery_region_id');
+    }
+
+    public function test_invalid_coupon_is_rejected_on_apply(): void
+    {
+        $product = $this->createProduct();
+        $user = User::factory()->customer()->create();
+        $this->createRegion('BEI-COUPON');
+
+        $this->actingAs($user);
+        app(CartService::class)->add($product, 1);
+
+        $this->from('/checkout')
+            ->post('/checkout/coupon', ['coupon_code' => 'NOTREAL'])
+            ->assertRedirect('/checkout')
+            ->assertSessionHasErrors('coupon')
+            ->assertSessionMissing('checkout_coupon');
+    }
+
+    public function test_cart_batch_add_is_atomic(): void
+    {
+        $product = $this->createProduct([
+            'has_variants' => true,
+            'stock_quantity' => 0,
+        ]);
+
+        $okVariant = $product->variants()->create([
+            'name' => 'Shade A',
+            'sku' => 'VAR-A-'.uniqid(),
+            'stock_quantity' => 2,
+            'reserved_quantity' => 0,
+            'is_active' => true,
+            'price' => 20,
+        ]);
+
+        $oosVariant = $product->variants()->create([
+            'name' => 'Shade B',
+            'sku' => 'VAR-B-'.uniqid(),
+            'stock_quantity' => 0,
+            'reserved_quantity' => 0,
+            'is_active' => true,
+            'price' => 20,
+        ]);
+
+        $this->postJson('/cart/batch', [
+            'product_id' => $product->id,
+            'items' => [
+                ['product_variant_id' => $okVariant->id, 'quantity' => 1],
+                ['product_variant_id' => $oosVariant->id, 'quantity' => 1],
+            ],
+        ])->assertStatus(422);
+
+        $this->assertDatabaseCount('cart_items', 0);
+    }
+
+    public function test_product_page_exposes_seo_meta(): void
+    {
+        $product = $this->createProduct([
+            'name' => 'SEO Serum',
+            'slug' => 'seo-serum',
+            'sku' => 'SKU-SEO',
+            'barcode' => 'BC-SEO',
+            'meta_title' => 'SEO Serum Title',
+            'meta_description' => 'SEO serum description for search.',
+            'short_description' => 'Short blurb',
+        ]);
+
+        $this->get('/products/seo-serum')
+            ->assertOk()
+            ->assertSee('SEO Serum Title', false)
+            ->assertSee('SEO serum description for search.', false)
+            ->assertSee('<meta name="description"', false)
+            ->assertSee('property="og:title"', false);
+    }
 }

@@ -14,32 +14,33 @@
 </head>
 <body class="min-h-screen bg-ivory text-charcoal overflow-x-hidden">
 @php
+    $adminNavBadges = $adminNavBadges ?? [];
     $adminLinkGroups = [
         'Overview' => [
-            ['admin.dashboard', 'Dashboard', 'dashboard'],
-            ['admin.reports.index', 'Reports', 'reports'],
+            ['admin.dashboard', 'Dashboard', 'dashboard', null],
+            ['admin.reports.index', 'Reports', 'reports', null],
         ],
         'Catalog' => [
-            ['admin.products.index', 'Products', 'products'],
-            ['admin.categories.index', 'Categories', 'categories'],
-            ['admin.brands.index', 'Brands', 'brands'],
-            ['admin.attributes.index', 'Attributes', 'attributes'],
-            ['admin.inventory.index', 'Inventory', 'inventory'],
-            ['admin.barcodes.index', 'Barcode Lookup', 'barcode'],
+            ['admin.products.index', 'Products', 'products', 'products'],
+            ['admin.categories.index', 'Categories', 'categories', 'categories'],
+            ['admin.brands.index', 'Brands', 'brands', 'brands'],
+            ['admin.attributes.index', 'Attributes', 'attributes', 'attributes'],
+            ['admin.inventory.index', 'Inventory', 'inventory', 'inventory'],
+            ['admin.barcodes.index', 'Barcode Lookup', 'barcode', null],
         ],
         'Sales' => [
-            ['admin.orders.index', 'Orders', 'orders'],
-            ['admin.customers.index', 'Customers', 'customers'],
-            ['admin.coupons.index', 'Coupons', 'coupons'],
-            ['admin.delivery-regions.index', 'Delivery', 'delivery'],
+            ['admin.orders.index', 'Orders', 'orders', 'orders'],
+            ['admin.customers.index', 'Customers', 'customers', 'customers'],
+            ['admin.coupons.index', 'Coupons', 'coupons', 'coupons'],
+            ['admin.delivery-regions.index', 'Delivery', 'delivery', 'delivery'],
         ],
         'Marketing' => [
-            ['admin.banners.index', 'Banners', 'banners'],
+            ['admin.banners.index', 'Banners', 'banners', 'banners'],
         ],
         'System' => [
-            ['admin.notifications.index', 'Notifications', 'bell'],
-            ['admin.settings.edit', 'Settings', 'settings'],
-            ['admin.audit-logs.index', 'Audit Log', 'audit'],
+            ['admin.notifications.index', 'Notifications', 'bell', 'notifications'],
+            ['admin.settings.edit', 'Settings', 'settings', null],
+            ['admin.audit-logs.index', 'Audit Log', 'audit', 'audit'],
         ],
     ];
 @endphp
@@ -101,16 +102,34 @@
                         <span class="hidden" :class="desktopCollapsed && 'lg:inline'" x-show="desktopCollapsed">•</span>
                     </div>
                     <div class="space-y-1">
-                        @foreach($links as [$route, $label, $icon])
+                        @foreach($links as [$route, $label, $icon, $badgeKey])
+                            @php
+                                $badgeCount = $badgeKey ? (int) ($adminNavBadges[$badgeKey] ?? 0) : 0;
+                                $badgeLabel = $badgeCount > 99 ? '99+' : (string) $badgeCount;
+                            @endphp
                             <a
                                 href="{{ route($route) }}"
                                 @click="closeMobile()"
-                                class="flex items-center justify-start gap-3 px-3 py-2.5 rounded-sm min-h-11 {{ request()->routeIs(str_replace('.index','.*', $route)) || request()->routeIs($route) ? 'active' : '' }}"
+                                class="relative flex items-center justify-start gap-3 px-3 py-2.5 rounded-sm min-h-11 {{ request()->routeIs(str_replace('.index','.*', $route)) || request()->routeIs($route) ? 'active' : '' }}"
                                 :class="desktopCollapsed && 'lg:justify-center lg:px-2'"
-                                title="{{ $label }}"
+                                title="{{ $label }}{{ $badgeCount > 0 ? ' ('.$badgeLabel.')' : '' }}"
                             >
-                                <x-icon :name="$icon" class="w-5 h-5 text-taupe" />
-                                <span class="truncate" :class="desktopCollapsed && 'lg:hidden'">{{ $label }}</span>
+                                <span class="relative shrink-0">
+                                    <x-icon :name="$icon" class="w-5 h-5 text-taupe" />
+                                    @if($badgeCount > 0)
+                                        <span
+                                            class="absolute -end-2 -top-2 hidden min-w-[1.1rem] rounded-full bg-blush px-1 text-center text-[10px] font-semibold leading-4 text-ivory lg:inline-block"
+                                            :class="desktopCollapsed ? 'lg:inline-block' : 'lg:hidden'"
+                                        >{{ $badgeLabel }}</span>
+                                    @endif
+                                </span>
+                                <span class="min-w-0 flex-1 truncate" :class="desktopCollapsed && 'lg:hidden'">{{ $label }}</span>
+                                @if($badgeCount > 0)
+                                    <span
+                                        class="ms-auto inline-flex min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-blush px-1.5 py-0.5 text-[10px] font-semibold leading-none text-ivory"
+                                        :class="desktopCollapsed && 'lg:hidden'"
+                                    >{{ $badgeLabel }}</span>
+                                @endif
                             </a>
                         @endforeach
                     </div>
@@ -168,5 +187,9 @@
         </div>
     </div>
 </div>
+<x-toast />
+@auth
+    <x-push-prompt />
+@endauth
 </body>
 </html>
