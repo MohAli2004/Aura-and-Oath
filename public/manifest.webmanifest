@@ -1,0 +1,17 @@
+{
+  "name": "Aura & Oath",
+  "short_name": "Aura",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F3EE",
+  "theme_color": "#2C2A28",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/images/placeholders/product.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -12,7 +12,8 @@
 @endphp
 
 <div
-    class="relative"
+    class="relative z-10"
+    :style="open ? { zIndex: 100001 } : null"
     x-data="{
         open: false,
         loading: false,
@@ -23,7 +24,6 @@
         feedUrl: @js($feedUrl),
         markReadUrl: @js($markReadUrl),
         markAllUrl: @js($markAllUrl),
-        csrf: @js(csrf_token()),
         pollMs: {{ (int) $pollMs }},
         async refresh({ silent = true } = {}) {
             try {
@@ -89,6 +89,7 @@
             }
 
             if (openUrl && item.url) {
+                this.open = false;
                 window.location.href = item.url;
             }
         },
@@ -145,7 +146,8 @@
         x-show="open"
         x-cloak
         x-transition.opacity
-        class="fixed inset-0 z-[60] bg-charcoal/25 sm:hidden"
+        class="fixed inset-0 bg-charcoal/25 sm:hidden"
+        style="z-index: 100000;"
         @click="open = false"
         aria-hidden="true"
     ></div>
@@ -159,7 +161,8 @@
         x-transition:leave="transition ease-in duration-100"
         x-transition:leave-start="opacity-100 translate-y-0"
         x-transition:leave-end="opacity-0 translate-y-2 sm:translate-y-1"
-        class="fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[70] flex max-h-[min(32rem,calc(100dvh-1.5rem))] flex-col overflow-hidden border border-beige bg-[#FFFCFA] shadow-lg sm:absolute sm:inset-x-auto sm:top-full sm:z-50 sm:mt-2 sm:max-h-[min(28rem,70vh)] sm:w-[min(22rem,calc(100vw-1.5rem))] sm:shadow-md {{ $panelAlign }}"
+        class="fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] flex max-h-[min(32rem,calc(100dvh-1.5rem))] flex-col overflow-hidden border border-beige bg-[#FFFCFA] shadow-lg sm:absolute sm:inset-x-auto sm:top-full sm:mt-2 sm:max-h-[min(28rem,70vh)] sm:w-[min(22rem,calc(100vw-1.5rem))] sm:shadow-md {{ $panelAlign }}"
+        style="z-index: 100001;"
         role="menu"
         aria-label="Notifications list"
         @click.stop
@@ -242,7 +245,7 @@
         </div>
 
         <div class="shrink-0 border-t border-beige px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
-            <a href="{{ $indexUrl }}" class="text-xs text-taupe underline hover:text-charcoal">View all notifications</a>
+            <a href="{{ $indexUrl }}" class="text-xs text-taupe underline hover:text-charcoal" @click="open = false">View all notifications</a>
         </div>
     </div>
 </div>

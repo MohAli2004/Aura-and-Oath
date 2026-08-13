@@ -87,19 +87,19 @@
                     </div>
                     <p class="mt-1 break-words text-sm text-taupe">{{ $item['message'] }}</p>
                     <p class="mt-2 text-xs text-taupe/80">{{ $item['created_at'] }}</p>
-                    <div class="mt-3 flex flex-wrap gap-2">
+                    <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                         @if($item['unread'])
                             <button
                                 type="button"
                                 data-unread-only
-                                class="btn btn-secondary btn-sm"
+                                class="btn btn-secondary min-h-11 w-full sm:min-h-8 sm:w-auto sm:px-3 sm:py-1.5"
                                 @click="markRead(@js($item['id']), $event.currentTarget.closest('[data-notification-row]'))"
                             >Mark as read</button>
                         @endif
                         @if($item['url'])
                             <button
                                 type="button"
-                                class="btn btn-primary btn-sm"
+                                class="btn btn-primary min-h-11 w-full sm:min-h-8 sm:w-auto sm:px-3 sm:py-1.5"
                                 @click="openItem(@js($item['id']), @js($item['url']), $event.currentTarget.closest('[data-notification-row]'))"
                             >Open</button>
                         @endif

@@ -118,16 +118,16 @@
                             <button
                                 type="button"
                                 data-unread-only
-                                class="btn btn-secondary btn-sm w-full sm:w-auto"
+                                class="btn btn-secondary min-h-11 w-full sm:min-h-8 sm:w-auto sm:px-3 sm:py-1.5"
                                 @click="markRead(@js($item['id']), $event.currentTarget)"
                             >Mark read</button>
                         @endif
                         @if($isContact && ! empty($data['sender_email']))
-                            <a href="mailto:{{ $data['sender_email'] }}" class="btn btn-primary btn-sm w-full text-center sm:w-auto">Reply by email</a>
+                            <a href="mailto:{{ $data['sender_email'] }}" class="btn btn-primary min-h-11 w-full text-center sm:min-h-8 sm:w-auto sm:px-3 sm:py-1.5">Reply by email</a>
                         @elseif($item['url'])
                             <button
                                 type="button"
-                                class="btn btn-primary btn-sm w-full sm:w-auto"
+                                class="btn btn-primary min-h-11 w-full sm:min-h-8 sm:w-auto sm:px-3 sm:py-1.5"
                                 @click="openItem(@js($item['id']), @js($item['url']))"
                             >Open</button>
                         @endif
