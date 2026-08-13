@@ -258,26 +258,24 @@
     }"
 >
     <div class="grid lg:grid-cols-2 gap-6 lg:gap-10">
-        <div class="space-y-3 min-w-0">
-            <div class="relative w-full overflow-hidden bg-beige/40 -mx-4 sm:-mx-6 lg:mx-0">
-                <div class="flex min-h-[280px] max-h-[75vh] w-full items-center justify-center sm:min-h-[360px]">
-                    <img
-                        :src="activeImage"
-                        alt="{{ $product->name }}"
-                        class="h-auto max-h-[75vh] w-full object-contain"
-                        decoding="async"
-                    >
-                </div>
+        <div class="w-full min-w-0 space-y-3">
+            <div class="flex min-h-[280px] w-full items-center justify-center bg-beige/40 sm:min-h-[360px]">
+                <img
+                    :src="activeImage"
+                    alt="{{ $product->name }}"
+                    class="mx-auto block h-auto max-h-[75vh] w-auto max-w-full object-contain"
+                    decoding="async"
+                >
             </div>
 
             <div
                 x-show="gallery.length > 1"
                 x-cloak
-                class="min-w-0"
+                class="w-full min-w-0"
             >
                 <div
                     x-ref="variantPreview"
-                    class="product-gallery-scroll flex gap-2 overflow-x-auto overscroll-x-contain touch-pan-x snap-x snap-mandatory pb-1 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0"
+                    class="product-gallery-scroll flex w-full gap-2 overflow-x-auto overscroll-x-contain touch-pan-x snap-x snap-mandatory pb-1"
                     role="listbox"
                     aria-label="Image preview"
                 >
@@ -314,7 +312,7 @@
                 </div>
             </div>
         </div>
-        <div>
+        <div class="w-full min-w-0">
             @if($product->brand)
                 <div class="text-xs uppercase tracking-[0.18em] text-taupe mb-2">{{ $product->brand->name }}</div>
             @endif
