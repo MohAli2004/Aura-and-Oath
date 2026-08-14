@@ -7,7 +7,7 @@
         <a href="{{ route('account.orders.show', $order) }}" class="flex flex-wrap justify-between gap-3 border-b border-beige py-4">
             <span class="font-medium">{{ $order->order_number }}</span>
             <span class="text-sm text-taupe">{{ $order->created_at->format('M j, Y') }}</span>
-            <x-badge>{{ $order->status->label() }}</x-badge>
+            <x-badge :tone="$order->status->tone()">{{ $order->status->label() }}</x-badge>
             <span>{{ money($order->total) }}</span>
         </a>
     @empty

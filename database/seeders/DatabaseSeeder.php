@@ -514,7 +514,7 @@ class DatabaseSeeder extends Seeder
             ['Privacy Policy', 'privacy-policy', 'We respect your privacy. This policy explains how Aura & Oath collects and uses information.'],
             ['Terms of Service', 'terms-of-service', 'By shopping with Aura & Oath you agree to these terms.'],
             ['Shipping Policy', 'shipping-policy', 'We deliver across Lebanon. Fees depend on your area: Beirut Central ($3), Metn & Coastal Suburbs ($5), Mountain & Southern Coastal ($6), Major Cities North & South ($7), and Remote & Eastern Districts ($8). Delivery takes 1–3 business days depending on distance.'],
-            ['Returns Policy', 'returns-policy', 'Returns are accepted for eligible items within 24 hours, subject to inspection.'],
+            ['Returns Policy', 'returns-policy', 'Returns are accepted within 24 hours of delivery, only when there is a real problem: a defective or damaged item, a missing item, or a different item than the one ordered. Used items, or items broken after delivery, cannot be returned. Start a return from the Returns page with your order number, email, a photo of the item, and details of the problem.'],
         ] as [$title, $slug, $content]) {
             Page::query()->updateOrCreate(
                 ['slug' => $slug],

@@ -10,6 +10,7 @@ enum OrderStatus: string
     case Preparing = 'preparing';
     case OnTheWay = 'on_the_way';
     case Delivered = 'delivered';
+    case ReturnRequested = 'return_requested';
     case Cancelled = 'cancelled';
     case Returned = 'returned';
     case Refunded = 'refunded';
@@ -23,6 +24,7 @@ enum OrderStatus: string
             self::Preparing => 'Preparing',
             self::OnTheWay => 'On the way',
             self::Delivered => 'Delivered',
+            self::ReturnRequested => 'Return requested',
             self::Cancelled => 'Cancelled',
             self::Returned => 'Returned',
             self::Refunded => 'Refunded',
@@ -36,6 +38,7 @@ enum OrderStatus: string
             self::Approved, self::Preparing => 'preparing',
             self::OnTheWay => 'shipping',
             self::Delivered => 'success',
+            self::ReturnRequested => 'pending',
             self::Rejected, self::Cancelled => 'danger',
             self::Returned => 'returned',
             self::Refunded => 'muted',
@@ -49,6 +52,7 @@ enum OrderStatus: string
             self::Approved, self::Preparing => 'bg-[#F3F0EA]',
             self::OnTheWay => 'bg-[#EEF4F8]',
             self::Delivered => 'bg-[#EEF5EE]',
+            self::ReturnRequested => 'bg-[#FBF3E6]',
             self::Rejected, self::Cancelled => 'bg-[#F7EEEE]',
             self::Returned => 'bg-[#F8F1E8]',
             self::Refunded => 'bg-[#F3F1EF]',
@@ -99,7 +103,8 @@ enum OrderStatus: string
             self::Rejected => [],
             self::Preparing => [self::OnTheWay, self::Cancelled],
             self::OnTheWay => [self::Delivered, self::Returned, self::Cancelled],
-            self::Delivered => [self::Returned],
+            self::Delivered => [self::Returned, self::ReturnRequested],
+            self::ReturnRequested => [self::Returned, self::Delivered],
             self::Cancelled => [],
             self::Returned => [self::Refunded],
             self::Refunded => [],

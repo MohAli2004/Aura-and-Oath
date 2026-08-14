@@ -11,6 +11,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\WhishPaymentController;
@@ -30,6 +31,9 @@ Route::patch('/cart/{item}', [CartController::class, 'update'])->name('cart.upda
 Route::delete('/cart/{item}', [CartController::class, 'destroy'])->name('cart.destroy');
 
 Route::get('/track-order', [OrderController::class, 'track'])->name('orders.track');
+Route::get('/returns', [ReturnController::class, 'index'])->name('returns.index');
+Route::post('/returns', [ReturnController::class, 'store'])->name('returns.store');
+Route::post('/orders/cancel', [OrderController::class, 'cancelLookup'])->name('orders.cancel');
 
 Route::get('/about', [PageController::class, 'about'])->name('pages.about');
 Route::get('/contact', [PageController::class, 'contact'])->name('pages.contact');

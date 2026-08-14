@@ -181,6 +181,8 @@
                         >
                             <x-nav-item class="px-4 py-2.5" :href="route('account.index')" icon="account" label="My account" />
                             <x-nav-item class="px-4 py-2.5" :href="route('account.notifications.index')" icon="bell" label="Notifications" />
+                            <x-nav-item class="px-4 py-2.5" :href="route('account.orders.index')" icon="orders" label="Orders" />
+                            <x-nav-item class="px-4 py-2.5" :href="route('returns.index')" icon="returns" label="Returns" />
                             <x-nav-item class="px-4 py-2.5" :href="route('wishlist.index')" icon="wishlist" label="Wishlist" />
                             @if(auth()->user()->isAdmin())
                                 <x-nav-item class="px-4 py-2.5" :href="route('admin.dashboard')" icon="admin" label="Admin" />
@@ -377,6 +379,7 @@
                             <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.index')" icon="account" label="My account" @click="open = false" />
                             <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.notifications.index')" icon="bell" label="Notifications" @click="open = false" />
                             <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.orders.index')" icon="orders" label="Orders" @click="open = false" />
+                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('returns.index')" icon="returns" label="Returns" @click="open = false" />
                             <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('wishlist.index')" icon="wishlist" label="Wishlist" @click="open = false" />
                             @if(auth()->user()->isAdmin())
                                 <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('admin.dashboard')" icon="admin" label="Admin portal" @click="open = false" />
@@ -456,8 +459,7 @@
                     <x-nav-item class="py-1.5" :href="route('pages.contact')" icon="contact" label="Contact" />
                     <x-nav-item class="py-1.5" :href="route('pages.faq')" icon="faq" label="FAQ" />
                     <x-nav-item class="py-1.5" :href="route('orders.track')" icon="track" label="Track order" />
-                    <x-nav-item class="py-1.5" :href="route('pages.show', 'shipping-policy')" icon="shipping" label="Shipping" />
-                    <x-nav-item class="py-1.5" :href="route('pages.show', 'returns-policy')" icon="returns" label="Returns" />
+                    <x-nav-item class="py-1.5" :href="route('returns.index')" icon="returns" label="Returns" />
                 </div>
                 <div class="label mt-8 mb-3">Newsletter</div>
                 <form

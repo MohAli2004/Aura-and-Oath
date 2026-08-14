@@ -2,7 +2,7 @@
 @section('heading', 'Dashboard')
 @section('title', 'Dashboard')
 @section('content')
-<div class="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+<div class="mb-8 grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
     @foreach([
         ['Orders today', $stats['orders_today']],
         ['Revenue today', money($stats['revenue_today'])],
@@ -13,9 +13,9 @@
         ['Active products', $stats['products_active']],
         ['Revenue this month', money($stats['revenue_month'])],
     ] as [$label, $value])
-        <div class="border border-beige bg-[#FFFCFA] p-4">
-            <div class="text-xs uppercase tracking-widest text-taupe">{{ $label }}</div>
-            <div class="font-display text-3xl mt-2">{{ $value }}</div>
+        <div class="border border-beige bg-[#FFFCFA] p-3 sm:p-4">
+            <div class="text-[10px] uppercase leading-snug tracking-widest text-taupe sm:text-xs">{{ $label }}</div>
+            <div class="mt-1.5 font-display text-2xl sm:mt-2 sm:text-3xl">{{ $value }}</div>
         </div>
     @endforeach
 </div>
@@ -32,6 +32,18 @@
             </a>
         @empty
             <p class="text-taupe">No pending orders.</p>
+        @endforelse
+
+        <h2 class="font-display text-2xl mb-4 mt-10">Return requests</h2>
+        @forelse($returnRequestedOrders as $order)
+            <a href="{{ route('admin.orders.show', $order) }}" class="flex justify-between gap-3 border-b border-beige py-3 text-sm {{ $order->status->rowClass() }} px-2">
+                <span>{{ $order->order_number }}</span>
+                <span>{{ $order->customer_name }}</span>
+                <x-badge :tone="$order->status->tone()">{{ $order->status->label() }}</x-badge>
+                <span>{{ money($order->total) }}</span>
+            </a>
+        @empty
+            <p class="text-taupe">No pending return requests.</p>
         @endforelse
     </div>
     <div>

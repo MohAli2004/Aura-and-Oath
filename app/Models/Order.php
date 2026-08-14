@@ -5,12 +5,15 @@ namespace App\Models;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Enums\ReturnRequestStatus;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class Order extends Model
 {
@@ -112,6 +115,19 @@ class Order extends Model
         return $this->hasMany(OrderNote::class)->latest();
     }
 
+    public function returnRequests(): HasMany
+    {
+        return $this->hasMany(ReturnRequest::class)->latest();
+    }
+
+    public function pendingReturnRequest(): HasOne
+    {
+        return $this->hasOne(ReturnRequest::class)->ofMany(
+            ['id' => 'max'],
+            fn ($query) => $query->where('status', ReturnRequestStatus::Pending)
+        );
+    }
+
     public function coupon(): BelongsTo
     {
         return $this->belongsTo(Coupon::class);
@@ -155,7 +171,90 @@ class Order extends Model
             OrderStatus::Preparing,
             OrderStatus::OnTheWay,
             OrderStatus::Delivered,
+            OrderStatus::ReturnRequested,
         ], true);
+    }
+
+    public function returnWindowHours(): int
+    {
+        return max(1, (int) config('aura.orders.return_window_hours', 24));
+    }
+
+    public function returnWindowClosesAt(): ?Carbon
+    {
+        return $this->delivered_at?->copy()->addHours($this->returnWindowHours());
+    }
+
+    public function isWithinReturnWindow(): bool
+    {
+        $closesAt = $this->returnWindowClosesAt();
+
+        return $closesAt !== null && now()->lte($closesAt);
+    }
+
+    /** @return Collection<int, OrderItem> */
+    public function returnableItems(): Collection
+    {
+        $this->loadMissing('items');
+
+        return $this->items
+            ->filter(fn (OrderItem $item) => $item->isAccepted())
+            ->values();
+    }
+
+    public function hasPendingReturnRequest(): bool
+    {
+        if ($this->relationLoaded('pendingReturnRequest')) {
+            return $this->pendingReturnRequest !== null;
+        }
+
+        return $this->returnRequests()
+            ->where('status', ReturnRequestStatus::Pending)
+            ->exists();
+    }
+
+    public function canCustomerCancel(): bool
+    {
+        return in_array($this->status, [
+            OrderStatus::PendingApproval,
+            OrderStatus::Approved,
+        ], true);
+    }
+
+    public function canRequestReturn(): bool
+    {
+        return $this->returnIneligibilityReason() === null;
+    }
+
+    public function returnIneligibilityReason(): ?string
+    {
+        if ($this->status === OrderStatus::Cancelled) {
+            return 'This order has been cancelled.';
+        }
+
+        if (in_array($this->status, [OrderStatus::Returned, OrderStatus::Refunded], true)) {
+            return 'This order has already been returned.';
+        }
+
+        if ($this->status === OrderStatus::ReturnRequested || $this->hasPendingReturnRequest()) {
+            return 'A return has already been requested. We will review it shortly.';
+        }
+
+        if ($this->status !== OrderStatus::Delivered) {
+            return 'Returns can be requested after the order is delivered.';
+        }
+
+        if (! $this->isWithinReturnWindow()) {
+            $hours = $this->returnWindowHours();
+
+            return "The return window ({$hours} hours after delivery) has closed.";
+        }
+
+        if ($this->returnableItems()->isEmpty()) {
+            return 'There are no items left to return on this order.';
+        }
+
+        return null;
     }
 
     public function canTogglePayment(): bool

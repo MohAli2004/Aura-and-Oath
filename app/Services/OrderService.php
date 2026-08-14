@@ -5,10 +5,13 @@ namespace App\Services;
 use App\Enums\OrderItemStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Enums\ReturnRequestStatus;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderNote;
 use App\Models\OrderStatusHistory;
+use App\Models\ReturnRequest;
+use App\Models\ReturnRequestItem;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -329,6 +332,12 @@ class OrderService
 
     public function cancel(Order $order, User $actor, ?string $note = null): Order
     {
+        if ($order->status === OrderStatus::Cancelled) {
+            throw ValidationException::withMessages([
+                'status' => 'This order is already cancelled.',
+            ]);
+        }
+
         $order = $this->transition($order, OrderStatus::Cancelled, $actor, $note, function (Order $order) use ($actor) {
             // Callback runs before status flips, so $order->status is still the prior state.
             if ($order->status === OrderStatus::PendingApproval) {
@@ -538,26 +547,226 @@ class OrderService
         return DB::transaction(function () use ($order, $admin, $resellable, $note) {
             $order = $this->updateStatus($order, OrderStatus::Returned, $admin, $note);
 
-            if ($resellable) {
-                $order->load('items.product', 'items.variant');
-                foreach ($order->items as $item) {
-                    if ($item->isRejected()) {
-                        continue;
-                    }
-                    if ($item->product?->track_inventory) {
-                        $this->inventoryService->restore(
-                            $item->product,
-                            $item->quantity,
-                            $item->variant,
-                            $order,
-                            $admin,
-                            'Resellable return'
-                        );
-                    }
+            $order->load('items.product', 'items.variant');
+            foreach ($order->items as $item) {
+                if ($item->isRejected() || $item->isReturned()) {
+                    continue;
                 }
+
+                if ($resellable && $item->product?->track_inventory) {
+                    $this->inventoryService->restore(
+                        $item->product,
+                        $item->quantity,
+                        $item->variant,
+                        $order,
+                        $admin,
+                        'Resellable return'
+                    );
+                }
+
+                $item->status = OrderItemStatus::Returned;
+                $item->save();
             }
 
-            return $order->fresh();
+            $pending = $order->returnRequests()
+                ->where('status', ReturnRequestStatus::Pending)
+                ->get();
+
+            foreach ($pending as $request) {
+                $request->status = ReturnRequestStatus::Approved;
+                $request->reviewed_at = now();
+                $request->reviewed_by = $admin->id;
+                $request->review_note = $note;
+                $request->save();
+            }
+
+            return $order->fresh(['items', 'returnRequests']);
+        });
+    }
+
+    /**
+     * @param  list<array{id:int|string, quantity?:int|string}|int>  $itemRows
+     */
+    public function requestReturn(Order $order, User $actor, array $itemRows, string $reason, ?string $photoPath = null): Order
+    {
+        return DB::transaction(function () use ($order, $actor, $itemRows, $reason, $photoPath) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $order->load('items');
+
+            if (! $order->canRequestReturn()) {
+                throw ValidationException::withMessages([
+                    'order' => $order->returnIneligibilityReason() ?: 'This order cannot be returned.',
+                ]);
+            }
+
+            $requested = collect($itemRows)->map(function ($row) {
+                if (is_numeric($row)) {
+                    return ['id' => (int) $row, 'quantity' => 0];
+                }
+
+                return [
+                    'id' => (int) ($row['id'] ?? 0),
+                    'quantity' => (int) ($row['quantity'] ?? 0),
+                ];
+            })->filter(fn (array $row) => $row['id'] > 0)->keyBy('id');
+
+            $items = $order->items->filter(
+                fn (OrderItem $item) => $requested->has($item->id) && $item->isAccepted()
+            );
+
+            if ($items->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'items' => 'Select at least one item to return.',
+                ]);
+            }
+
+            $request = ReturnRequest::query()->create([
+                'order_id' => $order->id,
+                'user_id' => $actor->id,
+                'status' => ReturnRequestStatus::Pending,
+                'reason' => $reason,
+                'photo_path' => $photoPath,
+            ]);
+
+            $labels = [];
+
+            foreach ($items as $item) {
+                $qty = (int) $requested[$item->id]['quantity'];
+                if ($qty < 1) {
+                    $qty = (int) $item->quantity;
+                }
+
+                if ($qty > (int) $item->quantity) {
+                    throw ValidationException::withMessages([
+                        'items' => 'You cannot return more of '.$item->product_name.' than you ordered.',
+                    ]);
+                }
+
+                ReturnRequestItem::query()->create([
+                    'return_request_id' => $request->id,
+                    'order_item_id' => $item->id,
+                    'quantity' => $qty,
+                ]);
+
+                $labels[] = $item->product_name
+                    .($item->variant_name ? ' — '.$item->variant_name : '')
+                    .' × '.$qty;
+            }
+
+            $this->notifications->notifyAdminsReturnRequested($order->fresh(), $request);
+
+            return $this->transition(
+                $order,
+                OrderStatus::ReturnRequested,
+                $actor,
+                'Return requested for '.implode(', ', $labels).'. Reason: '.$reason
+            );
+        });
+    }
+
+    public function processReturnRequest(Order $order, User $admin, bool $resellable = true, ?string $note = null): Order
+    {
+        return DB::transaction(function () use ($order, $admin, $resellable, $note) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $request = ReturnRequest::query()
+                ->where('order_id', $order->id)
+                ->where('status', ReturnRequestStatus::Pending)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $request) {
+                return $this->confirmReturnResellable($order, $admin, $resellable, $note);
+            }
+
+            $request->load('items.orderItem.product', 'items.orderItem.variant');
+
+            foreach ($request->items as $row) {
+                $item = $row->orderItem;
+                if (! $item || $item->isRejected() || $item->isReturned()) {
+                    continue;
+                }
+
+                $returnQty = min((int) $row->quantity, (int) $item->quantity);
+                if ($returnQty < 1) {
+                    continue;
+                }
+
+                if ($resellable && $item->product?->track_inventory) {
+                    $this->inventoryService->restore(
+                        $item->product,
+                        $returnQty,
+                        $item->variant,
+                        $order,
+                        $admin,
+                        'Resellable return'
+                    );
+                }
+
+                if ($returnQty >= (int) $item->quantity) {
+                    $item->status = OrderItemStatus::Returned;
+                } else {
+                    $item->quantity = (int) $item->quantity - $returnQty;
+                    $item->line_total = round((float) $item->unit_price * (int) $item->quantity, 2);
+                }
+
+                $item->save();
+            }
+
+            $request->status = ReturnRequestStatus::Approved;
+            $request->reviewed_at = now();
+            $request->reviewed_by = $admin->id;
+            $request->review_note = $note;
+            $request->save();
+
+            $order->load('items');
+            $remaining = $order->items->filter(fn (OrderItem $item) => $item->isAccepted());
+            $to = $remaining->isEmpty() ? OrderStatus::Returned : OrderStatus::Delivered;
+            $summary = $note ?: ($to === OrderStatus::Returned
+                ? 'Return approved. All items were returned.'
+                : 'Partial return approved. Remaining items stay delivered.');
+
+            return $this->transition($order, $to, $admin, $summary);
+        });
+    }
+
+    public function declineReturnRequest(Order $order, User $admin, ?string $note = null): Order
+    {
+        return DB::transaction(function () use ($order, $admin, $note) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if ($order->status !== OrderStatus::ReturnRequested) {
+                throw ValidationException::withMessages([
+                    'status' => 'There is no pending return request to decline.',
+                ]);
+            }
+
+            $request = ReturnRequest::query()
+                ->where('order_id', $order->id)
+                ->where('status', ReturnRequestStatus::Pending)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $request) {
+                throw ValidationException::withMessages([
+                    'status' => 'There is no pending return request to decline.',
+                ]);
+            }
+
+            $summary = $note ?: 'Return request declined.';
+
+            $request->status = ReturnRequestStatus::Declined;
+            $request->reviewed_at = now();
+            $request->reviewed_by = $admin->id;
+            $request->review_note = $summary;
+            $request->save();
+
+            $fresh = $this->transition($order, OrderStatus::Delivered, $admin, $summary);
+            $this->notifications->notifyOrderUpdated(
+                $fresh,
+                'Your return request for order '.$fresh->order_number.' was declined.'.($note ? ' '.$note : '')
+            );
+
+            return $fresh;
         });
     }
 
@@ -670,7 +879,7 @@ class OrderService
         $order->load('items.product', 'items.variant');
 
         foreach ($order->items as $item) {
-            if ($item->isRejected()) {
+            if ($item->isRejected() || $item->isReturned()) {
                 continue;
             }
 
@@ -691,7 +900,7 @@ class OrderService
         $order->load('items.product', 'items.variant');
 
         foreach ($order->items as $item) {
-            if ($item->isRejected()) {
+            if ($item->isRejected() || $item->isReturned()) {
                 continue;
             }
 

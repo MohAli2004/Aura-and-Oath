@@ -80,6 +80,7 @@
                     $imagePath = $item->variant?->image_path ?: $item->product?->primaryImagePath();
                     $imageUrl = $images->url($imagePath);
                     $rejected = $item->isRejected();
+                    $returned = $item->isReturned();
                     $stockable = $item->variant ?: $item->product;
                     $availableExtra = $stockable
                         ? max(0, (int) $stockable->stock_quantity - (int) $stockable->reserved_quantity)
@@ -88,7 +89,7 @@
                         ? ($item->quantity + $availableExtra)
                         : 9999;
                 @endphp
-                <div class="flex flex-col gap-3 border-t border-beige py-4 text-sm sm:flex-row sm:justify-between {{ $rejected ? 'opacity-70' : '' }}">
+                <div class="flex flex-col gap-3 border-t border-beige py-4 text-sm sm:flex-row sm:justify-between {{ $rejected || $returned ? 'opacity-70' : '' }}">
                     <div class="flex gap-3 min-w-0 flex-1">
                         @if($isPending && ! $rejected)
                             <label class="flex h-14 items-center shrink-0">
@@ -111,6 +112,9 @@
                                 </span>
                                 @if($rejected)
                                     <x-badge tone="danger">Rejected</x-badge>
+                                @endif
+                                @if($returned)
+                                    <x-badge>Returned</x-badge>
                                 @endif
                             </div>
                             <div class="text-taupe text-xs leading-5">
@@ -204,7 +208,7 @@
                             @endif
                         </div>
                     </div>
-                    <div class="shrink-0 flex h-14 items-center tabular-nums {{ $rejected ? 'line-through text-taupe' : '' }}">
+                    <div class="shrink-0 flex h-14 items-center tabular-nums {{ $rejected || $returned ? 'line-through text-taupe' : '' }}">
                         {{ money($item->line_total) }}
                     </div>
                 </div>
@@ -322,7 +326,42 @@
             @endif
         </div>
 
-        @if(in_array($order->status, [\App\Enums\OrderStatus::OnTheWay, \App\Enums\OrderStatus::Delivered], true))
+        @if($order->pendingReturnRequest)
+            @php $pendingReturn = $order->pendingReturnRequest; @endphp
+            <form method="POST" action="{{ route('admin.orders.return', $order) }}" class="border border-beige p-5 space-y-3 bg-[#FBF3E6]">
+                @csrf
+                <h2 class="font-display text-xl">Customer return request</h2>
+                <p class="text-sm">{{ $pendingReturn->reason }}</p>
+                @if($pendingReturn->photoUrl())
+                    <a href="{{ $pendingReturn->photoUrl() }}" target="_blank" rel="noopener" class="block">
+                        <img src="{{ $pendingReturn->photoUrl() }}" alt="Return photo" class="max-h-48 w-full object-cover border border-beige">
+                    </a>
+                @endif
+                <ul class="text-sm text-taupe space-y-1">
+                    @foreach($pendingReturn->items as $row)
+                        <li>
+                            {{ $row->orderItem?->product_name }}
+                            @if($row->orderItem?->variant_name)— {{ $row->orderItem->variant_name }}@endif
+                            · qty {{ $row->quantity }}
+                        </li>
+                    @endforeach
+                </ul>
+                <label class="flex items-center gap-2 text-sm h-10">
+                    <input type="checkbox" name="resellable" value="1" checked class="h-4 w-4"> Restock as resellable
+                </label>
+                <input class="input ctrl" name="note" placeholder="Note to customer (optional)">
+                <button class="btn btn-secondary ctrl" type="submit">
+                    <x-icon name="return" /> Approve return
+                </button>
+            </form>
+            <form method="POST" action="{{ route('admin.orders.return.decline', $order) }}" class="border border-beige p-5 space-y-3">
+                @csrf
+                <input class="input ctrl" name="note" placeholder="Decline reason (optional)">
+                <button class="btn btn-danger ctrl" type="submit" onclick="return confirm('Decline this return request?')">
+                    <x-icon name="x" /> Decline return
+                </button>
+            </form>
+        @elseif(in_array($order->status, [\App\Enums\OrderStatus::OnTheWay, \App\Enums\OrderStatus::Delivered], true))
             <form method="POST" action="{{ route('admin.orders.return', $order) }}" class="border border-beige p-5 space-y-3">
                 @csrf
                 <h2 class="font-display text-xl">Confirm return</h2>

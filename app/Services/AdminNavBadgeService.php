@@ -136,7 +136,10 @@ class AdminNavBadgeService
             ->count();
 
         $pending = (int) Order::query()
-            ->where('status', OrderStatus::PendingApproval)
+            ->whereIn('status', [
+                OrderStatus::PendingApproval,
+                OrderStatus::ReturnRequested,
+            ])
             ->count();
 
         // Prefer actionable pending count when it is higher than unseen news.

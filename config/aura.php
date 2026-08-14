@@ -117,6 +117,7 @@ return [
         'number_prefix' => 'AO',
         'idempotency_ttl_minutes' => 60,
         'guest_checkout' => false,
+        'return_window_hours' => 24,
     ],
 
     /*

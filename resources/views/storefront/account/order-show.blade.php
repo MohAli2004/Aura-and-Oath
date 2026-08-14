@@ -45,7 +45,7 @@
                     ? route('products.show', $item->product->slug)
                     : null;
             @endphp
-            <div class="flex justify-between gap-4 border-b border-beige py-3 text-sm {{ $item->isRejected() ? 'opacity-70' : '' }}">
+            <div class="flex justify-between gap-4 border-b border-beige py-3 text-sm {{ $item->isRejected() || $item->isReturned() ? 'opacity-70' : '' }}">
                 <div class="flex gap-3 min-w-0">
                     @if($productUrl)
                         <a href="{{ $productUrl }}" class="shrink-0 h-14 w-14 sm:h-16 sm:w-16 overflow-hidden border border-beige bg-beige/30">
@@ -65,6 +65,9 @@
                             @endif
                             @if($item->isRejected())
                                 <x-badge>Rejected</x-badge>
+                            @endif
+                            @if($item->isReturned())
+                                <x-badge>Returned</x-badge>
                             @endif
                         </div>
                         @if($item->variant_name)<div class="text-taupe">{{ $item->variant_name }}</div>@endif
@@ -97,11 +100,42 @@
         </div>
     </div>
 
+    @if($order->status === \App\Enums\OrderStatus::Cancelled)
+        <div class="mb-8 border border-beige bg-[#FFFCFA] p-5">
+            <h2 class="font-display text-2xl mb-2">Cancelled</h2>
+            <p class="text-sm text-taupe">This order has been cancelled and cannot be cancelled again.</p>
+        </div>
+    @endif
+
     @can('cancel', $order)
-        <form method="POST" action="{{ route('account.orders.cancel', $order) }}" onsubmit="return confirm('Cancel this order?')">
-            @csrf
-            <button class="btn btn-danger" type="submit">Cancel order</button>
-        </form>
+        <div class="mb-8 border border-beige bg-[#FFFCFA] p-5 space-y-3">
+            <h2 class="font-display text-2xl">Cancel order</h2>
+            <p class="text-sm text-taupe">You can cancel this order until we start preparing it.</p>
+            <form method="POST" action="{{ route('account.orders.cancel', $order) }}" onsubmit="return confirm('Cancel this order?')">
+                @csrf
+                <button class="btn btn-danger" type="submit">Cancel order</button>
+            </form>
+        </div>
+    @endcan
+
+    @can('requestReturn', $order)
+        <div class="mt-8 border border-beige bg-[#FFFCFA] p-5 space-y-4">
+            <h2 class="font-display text-2xl">Return items</h2>
+            <p class="text-sm text-taupe">Eligible items can be returned within {{ $order->returnWindowHours() }} hours of delivery.</p>
+            <form method="POST" action="{{ route('returns.store') }}" class="space-y-4" enctype="multipart/form-data">
+                @csrf
+                <input type="hidden" name="order_id" value="{{ $order->id }}">
+                @include('storefront.partials.return-request-fields', ['order' => $order])
+                <button class="btn btn-primary" type="submit">Request return</button>
+            </form>
+        </div>
+    @else
+        @if($order->status === \App\Enums\OrderStatus::ReturnRequested)
+            <div class="mt-8 border border-beige bg-[#FFFCFA] p-5 text-sm">
+                <h2 class="font-display text-2xl mb-2">Return requested</h2>
+                <p class="text-taupe">We are reviewing your return request and will update you shortly.</p>
+            </div>
+        @endif
     @endcan
 </div>
 @if(session('order_just_placed'))

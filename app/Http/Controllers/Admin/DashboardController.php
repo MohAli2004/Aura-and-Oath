@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Product;
@@ -17,6 +18,11 @@ class DashboardController extends Controller
             'sales' => $reports->salesByDay(14),
             'topProducts' => $reports->topProducts(5),
             'pendingOrders' => Order::query()->pendingApproval()->latest()->take(8)->get(),
+            'returnRequestedOrders' => Order::query()
+                ->where('status', OrderStatus::ReturnRequested)
+                ->latest()
+                ->take(8)
+                ->get(),
             'lowStockProducts' => Product::query()->whereIn('stock_status', ['low_stock', 'out_of_stock'])->latest()->take(8)->get(),
         ]);
     }

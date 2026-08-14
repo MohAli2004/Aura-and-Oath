@@ -7,6 +7,7 @@ enum OrderItemStatus: string
     case Pending = 'pending';
     case Approved = 'approved';
     case Rejected = 'rejected';
+    case Returned = 'returned';
 
     public function label(): string
     {
@@ -14,6 +15,7 @@ enum OrderItemStatus: string
             self::Pending => 'Pending',
             self::Approved => 'Approved',
             self::Rejected => 'Rejected',
+            self::Returned => 'Returned',
         };
     }
 }

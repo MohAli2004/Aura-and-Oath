@@ -33,10 +33,11 @@ class OrderPolicy
 
     public function cancel(User $user, Order $order): bool
     {
-        if ($user->isAdmin()) {
-            return true;
-        }
+        return $order->isOwnedBy($user) && $order->canCustomerCancel();
+    }
 
-        return $order->isOwnedBy($user) && $order->status === \App\Enums\OrderStatus::PendingApproval;
+    public function requestReturn(User $user, Order $order): bool
+    {
+        return $order->isOwnedBy($user) && $order->canRequestReturn();
     }
 }

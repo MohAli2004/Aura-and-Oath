@@ -23,6 +23,7 @@ class CheckoutRequest extends FormRequest
                 Rule::exists('delivery_regions', 'id')->where('is_active', true),
             ],
             'idempotency_token' => ['required', 'string', 'max:100'],
+            'terms_agreed' => ['accepted'],
             'shipping.full_name' => ['required', 'string', 'max:255'],
             'shipping.phone' => ['required', 'string', 'max:30'],
             'shipping.line1' => ['required', 'string', 'max:255'],
@@ -39,6 +40,13 @@ class CheckoutRequest extends FormRequest
             'billing.governorate' => ['nullable', 'string', 'max:120'],
             'billing.postal_code' => ['nullable', 'string', 'max:20'],
             'billing.country' => ['nullable', 'string', 'size:2'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'terms_agreed.accepted' => 'Please agree to the order terms before placing your order.',
         ];
     }
 }

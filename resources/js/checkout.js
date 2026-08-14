@@ -207,6 +207,10 @@ export default function checkoutPage(config) {
                 return Array.from(document.getElementsByName(field.name)).some((input) => input.checked);
             }
 
+            if (field.type === 'checkbox') {
+                return field.checked;
+            }
+
             return (field.value ?? '').toString().trim() !== '';
         },
 

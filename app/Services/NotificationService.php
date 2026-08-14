@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ReturnRequest;
 use App\Models\User;
 use App\Notifications\ContactMessageNotification;
 use App\Notifications\LowStockNotification;
@@ -13,6 +14,7 @@ use App\Notifications\NewUserRegisteredNotification;
 use App\Notifications\OrderCancelledByCustomerNotification;
 use App\Notifications\OrderPaymentStatusChangedNotification;
 use App\Notifications\OrderPlacedNotification;
+use App\Notifications\OrderReturnRequestedNotification;
 use App\Notifications\OrderStatusChangedNotification;
 use App\Notifications\OrderUpdatedNotification;
 use App\Notifications\WishPaymentReceivedNotification;
@@ -72,6 +74,16 @@ class NotificationService
                 new OrderCancelledByCustomerNotification($order)
             );
         }, 'order.cancelled_by_customer', ['order_id' => $order->id]);
+    }
+
+    public function notifyAdminsReturnRequested(Order $order, ReturnRequest $returnRequest): void
+    {
+        $this->safe(function () use ($order, $returnRequest) {
+            Notification::send(
+                $this->activeAdmins(),
+                new OrderReturnRequestedNotification($order, $returnRequest)
+            );
+        }, 'order.return_requested', ['order_id' => $order->id]);
     }
 
     public function notifyAdminsNewUser(User $user, string $method = 'email'): void

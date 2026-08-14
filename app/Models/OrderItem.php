@@ -58,7 +58,10 @@ class OrderItem extends Model
 
     public function scopeAccepted(Builder $query): Builder
     {
-        return $query->where('status', '!=', OrderItemStatus::Rejected);
+        return $query->whereNotIn('status', [
+            OrderItemStatus::Rejected,
+            OrderItemStatus::Returned,
+        ]);
     }
 
     public function scopeRejected(Builder $query): Builder
@@ -71,8 +74,13 @@ class OrderItem extends Model
         return $this->status === OrderItemStatus::Rejected;
     }
 
+    public function isReturned(): bool
+    {
+        return $this->status === OrderItemStatus::Returned;
+    }
+
     public function isAccepted(): bool
     {
-        return ! $this->isRejected();
+        return ! $this->isRejected() && ! $this->isReturned();
     }
 }

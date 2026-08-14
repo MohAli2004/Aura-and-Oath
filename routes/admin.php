@@ -67,6 +67,7 @@ Route::post('orders/{order}/items/{item}/quantity', [OrderController::class, 'up
 Route::post('orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.status');
 Route::post('orders/{order}/notes', [OrderController::class, 'addNote'])->name('orders.notes');
 Route::post('orders/{order}/return', [OrderController::class, 'confirmReturn'])->name('orders.return');
+Route::post('orders/{order}/return/decline', [OrderController::class, 'declineReturn'])->name('orders.return.decline');
 Route::post('orders/{order}/mark-paid', [OrderController::class, 'markPaid'])->name('orders.mark-paid');
 Route::post('orders/{order}/unmark-paid', [OrderController::class, 'unmarkPaid'])->name('orders.unmark-paid');
 Route::get('orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');

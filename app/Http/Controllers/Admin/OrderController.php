@@ -90,6 +90,8 @@ class OrderController extends Controller
             'statusHistories.changer',
             'notes.user',
             'user',
+            'pendingReturnRequest.items.orderItem',
+            'returnRequests.items.orderItem',
         ]);
 
         return view('admin.orders.show', compact('order'));
@@ -173,9 +175,20 @@ class OrderController extends Controller
 
     public function confirmReturn(Request $request, Order $order): RedirectResponse
     {
-        $this->orders->confirmReturnResellable($order, Auth::user(), $request->boolean('resellable', true), $request->input('note'));
+        $this->orders->processReturnRequest($order, Auth::user(), $request->boolean('resellable', true), $request->input('note'));
 
         return $this->backAfterOrderChange($order->fresh(), 'Return processed.');
+    }
+
+    public function declineReturn(Request $request, Order $order): RedirectResponse
+    {
+        $data = $request->validate([
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $this->orders->declineReturnRequest($order, Auth::user(), $data['note'] ?? null);
+
+        return $this->backAfterOrderChange($order->fresh(), 'Return request declined.');
     }
 
     public function invoice(Order $order): View
@@ -302,6 +315,7 @@ class OrderController extends Controller
                 OrderStatus::Preparing,
                 OrderStatus::OnTheWay,
                 OrderStatus::Delivered,
+                OrderStatus::ReturnRequested,
             ],
         };
     }

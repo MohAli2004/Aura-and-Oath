@@ -8,6 +8,7 @@ use App\Notifications\NewUserRegisteredNotification;
 use App\Notifications\OrderCancelledByCustomerNotification;
 use App\Notifications\OrderPaymentStatusChangedNotification;
 use App\Notifications\OrderPlacedNotification;
+use App\Notifications\OrderReturnRequestedNotification;
 use App\Notifications\OrderStatusChangedNotification;
 use App\Notifications\OrderUpdatedNotification;
 use App\Notifications\WishPaymentReceivedNotification;
@@ -45,6 +46,7 @@ class NotificationPresenter
             OrderUpdatedNotification::class => 'Order updated',
             OrderPaymentStatusChangedNotification::class => 'Payment status updated',
             OrderCancelledByCustomerNotification::class => 'Order cancelled by customer',
+            OrderReturnRequestedNotification::class => 'Return requested',
             NewUserRegisteredNotification::class => 'New customer registered',
             LowStockNotification::class => 'Low stock alert',
             ContactMessageNotification::class => 'New contact message',
@@ -75,6 +77,9 @@ class NotificationPresenter
             OrderCancelledByCustomerNotification::class => isset($data['order_number'])
                 ? 'Customer cancelled order '.$data['order_number'].'.'
                 : 'A customer cancelled an order.',
+            OrderReturnRequestedNotification::class => isset($data['order_number'])
+                ? 'Customer requested a return for order '.$data['order_number'].'.'
+                : 'A customer requested a return.',
             NewUserRegisteredNotification::class => isset($data['name'], $data['email'])
                 ? $data['name'].' ('.$data['email'].') registered.'
                 : 'A new customer registered.',
@@ -95,8 +100,8 @@ class NotificationPresenter
         $forAdmin = ! empty($data['for_admin']);
 
         return match ($notification->type) {
-            OrderPlacedNotification::class, WishPaymentReceivedNotification::class, OrderCancelledByCustomerNotification::class => isset($data['order_id'])
-                ? ($forAdmin || in_array($notification->type, [WishPaymentReceivedNotification::class, OrderCancelledByCustomerNotification::class], true)
+            OrderPlacedNotification::class, WishPaymentReceivedNotification::class, OrderCancelledByCustomerNotification::class, OrderReturnRequestedNotification::class => isset($data['order_id'])
+                ? ($forAdmin || in_array($notification->type, [WishPaymentReceivedNotification::class, OrderCancelledByCustomerNotification::class, OrderReturnRequestedNotification::class], true)
                     ? url('/admin/orders/'.$data['order_id'])
                     : url('/account/orders/'.$data['order_id']))
                 : null,

@@ -58,9 +58,65 @@ class OrderController extends Controller
 
     public function cancel(Order $order, OrderService $orderService): RedirectResponse
     {
+        $this->authorize('view', $order);
+
+        if ($order->status === \App\Enums\OrderStatus::Cancelled) {
+            return redirect()
+                ->route('account.orders.index')
+                ->with('error', 'This order is already cancelled.');
+        }
+
         $this->authorize('cancel', $order);
         $orderService->cancel($order, Auth::user(), 'Cancelled by customer');
 
-        return back()->with('success', 'Order cancelled.');
+        return redirect()
+            ->route('account.orders.index')
+            ->with('success', 'Order cancelled.');
+    }
+
+    public function cancelLookup(Request $request, OrderService $orderService): RedirectResponse
+    {
+        $data = $request->validate([
+            'order_number' => ['required', 'string', 'max:50'],
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $order = Order::query()
+            ->where('order_number', $data['order_number'])
+            ->where('customer_email', $data['email'])
+            ->first();
+
+        if (! $order) {
+            return back()
+                ->withInput()
+                ->with('error', 'Order not found. Check the number and email.');
+        }
+
+        if ($order->status === \App\Enums\OrderStatus::Cancelled) {
+            return redirect()
+                ->route('account.orders.index')
+                ->with('error', 'This order is already cancelled.');
+        }
+
+        if (! $order->canCustomerCancel()) {
+            return back()->with(
+                'error',
+                'This order can no longer be cancelled. Once we start preparing it, you can request a return after delivery.'
+            );
+        }
+
+        $actor = ($request->user() && $order->isOwnedBy($request->user()))
+            ? $request->user()
+            : $order->user;
+
+        if (! $actor) {
+            return back()->with('error', 'We could not match this order to a customer account.');
+        }
+
+        $orderService->cancel($order, $actor, 'Cancelled by customer');
+
+        return redirect()
+            ->route('account.orders.index')
+            ->with('success', 'Order cancelled.');
     }
 }

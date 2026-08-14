@@ -368,10 +368,76 @@ class AuraCommerceTest extends TestCase
             'shipping' => ['full_name' => $user->name, 'phone' => '010', 'line1' => 'A', 'city' => 'Beirut'],
         ]);
 
-        $this->post('/account/orders/'.$order->id.'/cancel')->assertRedirect();
+        $this->post('/account/orders/'.$order->id.'/cancel')
+            ->assertRedirect(route('account.orders.index'));
         $this->assertEquals(OrderStatus::Cancelled, $order->fresh()->status);
         $this->assertEquals(0, $product->fresh()->reserved_quantity);
         $this->assertEquals(6, $product->fresh()->stock_quantity);
+
+        $this->post('/account/orders/'.$order->id.'/cancel')
+            ->assertRedirect(route('account.orders.index'))
+            ->assertSessionHas('error', 'This order is already cancelled.');
+        $this->assertEquals(OrderStatus::Cancelled, $order->fresh()->status);
+    }
+
+    public function test_customer_cannot_cancel_after_preparing_starts(): void
+    {
+        $product = $this->createProduct(['stock_quantity' => 6, 'sku' => 'SKU-PREP-C', 'barcode' => 'BC-PREP-C', 'slug' => 'prep-cancel']);
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->customer()->create();
+        $region = $this->createRegion('PREPC');
+
+        $this->actingAs($user);
+        app(CartService::class)->add($product, 1);
+        $order = app(CheckoutService::class)->placeOrder($user, [
+            'customer_phone' => '01000000000',
+            'payment_method' => PaymentMethod::CashOnDelivery->value,
+            'delivery_region_id' => $region->id,
+            'idempotency_token' => 'cancel-prep-1',
+            'shipping' => ['full_name' => $user->name, 'phone' => '010', 'line1' => 'A', 'city' => 'Beirut'],
+        ]);
+
+        app(OrderService::class)->approve($order, $admin);
+        $this->assertEquals(OrderStatus::Preparing, $order->fresh()->status);
+
+        $this->actingAs($user)
+            ->post('/account/orders/'.$order->id.'/cancel')
+            ->assertForbidden();
+
+        $this->post(route('orders.cancel'), [
+            'order_number' => $order->order_number,
+            'email' => $order->customer_email,
+        ])->assertRedirect()->assertSessionHas('error');
+
+        $this->assertEquals(OrderStatus::Preparing, $order->fresh()->status);
+    }
+
+    public function test_customer_can_cancel_pending_order_from_lookup(): void
+    {
+        $product = $this->createProduct(['stock_quantity' => 4, 'sku' => 'SKU-LOOK-C', 'barcode' => 'BC-LOOK-C', 'slug' => 'lookup-cancel']);
+        $user = User::factory()->customer()->create();
+        $region = $this->createRegion('LOOKC');
+
+        $this->actingAs($user);
+        app(CartService::class)->add($product, 1);
+        $order = app(CheckoutService::class)->placeOrder($user, [
+            'customer_phone' => '01000000000',
+            'payment_method' => PaymentMethod::CashOnDelivery->value,
+            'delivery_region_id' => $region->id,
+            'idempotency_token' => 'cancel-lookup-1',
+            'shipping' => ['full_name' => $user->name, 'phone' => '010', 'line1' => 'A', 'city' => 'Beirut'],
+        ]);
+
+        $this->post('/logout');
+
+        $this->post(route('orders.cancel'), [
+            'order_number' => $order->order_number,
+            'email' => $order->customer_email,
+        ])->assertRedirect(route('account.orders.index'));
+
+        $this->assertEquals(OrderStatus::Cancelled, $order->fresh()->status);
+        $this->assertEquals(0, $product->fresh()->reserved_quantity);
+        $this->assertEquals(4, $product->fresh()->stock_quantity);
     }
 
     public function test_return_restores_stock_when_resellable(): void
@@ -393,9 +459,8 @@ class AuraCommerceTest extends TestCase
 
         $orders = app(OrderService::class);
         $orders->approve($order, $admin);
-        $orders->updateStatus($order->fresh(), OrderStatus::Preparing, $admin);
-        $orders->updateStatus($order->fresh(), OrderStatus::ReadyForDispatch, $admin);
-        $orders->updateStatus($order->fresh(), OrderStatus::Shipped, $admin);
+        $orders->updateStatus($order->fresh(), OrderStatus::OnTheWay, $admin);
+        $orders->updateStatus($order->fresh(), OrderStatus::Delivered, $admin);
         $orders->confirmReturnResellable($order->fresh(), $admin, true, 'Resellable');
 
         $this->assertEquals(10, $product->fresh()->stock_quantity);
@@ -698,7 +763,7 @@ class AuraCommerceTest extends TestCase
 
         $this->actingAs($user)
             ->post('/account/orders/'.$order->id.'/cancel')
-            ->assertRedirect();
+            ->assertRedirect(route('account.orders.index'));
 
         $this->assertEquals(OrderStatus::Cancelled, $order->fresh()->status);
 
@@ -878,6 +943,7 @@ class AuraCommerceTest extends TestCase
             'payment_method' => PaymentMethod::CashOnDelivery->value,
             'delivery_region_id' => $region->id,
             'idempotency_token' => 'inactive-region-1',
+            'terms_agreed' => '1',
             'shipping' => [
                 'full_name' => $user->name,
                 'phone' => '01000000000',
@@ -885,6 +951,28 @@ class AuraCommerceTest extends TestCase
                 'city' => 'Beirut',
             ],
         ])->assertSessionHasErrors('delivery_region_id');
+    }
+
+    public function test_checkout_requires_order_agreement(): void
+    {
+        $product = $this->createProduct();
+        $user = User::factory()->customer()->create();
+        $region = $this->createRegion('BEI-TERMS');
+
+        $this->actingAs($user);
+        app(CartService::class)->add($product, 1);
+
+        $this->post('/checkout', [
+            'payment_method' => PaymentMethod::CashOnDelivery->value,
+            'delivery_region_id' => $region->id,
+            'idempotency_token' => 'terms-missing-1',
+            'shipping' => [
+                'full_name' => $user->name,
+                'phone' => '01000000000',
+                'line1' => 'Street 1',
+                'city' => 'Beirut',
+            ],
+        ])->assertSessionHasErrors('terms_agreed');
     }
 
     public function test_invalid_coupon_is_rejected_on_apply(): void

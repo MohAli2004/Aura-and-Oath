@@ -173,6 +173,35 @@
                 <textarea name="customer_note" class="input" rows="3">{{ $customerNote }}</textarea>
             </div>
 
+            <div class="border border-beige p-5 bg-[#FFFCFA] space-y-3" data-field-wrap>
+                <h2 class="font-display text-2xl">Order agreement</h2>
+                <div class="text-sm text-taupe space-y-2">
+                    <p>By placing this order you agree that:</p>
+                    <ul class="list-disc ps-5 space-y-1">
+                        <li>You can cancel only before we start preparing the order.</li>
+                        <li>Returns are accepted only for a real problem — a defective or damaged item, a missing item, or a different item than the one you ordered.</li>
+                        <li>Used items, or items broken after delivery, cannot be returned.</li>
+                    </ul>
+                </div>
+                <label class="flex items-start gap-3 text-sm">
+                    <input
+                        type="checkbox"
+                        name="terms_agreed"
+                        value="1"
+                        class="mt-1 h-4 w-4"
+                        required
+                        data-required
+                        data-required-label="Order agreement"
+                        @checked(old('terms_agreed'))
+                        @change="clearFieldError($event.target)"
+                    >
+                    <span>I have read and agree to these terms before placing my order.</span>
+                </label>
+                @error('terms_agreed')
+                    <p class="text-sm text-red-700">{{ $message }}</p>
+                @enderror
+            </div>
+
             <button class="btn btn-primary" type="submit">Place order</button>
         </form>
 

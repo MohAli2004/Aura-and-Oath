@@ -27,6 +27,7 @@ class ReportService
                 ->whereDate('created_at', $today)
                 ->sum('total'),
             'pending_approval' => Order::query()->pendingApproval()->count(),
+            'return_requested' => Order::query()->where('status', OrderStatus::ReturnRequested)->count(),
             'low_stock' => Product::query()
                 ->where('track_inventory', true)
                 ->where('stock_status', 'low_stock')
