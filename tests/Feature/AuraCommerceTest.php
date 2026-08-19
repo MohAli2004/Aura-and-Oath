@@ -149,6 +149,132 @@ class AuraCommerceTest extends TestCase
         ])->assertSessionHasErrors('sku');
     }
 
+    public function test_admin_can_view_restore_and_permanently_delete_products(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $product = $this->createProduct([
+            'name' => 'Retired Serum',
+            'slug' => 'retired-serum',
+            'sku' => 'SKU-TRASH',
+            'barcode' => 'BC-TRASH',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.products.destroy', $product))
+            ->assertRedirect(route('admin.products.index'));
+
+        $this->assertSoftDeleted('products', ['id' => $product->id]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertDontSee('Retired Serum');
+
+        $this->actingAs($admin)
+            ->get(route('admin.products.trashed'))
+            ->assertOk()
+            ->assertSee('Retired Serum')
+            ->assertSee('Deleted products');
+
+        $this->actingAs($admin)
+            ->post(route('admin.products.restore', $product))
+            ->assertRedirect(route('admin.products.index'));
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'deleted_at' => null,
+            'name' => 'Retired Serum',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.products.destroy', $product))
+            ->assertRedirect(route('admin.products.index'));
+
+        $this->actingAs($admin)
+            ->delete(route('admin.products.force-destroy', $product))
+            ->assertRedirect(route('admin.products.trashed'));
+
+        $this->assertDatabaseMissing('products', ['id' => $product->id]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.products.trashed'))
+            ->assertOk()
+            ->assertDontSee('Retired Serum');
+    }
+
+    public function test_admin_can_bulk_restore_and_permanently_delete_products(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $restore = $this->createProduct(['name' => 'Restore Me', 'sku' => 'SKU-BULK-R', 'barcode' => 'BC-BULK-R']);
+        $remove = $this->createProduct(['name' => 'Remove Me', 'sku' => 'SKU-BULK-F', 'barcode' => 'BC-BULK-F']);
+
+        $restore->delete();
+        $remove->delete();
+
+        $this->actingAs($admin)
+            ->post(route('admin.products.bulk-restore'), ['ids' => [$restore->id]])
+            ->assertRedirect(route('admin.products.index'));
+
+        $this->assertDatabaseHas('products', ['id' => $restore->id, 'deleted_at' => null]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.products.bulk-force-destroy'), ['ids' => [$remove->id]])
+            ->assertRedirect(route('admin.products.trashed'));
+
+        $this->assertDatabaseMissing('products', ['id' => $remove->id]);
+    }
+
+    public function test_admin_can_view_and_activate_inactive_products(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $draft = $this->createProduct([
+            'name' => 'Draft Mist',
+            'sku' => 'SKU-DRAFT',
+            'barcode' => 'BC-DRAFT',
+            'slug' => 'draft-mist',
+            'status' => ProductStatus::Draft,
+        ]);
+        $archived = $this->createProduct([
+            'name' => 'Archived Oil',
+            'sku' => 'SKU-ARCH',
+            'barcode' => 'BC-ARCH',
+            'slug' => 'archived-oil',
+            'status' => ProductStatus::Archived,
+        ]);
+        $live = $this->createProduct([
+            'name' => 'Live Serum',
+            'sku' => 'SKU-LIVE',
+            'barcode' => 'BC-LIVE',
+            'slug' => 'live-serum',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSee('Live Serum')
+            ->assertDontSee('Draft Mist')
+            ->assertDontSee('Archived Oil');
+
+        $this->actingAs($admin)
+            ->get(route('admin.products.inactive'))
+            ->assertOk()
+            ->assertSee('Draft Mist')
+            ->assertSee('Archived Oil')
+            ->assertDontSee('Live Serum');
+
+        $this->actingAs($admin)
+            ->post(route('admin.products.activate', $draft))
+            ->assertRedirect(route('admin.products.index'));
+
+        $this->assertEquals(ProductStatus::Active, $draft->fresh()->status);
+
+        $this->actingAs($admin)
+            ->post(route('admin.products.bulk-activate'), ['ids' => [$archived->id]])
+            ->assertRedirect(route('admin.products.index'));
+
+        $this->assertEquals(ProductStatus::Active, $archived->fresh()->status);
+    }
+
     public function test_admin_can_edit_delivery_region_fee(): void
     {
         $admin = User::factory()->admin()->create();

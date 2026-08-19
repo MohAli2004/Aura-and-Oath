@@ -1047,7 +1047,7 @@
         <div class="flex gap-3">
             <button class="btn btn-primary" type="submit">Save product</button>
             @if($product->exists)
-                <button form="delete-product" class="btn btn-danger" type="submit" onclick="return confirm('Delete product?')">Delete</button>
+                <button form="delete-product" class="btn btn-danger" type="submit" onclick="return confirm('Move this product to Deleted products? You can restore it later.')">Delete</button>
             @endif
         </div>
     </form>

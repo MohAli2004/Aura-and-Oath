@@ -31,6 +31,8 @@ class AdminNavBadgeService
      */
     public const ROUTE_SECTIONS = [
         'admin.products.index' => 'products',
+        'admin.products.trashed' => 'products',
+        'admin.products.inactive' => 'products',
         'admin.categories.index' => 'categories',
         'admin.brands.index' => 'brands',
         'admin.attributes.index' => 'attributes',

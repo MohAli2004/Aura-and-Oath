@@ -119,7 +119,7 @@
         </tbody>
     </table>
 </div>
-<div class="mt-6">{{ $orders->links() }}</div>
+<x-admin.pagination :paginator="$orders" noun="order" />
 <script>
     // Always refresh when returning via browser Back (bfcache).
     window.addEventListener('pageshow', (event) => {

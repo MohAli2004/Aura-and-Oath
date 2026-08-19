@@ -124,5 +124,5 @@
         @endforeach
     </div>
 </div>
-<div class="mt-6">{{ $products->links() }}</div>
+<x-admin.pagination :paginator="$products" noun="product" />
 @endsection

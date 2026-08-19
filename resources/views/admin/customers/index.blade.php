@@ -27,5 +27,5 @@
     </a>
 @endforeach
 </div>
-<div class="mt-6">{{ $customers->links() }}</div>
+<x-admin.pagination :paginator="$customers" noun="customer" />
 @endsection

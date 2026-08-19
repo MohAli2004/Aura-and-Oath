@@ -9,5 +9,5 @@
     </div>
 @endforeach
 </div>
-<div class="mt-6">{{ $logs->links() }}</div>
+<x-admin.pagination :paginator="$logs" noun="log" />
 @endsection

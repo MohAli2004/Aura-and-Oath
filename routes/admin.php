@@ -25,7 +25,15 @@ Route::get('notifications/feed', [NotificationController::class, 'feed'])->name(
 Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
 Route::post('notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
 
+Route::get('products/deleted', [ProductController::class, 'trashed'])->name('products.trashed');
+Route::get('products/inactive', [ProductController::class, 'inactive'])->name('products.inactive');
+Route::post('products/bulk-restore', [ProductController::class, 'bulkRestore'])->name('products.bulk-restore');
+Route::post('products/bulk-activate', [ProductController::class, 'bulkActivate'])->name('products.bulk-activate');
+Route::delete('products/bulk-force', [ProductController::class, 'bulkForceDestroy'])->name('products.bulk-force-destroy');
 Route::delete('products/bulk', [ProductController::class, 'bulkDestroy'])->name('products.bulk-destroy');
+Route::post('products/{product}/restore', [ProductController::class, 'restore'])->withTrashed()->name('products.restore');
+Route::post('products/{product}/activate', [ProductController::class, 'activate'])->name('products.activate');
+Route::delete('products/{product}/force', [ProductController::class, 'forceDestroy'])->withTrashed()->name('products.force-destroy');
 Route::resource('products', ProductController::class)->except(['show']);
 
 Route::delete('categories/bulk', [CategoryController::class, 'bulkDestroy'])->name('categories.bulk-destroy');

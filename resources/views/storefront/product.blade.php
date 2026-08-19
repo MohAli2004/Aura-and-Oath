@@ -31,6 +31,7 @@
                 ? money((float) $variant->compare_at_price)
                 : ($product->compare_at_price !== null ? money((float) $product->compare_at_price) : null),
             'stock' => $variant->availableStock(),
+            'threshold' => (int) $variant->low_stock_threshold,
             'image' => $image,
             'purchasable' => ! $product->track_inventory || $variant->availableStock() > 0,
         ];
@@ -79,6 +80,7 @@
         productPrice: @js((float) $product->effectivePrice()),
         productPriceLabel: @js(money($product->effectivePrice())),
         productStock: @js($product->availableStock()),
+        productThreshold: @js((int) $product->low_stock_threshold),
         productImage: @js($defaultImage),
         productPurchasable: @js($product->isPurchasable()),
         trackInventory: @js((bool) $product->track_inventory),
@@ -124,6 +126,24 @@
                 return Math.max(0, Number(this.selected?.stock || 0));
             }
             return Math.max(0, Number(this.productStock || 0));
+        },
+        get stockThreshold() {
+            if (this.hasVariants) {
+                return Math.max(0, Number(this.selected?.threshold ?? this.productThreshold ?? 0));
+            }
+            return Math.max(0, Number(this.productThreshold || 0));
+        },
+        get showStockAmount() {
+            if (! this.trackInventory) {
+                return false;
+            }
+            const stock = this.maxStock;
+            return stock > 0 && stock <= this.stockThreshold;
+        },
+        stockIsLow(stock, threshold) {
+            const available = Math.max(0, Number(stock || 0));
+            const limit = Math.max(0, Number(threshold || 0));
+            return available > 0 && available <= limit;
         },
         get stagedCount() {
             return this.staged.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
@@ -388,11 +408,12 @@
 
             <p class="text-sm mb-6">
                 <x-badge>
-                    <span x-text="canBuy ? 'In stock' : 'Out of stock'"></span>
+                    <span x-text="!canBuy ? 'Out of stock' : (showStockAmount ? 'Low stock' : 'In stock')"></span>
                 </x-badge>
-                <span class="text-taupe">
-                    · Available:
-                    <span x-text="hasVariants ? (selected?.stock ?? 0) : productStock"></span>
+                <span class="text-taupe" x-show="showStockAmount" x-cloak>
+                    · Only
+                    <span x-text="maxStock"></span>
+                    left
                 </span>
             </p>
 
@@ -427,7 +448,11 @@
                                             <div class="font-medium leading-snug" x-text="variant.name"></div>
                                             <div class="mt-1 text-sm" x-text="variant.priceLabel"></div>
                                             <div class="mt-1 text-xs text-taupe">
-                                                <span x-show="variant.purchasable" x-text="variant.stock + ' available'"></span>
+                                                <span
+                                                    x-show="variant.purchasable && stockIsLow(variant.stock, variant.threshold)"
+                                                    x-cloak
+                                                    x-text="'Only ' + variant.stock + ' left'"
+                                                ></span>
                                                 <span x-show="!variant.purchasable" x-cloak>Out of stock</span>
                                             </div>
                                         </div>
@@ -552,7 +577,6 @@
                 @foreach($related as $item)
                     <x-product-card
                         :product="$item"
-                        :match-percent="$item->match_percent ?? null"
                         :match-reason="$item->match_reason ?? null"
                     />
                 @endforeach

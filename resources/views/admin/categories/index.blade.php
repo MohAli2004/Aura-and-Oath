@@ -26,5 +26,5 @@
     @endforeach
     </div>
 </x-admin.bulk-form>
-<div class="mt-6">{{ $categories->links() }}</div>
+<x-admin.pagination :paginator="$categories" noun="category" />
 @endsection

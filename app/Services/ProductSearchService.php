@@ -80,9 +80,22 @@ class ProductSearchService
         return $query->paginate($perPage)->withQueryString();
     }
 
-    public function adminSearch(array $filters = [], int $perPage = 20): LengthAwarePaginator
+    public function adminSearch(array $filters = [], int $perPage = 20, bool $onlyTrashed = false, ?string $list = null): LengthAwarePaginator
     {
         $query = Product::query()->with(['categories', 'brand', 'images', 'activeVariants']);
+
+        if ($onlyTrashed) {
+            $query->onlyTrashed();
+        } elseif ($list === 'active') {
+            $query->where('status', ProductStatus::Active);
+        } elseif ($list === 'inactive') {
+            $inactive = [ProductStatus::Draft->value, ProductStatus::Archived->value];
+            if (! empty($filters['status']) && in_array($filters['status'], $inactive, true)) {
+                $query->where('status', $filters['status']);
+            } else {
+                $query->whereIn('status', $inactive);
+            }
+        }
 
         if (! empty($filters['q'])) {
             $q = trim((string) $filters['q']);
@@ -98,7 +111,7 @@ class ProductSearchService
             });
         }
 
-        if (! empty($filters['status'])) {
+        if (! empty($filters['status']) && $list !== 'active' && $list !== 'inactive' && ! $onlyTrashed) {
             $query->where('status', $filters['status']);
         }
 
@@ -110,6 +123,8 @@ class ProductSearchService
             $query->gender($filters['gender']);
         }
 
-        return $query->latest()->paginate($perPage)->withQueryString();
+        return ($onlyTrashed ? $query->orderByDesc('deleted_at') : $query->latest())
+            ->paginate($perPage)
+            ->withQueryString();
     }
 }

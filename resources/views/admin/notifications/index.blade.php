@@ -139,6 +139,6 @@
         @endforelse
     </div>
 
-    <div class="mt-6 overflow-x-auto">{{ $notifications->links() }}</div>
+    <x-admin.pagination :paginator="$notifications" noun="notification" />
 </div>
 @endsection

@@ -2,6 +2,7 @@
 @section('heading', 'Products')
 @section('title', 'Products')
 @section('content')
+@include('admin.products._tabs', ['current' => 'active', 'activeCount' => $activeCount, 'inactiveCount' => $inactiveCount, 'trashedCount' => $trashedCount])
 <div class="mb-6">
     <form method="GET" class="flex flex-wrap gap-2">
         <input class="input" name="q" value="{{ request('q') }}" placeholder="Search SKU, name, barcode">
@@ -21,7 +22,7 @@
 <x-admin.bulk-form
     :action="route('admin.products.bulk-destroy')"
     :ids="$products->pluck('id')"
-    confirm="Delete the selected products? This cannot be undone."
+    confirm="Move the selected products to Deleted products? You can restore them later."
     label="Delete selected"
 >
     <x-slot:actions>
@@ -67,5 +68,5 @@
         </table>
     </div>
 </x-admin.bulk-form>
-<div class="mt-6">{{ $products->links() }}</div>
+<x-admin.pagination :paginator="$products" noun="product" />
 @endsection

@@ -22,5 +22,5 @@
     @endforeach
     </div>
 </x-admin.bulk-form>
-<div class="mt-6">{{ $coupons->links() }}</div>
+<x-admin.pagination :paginator="$coupons" noun="coupon" />
 @endsection

@@ -38,5 +38,5 @@
     @endforelse
     </div>
 </x-admin.bulk-form>
-<div class="mt-6">{{ $regions->links() }}</div>
+<x-admin.pagination :paginator="$regions" noun="region" />
 @endsection

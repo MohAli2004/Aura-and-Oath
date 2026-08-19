@@ -21,6 +21,7 @@ use App\Services\ProductSearchService;
 use App\Services\ProductVariantService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -39,7 +40,24 @@ class ProductController extends Controller
     public function index(Request $request): View
     {
         return view('admin.products.index', [
-            'products' => $this->search->adminSearch($request->all()),
+            'products' => $this->search->adminSearch($request->all(), list: 'active'),
+            ...$this->productListCounts(),
+        ]);
+    }
+
+    public function inactive(Request $request): View
+    {
+        return view('admin.products.inactive', [
+            'products' => $this->search->adminSearch($request->all(), list: 'inactive'),
+            ...$this->productListCounts(),
+        ]);
+    }
+
+    public function trashed(Request $request): View
+    {
+        return view('admin.products.trashed', [
+            'products' => $this->search->adminSearch($request->all(), onlyTrashed: true),
+            ...$this->productListCounts(),
         ]);
     }
 
@@ -153,7 +171,36 @@ class ProductController extends Controller
         $this->audit->log('product.deleted', $product);
         $product->delete();
 
-        return redirect()->route('admin.products.index')->with('success', 'Product deleted.');
+        return redirect()->route('admin.products.index')->with('success', 'Product moved to Deleted products.');
+    }
+
+    public function restore(Product $product): RedirectResponse
+    {
+        abort_unless($product->trashed(), 404);
+
+        $product->restore();
+        $this->audit->log('product.restored', $product);
+
+        return redirect()->route('admin.products.index')->with('success', 'Product restored.');
+    }
+
+    public function activate(Product $product): RedirectResponse
+    {
+        abort_if($product->trashed() || $product->status === ProductStatus::Active, 404);
+
+        $product->update(['status' => ProductStatus::Active]);
+        $this->audit->log('product.activated', $product);
+
+        return redirect()->route('admin.products.index')->with('success', 'Product activated.');
+    }
+
+    public function forceDestroy(Product $product): RedirectResponse
+    {
+        abort_unless($product->trashed(), 404);
+
+        $this->permanentlyDelete($product);
+
+        return redirect()->route('admin.products.trashed')->with('success', 'Product permanently deleted.');
     }
 
     public function bulkDestroy(Request $request): RedirectResponse
@@ -166,6 +213,114 @@ class ProductController extends Controller
             'product',
             fn (Product $product) => $this->audit->log('product.deleted', $product),
         );
+    }
+
+    public function bulkRestore(Request $request): RedirectResponse
+    {
+        $ids = $this->trashedProductIds($request);
+        $products = Product::onlyTrashed()->whereIn('id', $ids)->get();
+
+        foreach ($products as $product) {
+            $product->restore();
+            $this->audit->log('product.restored', $product);
+        }
+
+        $count = $products->count();
+        $noun = $count === 1 ? 'product' : 'products';
+
+        return redirect()
+            ->route('admin.products.index')
+            ->with('success', "{$count} {$noun} restored.");
+    }
+
+    public function bulkActivate(Request $request): RedirectResponse
+    {
+        $ids = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ])['ids'];
+
+        $products = Product::query()
+            ->whereIn('id', $ids)
+            ->where('status', '!=', ProductStatus::Active)
+            ->get();
+
+        foreach ($products as $product) {
+            $product->update(['status' => ProductStatus::Active]);
+            $this->audit->log('product.activated', $product);
+        }
+
+        $count = $products->count();
+        $noun = $count === 1 ? 'product' : 'products';
+
+        return redirect()
+            ->route('admin.products.index')
+            ->with('success', "{$count} {$noun} activated.");
+    }
+
+    public function bulkForceDestroy(Request $request): RedirectResponse
+    {
+        $ids = $this->trashedProductIds($request);
+        $products = Product::onlyTrashed()->whereIn('id', $ids)->get();
+
+        foreach ($products as $product) {
+            $this->permanentlyDelete($product);
+        }
+
+        $count = $products->count();
+        $noun = $count === 1 ? 'product' : 'products';
+
+        return redirect()
+            ->route('admin.products.trashed')
+            ->with('success', "{$count} {$noun} permanently deleted.");
+    }
+
+    /**
+     * @return array{activeCount: int, inactiveCount: int, trashedCount: int}
+     */
+    protected function productListCounts(): array
+    {
+        return [
+            'activeCount' => Product::query()->where('status', ProductStatus::Active)->count(),
+            'inactiveCount' => Product::query()->where('status', '!=', ProductStatus::Active)->count(),
+            'trashedCount' => Product::onlyTrashed()->count(),
+        ];
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function trashedProductIds(Request $request): array
+    {
+        return $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer'],
+        ])['ids'];
+    }
+
+    protected function permanentlyDelete(Product $product): void
+    {
+        DB::transaction(function () use ($product) {
+            $product->load([
+                'images',
+                'variants' => fn ($query) => $query->withTrashed(),
+            ]);
+
+            foreach ($product->images as $image) {
+                $this->images->delete($image->path);
+            }
+
+            foreach ($product->variants as $variant) {
+                $this->images->delete($variant->image_path);
+            }
+
+            $this->audit->log('product.force_deleted', $product, [
+                'name' => $product->name,
+                'sku' => $product->sku,
+            ]);
+
+            $product->forceDelete();
+        });
     }
 
     protected function handleImage(Request $request, Product $product): void
