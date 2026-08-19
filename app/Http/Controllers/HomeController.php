@@ -34,6 +34,11 @@ class HomeController extends Controller
             ];
         });
 
+        $data['hotOffers'] = rescue(
+            fn () => app(\App\Services\OfferService::class)->liveOffers(6),
+            collect()
+        );
+
         return view('storefront.home', $data);
     }
 }

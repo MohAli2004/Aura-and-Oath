@@ -14,6 +14,7 @@ use App\Models\Category;
 use App\Models\Coupon;
 use App\Models\DeliveryRegion;
 use App\Models\Order;
+use App\Models\Offer;
 use App\Models\Product;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -42,6 +43,7 @@ class AdminNavBadgeService
         'admin.coupons.index' => 'coupons',
         'admin.delivery-regions.index' => 'delivery',
         'admin.banners.index' => 'banners',
+        'admin.offers.index' => 'offers',
         'admin.notifications.index' => 'notifications',
         'admin.audit-logs.index' => 'audit',
     ];
@@ -68,6 +70,9 @@ class AdminNavBadgeService
             'coupons' => $this->countCreatedSince(Coupon::query(), $seenAt['coupons'] ?? null),
             'delivery' => $this->countCreatedSince(DeliveryRegion::query(), $seenAt['delivery'] ?? null),
             'banners' => $this->countCreatedSince(Banner::query(), $seenAt['banners'] ?? null),
+            'offers' => Schema::hasTable('offers')
+                ? $this->countCreatedSince(Offer::query(), $seenAt['offers'] ?? null)
+                : 0,
             'notifications' => $user->unreadNotifications()->count(),
             'audit' => $this->countCreatedSince(AuditLog::query(), $seenAt['audit'] ?? null),
         ];

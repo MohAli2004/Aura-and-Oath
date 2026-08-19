@@ -12,6 +12,7 @@ use App\Policies\OrderPolicy;
 use App\Policies\ProductPolicy;
 use App\Services\AdminNavBadgeService;
 use App\Services\CartService;
+use App\Services\OfferService;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Auth;
@@ -82,11 +83,18 @@ class AppServiceProvider extends ServiceProvider
                 $navBrandsTotal = 0;
             }
 
+            try {
+                $hasLiveOffers = app(OfferService::class)->hasLiveOffers();
+            } catch (\Throwable) {
+                $hasLiveOffers = false;
+            }
+
             $view->with([
                 'cartCount' => $cartCount,
                 'navCategories' => $navCategories,
                 'navBrands' => $navBrands,
                 'navBrandsTotal' => $navBrandsTotal,
+                'hasLiveOffers' => $hasLiveOffers,
             ]);
         });
 

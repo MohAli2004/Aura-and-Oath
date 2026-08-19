@@ -25,11 +25,11 @@
         return [
             'id' => (string) $variant->id,
             'name' => $variant->displayName(),
-            'price' => (float) $variant->effectivePrice(),
-            'priceLabel' => money($variant->effectivePrice()),
-            'compareAt' => $variant->compare_at_price !== null
-                ? money((float) $variant->compare_at_price)
-                : ($product->compare_at_price !== null ? money((float) $product->compare_at_price) : null),
+            'price' => (float) $product->effectivePrice($variant),
+            'priceLabel' => money($product->effectivePrice($variant)),
+            'compareAt' => $product->compareAtPrice($variant) !== null
+                ? money($product->compareAtPrice($variant))
+                : null,
             'stock' => $variant->availableStock(),
             'threshold' => (int) $variant->low_stock_threshold,
             'image' => $image,
@@ -79,6 +79,7 @@
         productName: @js($product->name),
         productPrice: @js((float) $product->effectivePrice()),
         productPriceLabel: @js(money($product->effectivePrice())),
+        productCompareAt: @js($product->compareAtPrice() ? money($product->compareAtPrice()) : null),
         productStock: @js($product->availableStock()),
         productThreshold: @js((int) $product->low_stock_threshold),
         productImage: @js($defaultImage),
@@ -395,14 +396,30 @@
             @endif
 
             <div class="mb-4 flex flex-wrap items-baseline gap-3">
-                <p class="text-xl" x-text="selected?.priceLabel || @js(money($product->effectivePrice()))"></p>
+                <p class="text-xl" x-text="selected?.priceLabel || productPriceLabel"></p>
                 <p
                     class="text-sm text-taupe line-through"
-                    x-show="selected?.compareAt"
+                    x-show="selected?.compareAt || (!hasVariants && productCompareAt)"
                     x-cloak
-                    x-text="selected?.compareAt"
+                    x-text="selected?.compareAt || productCompareAt"
                 ></p>
+                @if($product->hasActiveOffer())
+                    <a href="{{ route('offers.index') }}" class="text-[11px] uppercase tracking-[0.14em] text-blush">Hot offer</a>
+                @endif
             </div>
+
+            @if(($productOffers ?? collect())->isNotEmpty())
+                <div class="mb-6 border border-beige bg-[#FFFCFA] p-4">
+                    <div class="text-[11px] uppercase tracking-[0.16em] text-blush">Included in a hot offer</div>
+                    <p class="mt-1 text-sm">
+                        Part of
+                        @foreach($productOffers as $offer)
+                            <a class="underline" href="{{ route('offers.show', $offer->slug) }}">{{ $offer->title }}</a>@if(! $loop->last)<span class="text-taupe">, </span>@endif
+                        @endforeach.
+                    </p>
+                    <a href="{{ route('offers.index') }}" class="mt-2 inline-block text-xs text-taupe">See all hot offers</a>
+                </div>
+            @endif
 
             <p class="text-taupe mb-6">{{ $product->short_description }}</p>
 
@@ -566,6 +583,22 @@
             </div>
         </div>
     </div>
+
+    @if(($offerProducts ?? collect())->isNotEmpty())
+        <section class="mt-20">
+            <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+                <h2 class="font-display text-3xl">Also in this offer</h2>
+                @if(($productOffers ?? collect())->isNotEmpty())
+                    <a href="{{ route('offers.show', $productOffers->first()->slug) }}" class="text-sm text-taupe">View offer</a>
+                @endif
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
+                @foreach($offerProducts as $item)
+                    <x-product-card :product="$item" />
+                @endforeach
+            </div>
+        </section>
+    @endif
 
     @if($related->isNotEmpty())
         <section class="mt-20">

@@ -145,6 +145,13 @@ class Product extends Model
         return $this->hasMany(InventoryMovement::class);
     }
 
+    public function offers(): BelongsToMany
+    {
+        return $this->belongsToMany(Offer::class, 'offer_products')
+            ->withPivot(['offer_price', 'sort_order'])
+            ->withTimestamps();
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', ProductStatus::Active)
@@ -193,7 +200,7 @@ class Product extends Model
         return max(0, (int) $this->stock_quantity - (int) $this->reserved_quantity);
     }
 
-    public function effectivePrice(?ProductVariant $variant = null): float
+    public function regularPrice(?ProductVariant $variant = null): float
     {
         if ($variant && $variant->price !== null) {
             return (float) $variant->price;
@@ -212,13 +219,46 @@ class Product extends Model
         return (float) $this->price;
     }
 
-    public function compareAtPrice(?ProductVariant $variant = null): ?float
+    public function offerPrice(): ?float
     {
-        if ($variant && $variant->compare_at_price !== null) {
-            return (float) $variant->compare_at_price;
+        return app(\App\Services\OfferService::class)->priceFor((int) $this->id);
+    }
+
+    public function hasActiveOffer(): bool
+    {
+        $offer = $this->offerPrice();
+
+        return $offer !== null && $offer < $this->regularPrice();
+    }
+
+    public function effectivePrice(?ProductVariant $variant = null): float
+    {
+        $regular = $this->regularPrice($variant);
+        $offer = $this->offerPrice();
+
+        if ($offer !== null && $offer < $regular) {
+            return $offer;
         }
 
-        return $this->compare_at_price !== null ? (float) $this->compare_at_price : null;
+        return $regular;
+    }
+
+    public function compareAtPrice(?ProductVariant $variant = null): ?float
+    {
+        $regular = $this->regularPrice($variant);
+        $listed = null;
+
+        if ($variant && $variant->compare_at_price !== null) {
+            $listed = (float) $variant->compare_at_price;
+        } elseif ($this->compare_at_price !== null) {
+            $listed = (float) $this->compare_at_price;
+        }
+
+        if ($this->hasActiveOffer()) {
+            return $listed !== null && $listed > $regular ? $listed : $regular;
+        }
+
+        return $listed;
     }
 
     public function primaryImagePath(): ?string

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\RecentlyViewedProduct;
+use App\Services\OfferService;
 use App\Services\ProductRecommendationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,7 +12,7 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
-    public function show(Request $request, string $slug, ProductRecommendationService $recommendations): View
+    public function show(Request $request, string $slug, ProductRecommendationService $recommendations, OfferService $offers): View
     {
         $product = Product::query()
             ->with(['images', 'brand', 'categories', 'activeVariants.attributeValues.attribute'])
@@ -39,6 +40,14 @@ class ProductController extends Controller
             4,
         );
 
-        return view('storefront.product', compact('product', 'related'));
+        $productOffers = rescue(fn () => $offers->liveOffersForProduct($product), collect());
+        $offerProducts = $productOffers
+            ->flatMap->products
+            ->unique('id')
+            ->reject(fn (Product $item) => $item->id === $product->id)
+            ->take(4)
+            ->values();
+
+        return view('storefront.product', compact('product', 'related', 'productOffers', 'offerProducts'));
     }
 }

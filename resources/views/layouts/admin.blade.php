@@ -37,6 +37,7 @@
         ],
         'Marketing' => [
             ['admin.banners.index', 'Banners', 'banners', 'banners'],
+            ['admin.offers.index', 'Hot offers', 'coupons', 'offers'],
         ],
         'System' => [
             ['admin.notifications.index', 'Notifications', 'bell', 'notifications'],

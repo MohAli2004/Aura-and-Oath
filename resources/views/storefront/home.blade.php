@@ -24,6 +24,32 @@
     </div>
 </section>
 
+@if(($hotOffers ?? collect())->isNotEmpty())
+<section class="max-w-7xl mx-auto px-4 sm:px-6 py-16 rise-in">
+    <div class="flex items-end justify-between mb-8">
+        <div>
+            <h2 class="font-display text-4xl">Hot offers</h2>
+            <p class="mt-2 text-sm text-taupe">Grouped products at special prices.</p>
+        </div>
+        <a href="{{ route('offers.index') }}" class="text-sm text-taupe">View all</a>
+    </div>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+        @foreach($hotOffers as $offer)
+            <a href="{{ route('offers.show', $offer->slug) }}" class="block p-6 bg-[#FFFCFA] border border-beige hover:border-gold transition">
+                <div class="text-[11px] uppercase tracking-[0.16em] text-blush">Hot offer</div>
+                <div class="font-display text-3xl mt-2">{{ $offer->title }}</div>
+                <div class="text-xs text-taupe mt-2 uppercase tracking-widest">{{ $offer->products->count() }} {{ \Illuminate\Support\Str::plural('product', $offer->products->count()) }}</div>
+            </a>
+        @endforeach
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
+        @foreach($hotOffers->flatMap->products->unique('id')->take(8) as $product)
+            <x-product-card :product="$product" />
+        @endforeach
+    </div>
+</section>
+@endif
+
 <section class="max-w-7xl mx-auto px-4 sm:px-6 py-16 rise-in">
     <div class="flex items-end justify-between mb-8">
         <h2 class="font-display text-4xl">Featured</h2>

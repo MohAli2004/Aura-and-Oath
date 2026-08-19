@@ -6,6 +6,9 @@
 <article class="product-card group">
     <a href="{{ route('products.show', $product->slug) }}" class="relative block overflow-hidden bg-beige/40 aspect-[4/5]">
         <img src="{{ $imgUrl }}" alt="{{ $product->name }}" class="w-full h-full object-cover">
+        @if($product->hasActiveOffer())
+            <span class="absolute top-3 start-3 bg-blush text-[#FFFCFA] text-[10px] uppercase tracking-[0.14em] px-2 py-1">Hot offer</span>
+        @endif
     </a>
     <div class="pt-3 space-y-1">
         @if($product->brand)
@@ -17,8 +20,11 @@
         <a href="{{ route('products.show', $product->slug) }}" class="font-display text-xl leading-tight block">{{ $product->name }}</a>
         <div class="flex items-baseline gap-2 text-sm">
             <span>{{ money($product->effectivePrice()) }}</span>
-            @if($product->compare_at_price)
-                <span class="text-taupe line-through text-xs">{{ money($product->compare_at_price) }}</span>
+            @if($product->compareAtPrice())
+                <span class="text-taupe line-through text-xs">{{ money($product->compareAtPrice()) }}</span>
+            @endif
+            @if($product->hasActiveOffer())
+                <a href="{{ route('offers.index') }}" class="text-[10px] uppercase tracking-[0.14em] text-blush">Hot offer</a>
             @endif
         </div>
         @if($reason)

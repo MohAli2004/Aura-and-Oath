@@ -43,7 +43,27 @@ class ReportService
                 ->whereMonth('created_at', now()->month)
                 ->whereYear('created_at', now()->year)
                 ->sum('total'),
+            'profit_today' => $this->profitBetween(now()->startOfDay(), now()->endOfDay()),
+            'profit_month' => $this->profitBetween(now()->startOfMonth(), now()->endOfMonth()),
         ];
+    }
+
+    public function profitBetween(Carbon $from, Carbon $to): float
+    {
+        $revenue = (float) Order::query()
+            ->countsTowardRevenue()
+            ->whereBetween('created_at', [$from, $to])
+            ->sum('total');
+
+        $cogs = (float) OrderItem::query()
+            ->accepted()
+            ->whereHas('order', function ($query) use ($from, $to) {
+                $query->countsTowardRevenue()
+                    ->whereBetween('created_at', [$from, $to]);
+            })
+            ->sum(DB::raw('COALESCE(order_items.unit_cost, 0) * order_items.quantity'));
+
+        return round($revenue - $cogs, 2);
     }
 
     public function salesByDay(int $days = 30): Collection

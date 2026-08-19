@@ -54,7 +54,7 @@
             </div>
 
             <form action="{{ route('search') }}" method="GET" class="hidden md:block flex-1 max-w-md">
-                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search products..." class="input" aria-label="Search products">
+                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search products and offers..." class="input" aria-label="Search products">
             </form>
 
             <nav class="hidden lg:flex items-center gap-5 xl:gap-6 text-sm tracking-wide">
@@ -68,6 +68,7 @@
                         class="absolute start-0 top-full z-50 mt-1 min-w-[14rem] border border-beige bg-[#FFFCFA] py-1"
                     >
                         <x-nav-item class="px-4 py-2.5" :href="route('shop')" icon="shop" label="All products" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('offers.index')" icon="featured" label="Hot offers" />
                         <x-nav-item class="px-4 py-2.5" :href="route('shop', ['gender' => 'women'])" icon="women" label="Women" />
                         <x-nav-item class="px-4 py-2.5" :href="route('shop', ['gender' => 'men'])" icon="men" label="Men" />
                         <x-nav-item class="px-4 py-2.5" :href="route('shop', ['gender' => 'unisex'])" icon="unisex" label="Unisex" />
@@ -76,6 +77,10 @@
                         <x-nav-item class="px-4 py-2.5" :href="route('shop', ['sort' => 'newest'])" icon="new" label="New arrivals" />
                     </div>
                 </div>
+
+                @if(! empty($hasLiveOffers))
+                    <a href="{{ route('offers.index') }}" class="inline-flex items-center min-h-11 text-blush">Hot offers</a>
+                @endif
 
                 @isset($navCategories)
                     @if($navCategories->isNotEmpty())
@@ -236,6 +241,12 @@
         </div>
     </header>
 
+    @if(! empty($hasLiveOffers) && ! request()->routeIs('home', 'offers.*'))
+        <a href="{{ route('offers.index') }}" class="block bg-blush text-[#FFFCFA] text-center text-xs sm:text-sm tracking-wide py-2.5 px-4 hover:opacity-90">
+            Hot offers are on now — shop grouped products at special prices
+        </a>
+    @endif
+
     {{-- Mobile menu: highest layer, outside header stacking context --}}
     <div class="storefront-mobile-nav lg:hidden" x-show="open" x-cloak>
         <div
@@ -267,10 +278,20 @@
             </div>
 
             <form action="{{ route('search') }}" method="GET" class="mb-5">
-                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search products..." class="input" aria-label="Search products">
+                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search products and offers..." class="input" aria-label="Search products">
             </form>
 
             <nav class="space-y-2 text-sm">
+                @if(! empty($hasLiveOffers))
+                    <a href="{{ route('offers.index') }}" class="flex items-center justify-between gap-2 px-3 py-2.5 border border-blush/40 bg-blush/5 text-blush" @click="open = false">
+                        <span class="inline-flex items-center gap-2.5">
+                            <x-nav-icon name="featured" />
+                            <span class="font-medium">Hot offers</span>
+                        </span>
+                        <span class="text-xs uppercase tracking-widest">Shop deals</span>
+                    </a>
+                @endif
+
                 {{-- Shop --}}
                 <div class="border border-beige overflow-hidden">
                     <button type="button" class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left bg-ivory/50" @click="section = section === 'shop' ? '' : 'shop'">
@@ -282,6 +303,7 @@
                     </button>
                     <div class="border-t border-beige bg-[#FFFCFA] px-2 py-1.5 space-y-0.5" x-show="section === 'shop'" x-cloak>
                         <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop')" icon="shop" label="All products" @click="open = false" />
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('offers.index')" icon="featured" label="Hot offers" @click="open = false" />
                         <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.14em] text-taupe">By gender</p>
                         <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['gender' => 'women'])" icon="women" label="Women" @click="open = false" />
                         <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['gender' => 'men'])" icon="men" label="Men" @click="open = false" />
@@ -446,6 +468,7 @@
                 <div class="label mb-3">Shop</div>
                 <div class="space-y-1">
                     <x-nav-item class="py-1.5" :href="route('shop')" icon="shop" label="All products" />
+                    <x-nav-item class="py-1.5" :href="route('offers.index')" icon="featured" label="Hot offers" />
                     <x-nav-item class="py-1.5" :href="route('shop', ['gender' => 'women'])" icon="women" label="Women" />
                     <x-nav-item class="py-1.5" :href="route('shop', ['gender' => 'men'])" icon="men" label="Men" />
                     <x-nav-item class="py-1.5" :href="route('shop', ['gender' => 'unisex'])" icon="unisex" label="Unisex" />

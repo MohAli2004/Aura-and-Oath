@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DeliveryRegionController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\OfferController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReportController;
@@ -50,6 +51,9 @@ Route::resource('delivery-regions', DeliveryRegionController::class)->except(['s
 
 Route::delete('banners/bulk', [BannerController::class, 'bulkDestroy'])->name('banners.bulk-destroy');
 Route::resource('banners', BannerController::class)->except(['show']);
+
+Route::delete('offers/bulk', [OfferController::class, 'bulkDestroy'])->name('offers.bulk-destroy');
+Route::resource('offers', OfferController::class)->except(['show']);
 
 Route::get('attributes', [AttributeController::class, 'index'])->name('attributes.index');
 Route::post('attributes', [AttributeController::class, 'store'])->name('attributes.store');

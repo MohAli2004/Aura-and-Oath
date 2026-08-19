@@ -275,6 +275,67 @@ class AuraCommerceTest extends TestCase
         $this->assertEquals(ProductStatus::Active, $archived->fresh()->status);
     }
 
+    public function test_admin_can_create_hot_offer_visible_to_customers_at_special_price(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $product = $this->createProduct([
+            'name' => 'Offer Cream',
+            'price' => 100,
+            'sku' => 'SKU-OFFER',
+            'barcode' => 'BC-OFFER',
+            'slug' => 'offer-cream',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.offers.store'), [
+                'title' => 'Weekend Deal',
+                'is_active' => 1,
+                'products' => [
+                    ['id' => $product->id, 'offer_price' => 75],
+                ],
+            ])
+            ->assertRedirect(route('admin.offers.index'));
+
+        $this->assertDatabaseHas('offers', ['title' => 'Weekend Deal']);
+        $this->assertEquals(75.0, $product->fresh()->effectivePrice());
+        $this->assertEquals(100.0, $product->fresh()->compareAtPrice());
+
+        $this->post('/logout');
+
+        $this->get(route('offers.index'))
+            ->assertOk()
+            ->assertSee('Weekend Deal');
+
+        $offer = \App\Models\Offer::query()->where('title', 'Weekend Deal')->firstOrFail();
+
+        $this->get(route('offers.show', $offer->slug))
+            ->assertOk()
+            ->assertSee('Offer Cream')
+            ->assertSee('75.00')
+            ->assertSee('Hot offer');
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Hot offers')
+            ->assertSee('Weekend Deal')
+            ->assertSee('Offer Cream');
+
+        $this->get('/shop')
+            ->assertOk()
+            ->assertSee('Hot offers are on now')
+            ->assertSee('Hot offers');
+
+        $this->get(route('products.show', $product->slug))
+            ->assertOk()
+            ->assertSee('Included in a hot offer')
+            ->assertSee('Weekend Deal');
+
+        $this->get(route('search', ['q' => 'Weekend']))
+            ->assertOk()
+            ->assertSee('Matching offers')
+            ->assertSee('Weekend Deal');
+    }
+
     public function test_admin_products_page_renders_pagination_with_many_products(): void
     {
         $admin = User::factory()->admin()->create();
@@ -884,6 +945,52 @@ class AuraCommerceTest extends TestCase
         $top = app(ReportService::class)->topProducts(5);
         $this->assertEquals(2, (int) $top->first()->qty);
         $this->assertEquals(140.0, (float) $top->first()->revenue);
+    }
+
+    public function test_admin_dashboard_shows_profit_calculator(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Profit calculator')
+            ->assertSee('Selling price')
+            ->assertSee('Profit today')
+            ->assertSee('Profit this month');
+    }
+
+    public function test_dashboard_profit_subtracts_item_cost_from_revenue(): void
+    {
+        $user = User::factory()->customer()->create();
+        $product = $this->createProduct(['price' => 100, 'cost_price' => 40, 'stock_quantity' => 5]);
+
+        $order = Order::query()->create([
+            'order_number' => 'AO-PROFIT-1',
+            'user_id' => $user->id,
+            'status' => OrderStatus::Delivered,
+            'payment_method' => PaymentMethod::CashOnDelivery,
+            'payment_status' => PaymentStatus::Paid,
+            'subtotal' => 200,
+            'total' => 205,
+            'customer_name' => $user->name,
+            'customer_email' => $user->email,
+            'customer_phone' => '010',
+        ]);
+        $order->items()->create([
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'sku' => $product->sku,
+            'barcode' => $product->barcode,
+            'quantity' => 2,
+            'unit_price' => 100,
+            'line_total' => 200,
+            'unit_cost' => 40,
+        ]);
+
+        $profit = app(ReportService::class)->profitBetween(now()->startOfDay(), now()->endOfDay());
+
+        $this->assertEquals(125.0, $profit);
     }
 
     public function test_admins_are_notified_when_customer_cancels_order(): void

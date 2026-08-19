@@ -20,6 +20,11 @@
     @endforeach
 </div>
 
+<x-admin.profit-calculator
+    :profit-today="$stats['profit_today'] ?? 0"
+    :profit-month="$stats['profit_month'] ?? 0"
+/>
+
 <div class="grid lg:grid-cols-2 gap-8">
     <div>
         <h2 class="font-display text-2xl mb-4">Pending orders</h2>

@@ -5,7 +5,7 @@
     $label = \Illuminate\Support\Str::plural($noun, $total);
 @endphp
 
-<div {{ $attributes->merge(['class' => 'mt-6 mb-10 pb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:mb-6 sm:pb-0']) }}>
+<div {{ $attributes->merge(['class' => 'mt-6 mb-10 pb-6 flex flex-col items-center gap-3 text-center sm:mb-6 sm:pb-0']) }}>
     <p class="text-sm text-taupe">
         @if ($total === 0)
             0 {{ $label }}
