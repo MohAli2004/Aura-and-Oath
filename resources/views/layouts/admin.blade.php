@@ -176,7 +176,7 @@
             </div>
         </header>
 
-        <div class="p-3 sm:p-6">
+        <div class="px-3 pt-3 pb-12 sm:p-6">
             @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
             @if(session('error'))<div class="alert alert-error">{{ session('error') }}</div>@endif
             @if($errors->any())
