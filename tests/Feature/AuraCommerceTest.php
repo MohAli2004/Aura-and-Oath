@@ -275,6 +275,27 @@ class AuraCommerceTest extends TestCase
         $this->assertEquals(ProductStatus::Active, $archived->fresh()->status);
     }
 
+    public function test_admin_products_page_renders_pagination_with_many_products(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        for ($i = 1; $i <= 21; $i++) {
+            $this->createProduct([
+                'name' => "Paged Serum {$i}",
+                'sku' => 'SKU-PAGE-'.$i,
+                'barcode' => 'BC-PAGE-'.$i,
+                'slug' => 'paged-serum-'.$i,
+            ]);
+        }
+
+        $this->actingAs($admin)
+            ->get(route('admin.products.index'))
+            ->assertOk()
+            ->assertSee('Showing')
+            ->assertSee('of')
+            ->assertSee('products');
+    }
+
     public function test_admin_can_edit_delivery_region_fee(): void
     {
         $admin = User::factory()->admin()->create();

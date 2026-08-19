@@ -25,7 +25,7 @@
 
     @if ($paginator->hasPages())
         <div class="overflow-x-auto">
-            {{ $paginator->onEachSide(1)->links('pagination.admin') }}
+            {{ $paginator->onEachSide(1)->links('pagination::admin') }}
         </div>
     @endif
 </div>
