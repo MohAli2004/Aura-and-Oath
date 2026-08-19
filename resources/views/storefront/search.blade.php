@@ -12,13 +12,9 @@
                 <h2 class="font-display text-3xl">Matching offers</h2>
                 <a href="{{ route('offers.index') }}" class="text-sm text-taupe">All hot offers</a>
             </div>
-            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
                 @foreach($offers as $offer)
-                    <a href="{{ route('offers.show', $offer->slug) }}" class="block border border-beige bg-[#FFFCFA] p-6 hover:border-gold transition">
-                        <div class="text-[11px] uppercase tracking-[0.16em] text-blush">Hot offer</div>
-                        <h3 class="font-display text-3xl mt-2">{{ $offer->title }}</h3>
-                        <p class="text-xs uppercase tracking-widest text-taupe mt-4">{{ $offer->products->count() }} {{ Str::plural('product', $offer->products->count()) }}</p>
-                    </a>
+                    <x-offer-card :offer="$offer" />
                 @endforeach
             </div>
         </section>

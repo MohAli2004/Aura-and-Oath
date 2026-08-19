@@ -404,20 +404,21 @@
                     x-text="selected?.compareAt || productCompareAt"
                 ></p>
                 @if($product->hasActiveOffer())
-                    <a href="{{ route('offers.index') }}" class="text-[11px] uppercase tracking-[0.14em] text-blush">Hot offer</a>
+                    <a href="{{ route('offers.index') }}" class="text-[11px] uppercase tracking-[0.14em] text-blush">In a hot offer</a>
                 @endif
             </div>
 
             @if(($productOffers ?? collect())->isNotEmpty())
                 <div class="mb-6 border border-beige bg-[#FFFCFA] p-4">
-                    <div class="text-[11px] uppercase tracking-[0.16em] text-blush">Included in a hot offer</div>
+                    <div class="text-[11px] uppercase tracking-[0.16em] text-blush">Sold as a set</div>
                     <p class="mt-1 text-sm">
-                        Part of
+                        Buy this product together with the rest of
                         @foreach($productOffers as $offer)
-                            <a class="underline" href="{{ route('offers.show', $offer->slug) }}">{{ $offer->title }}</a>@if(! $loop->last)<span class="text-taupe">, </span>@endif
-                        @endforeach.
+                            <a class="underline" href="{{ route('offers.show', $offer->slug) }}">{{ $offer->title }}</a>@if(! $loop->last)<span class="text-taupe"> or </span>@endif
+                        @endforeach
+                        to get the offer price. Buying it on its own uses the regular price.
                     </p>
-                    <a href="{{ route('offers.index') }}" class="mt-2 inline-block text-xs text-taupe">See all hot offers</a>
+                    <a href="{{ route('offers.show', $productOffers->first()->slug) }}" class="mt-2 inline-block text-xs text-taupe">View the full offer</a>
                 </div>
             @endif
 
@@ -587,7 +588,7 @@
     @if(($offerProducts ?? collect())->isNotEmpty())
         <section class="mt-20">
             <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
-                <h2 class="font-display text-3xl">Also in this offer</h2>
+                <h2 class="font-display text-3xl">Also in this set</h2>
                 @if(($productOffers ?? collect())->isNotEmpty())
                     <a href="{{ route('offers.show', $productOffers->first()->slug) }}" class="text-sm text-taupe">View offer</a>
                 @endif

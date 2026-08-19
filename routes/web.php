@@ -23,6 +23,7 @@ Route::get('/', HomeController::class)->name('home');
 Route::get('/shop', ShopController::class)->name('shop');
 Route::get('/offers', [OfferController::class, 'index'])->name('offers.index');
 Route::get('/offers/{slug}', [OfferController::class, 'show'])->name('offers.show');
+Route::post('/offers/{slug}/cart', [CartController::class, 'storeOffer'])->name('offers.cart');
 Route::get('/brands', [BrandController::class, 'index'])->name('brands.index');
 Route::get('/search', SearchController::class)->name('search');
 Route::get('/products/{slug}', [ProductController::class, 'show'])->name('products.show');

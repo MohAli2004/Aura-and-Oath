@@ -32,7 +32,7 @@ class CheckoutController extends Controller
     public function create(Request $request): View|RedirectResponse|Response
     {
         $cart = $this->cartService->getOrCreateCart();
-        $cart->load(['items.product.images', 'items.variant']);
+        $cart->load(['items.product.images', 'items.variant', 'items.offer.products']);
 
         if ($cart->items->isEmpty()) {
             $completedOrderId = $request->session()->pull('last_completed_order_id');

@@ -29,7 +29,7 @@ class OfferController extends Controller
             }])
             ->firstOrFail();
 
-        abort_if($offer->products->isEmpty(), 404);
+        abort_if($offer->products->count() < 2, 404);
 
         return view('storefront.offers.show', compact('offer'));
     }

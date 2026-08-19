@@ -78,7 +78,7 @@ class OfferService
             ->orderByDesc('id')
             ->limit($limit)
             ->get()
-            ->filter(fn (Offer $offer) => $offer->products->isNotEmpty())
+            ->filter(fn (Offer $offer) => $offer->products->count() >= 2)
             ->values();
     }
 
@@ -88,7 +88,7 @@ class OfferService
             try {
                 return Offer::query()
                     ->active()
-                    ->whereHas('products', fn ($query) => $query->active()->published())
+                    ->whereHas('products', fn ($query) => $query->active()->published(), '>=', 2)
                     ->exists();
             } catch (\Throwable) {
                 return false;
@@ -113,7 +113,8 @@ class OfferService
             }])
             ->orderBy('sort_order')
             ->orderByDesc('id')
-            ->get();
+            ->get()
+            ->filter(fn (Offer $offer) => $offer->isLive() && $offer->products->count() >= 2);
     }
 
     public function searchLive(string $query, int $limit = 8): Collection
@@ -140,7 +141,7 @@ class OfferService
             ->orderByDesc('id')
             ->limit($limit)
             ->get()
-            ->filter(fn (Offer $offer) => $offer->products->isNotEmpty())
+            ->filter(fn (Offer $offer) => $offer->products->count() >= 2)
             ->values();
     }
 

@@ -8,7 +8,7 @@
 @source '../**/*.js';
 
 /* Admin image-upload / image-preview frame sizes — keep even if only referenced from Blade @class maps */
-@source inline("h-12 w-12 h-20 w-20 h-28 w-28 h-40 w-40 h-48 w-48 w-56 aspect-square aspect-video max-w-xl");
+@source inline("h-9 w-9 h-12 w-12 h-14 w-14 h-20 w-20 h-28 w-28 h-40 w-40 h-48 w-48 w-56 aspect-square aspect-[4/5] aspect-video max-w-xs max-w-xl");
 
 /* Aura & Oath design tokens */
 :root {

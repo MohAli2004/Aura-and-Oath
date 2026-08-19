@@ -35,7 +35,7 @@ class HomeController extends Controller
         });
 
         $data['hotOffers'] = rescue(
-            fn () => app(\App\Services\OfferService::class)->liveOffers(6),
+            fn () => app(\App\Services\OfferService::class)->liveOffers(8),
             collect()
         );
 

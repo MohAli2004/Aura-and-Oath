@@ -51,7 +51,7 @@ class CheckoutService
         }
 
         $cart = $this->cartService->getOrCreateCart($user);
-        $cart->load(['items.product', 'items.variant']);
+        $cart->load(['items.product', 'items.variant', 'items.offer.products']);
 
         if ($cart->items->isEmpty()) {
             throw ValidationException::withMessages(['cart' => 'Your cart is empty.']);
@@ -137,7 +137,7 @@ class CheckoutService
     {
         $product = $item->product;
         $variant = $item->variant;
-        $unitPrice = $product->effectivePrice($variant);
+        $unitPrice = $item->unitPrice();
 
         OrderItem::query()->create([
             'order_id' => $order->id,

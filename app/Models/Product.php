@@ -219,6 +219,19 @@ class Product extends Model
         return (float) $this->price;
     }
 
+    public function defaultVariantForCart(): ?ProductVariant
+    {
+        if (! $this->has_variants) {
+            return null;
+        }
+
+        $variants = $this->relationLoaded('activeVariants')
+            ? $this->activeVariants
+            : $this->activeVariants()->get();
+
+        return $variants->firstWhere('is_default', true) ?? $variants->first();
+    }
+
     public function offerPrice(): ?float
     {
         return app(\App\Services\OfferService::class)->priceFor((int) $this->id);
@@ -226,39 +239,25 @@ class Product extends Model
 
     public function hasActiveOffer(): bool
     {
-        $offer = $this->offerPrice();
-
-        return $offer !== null && $offer < $this->regularPrice();
+        return $this->offerPrice() !== null;
     }
 
     public function effectivePrice(?ProductVariant $variant = null): float
     {
-        $regular = $this->regularPrice($variant);
-        $offer = $this->offerPrice();
-
-        if ($offer !== null && $offer < $regular) {
-            return $offer;
-        }
-
-        return $regular;
+        return $this->regularPrice($variant);
     }
 
     public function compareAtPrice(?ProductVariant $variant = null): ?float
     {
-        $regular = $this->regularPrice($variant);
-        $listed = null;
-
         if ($variant && $variant->compare_at_price !== null) {
-            $listed = (float) $variant->compare_at_price;
-        } elseif ($this->compare_at_price !== null) {
-            $listed = (float) $this->compare_at_price;
+            return (float) $variant->compare_at_price;
         }
 
-        if ($this->hasActiveOffer()) {
-            return $listed !== null && $listed > $regular ? $listed : $regular;
+        if ($this->compare_at_price !== null) {
+            return (float) $this->compare_at_price;
         }
 
-        return $listed;
+        return null;
     }
 
     public function primaryImagePath(): ?string

@@ -26,7 +26,8 @@ class OfferRequest extends FormRequest
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
-            'products' => ['required', 'array', 'min:1'],
+            'image' => ['nullable', 'image', 'max:4096'],
+            'products' => ['required', 'array', 'min:2'],
             'products.*.id' => ['required', 'integer', 'exists:products,id', 'distinct'],
             'products.*.offer_price' => ['required', 'numeric', 'min:0'],
         ];
@@ -36,6 +37,15 @@ class OfferRequest extends FormRequest
     {
         $this->merge([
             'is_active' => $this->boolean('is_active'),
+            'starts_at' => $this->filled('starts_at') ? $this->input('starts_at') : null,
+            'ends_at' => $this->filled('ends_at') ? $this->input('ends_at') : null,
         ]);
+    }
+
+    public function messages(): array
+    {
+        return [
+            'products.min' => 'Add at least two products. Customers must buy the full set to get the offer price.',
+        ];
     }
 }

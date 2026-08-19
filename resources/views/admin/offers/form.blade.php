@@ -35,6 +35,7 @@
     method="POST"
     action="{{ $offer->exists ? route('admin.offers.update', $offer) : route('admin.offers.store') }}"
     class="max-w-3xl space-y-5"
+    enctype="multipart/form-data"
     x-data="{
         catalog: {{ \Illuminate\Support\Js::from($catalogPayload) }},
         selected: {{ \Illuminate\Support\Js::from($selectedPayload) }},
@@ -73,11 +74,28 @@
         <label class="label" for="description">Description <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span></label>
         <textarea id="description" name="description" class="input" rows="3">{{ old('description', $offer->description) }}</textarea>
     </div>
+    <div>
+        <span class="label" id="offer-image-label">Main image</span>
+        <x-admin.image-upload
+            name="image"
+            id="image"
+            frame="wide"
+            fit="cover"
+            alt="Offer image preview"
+            empty="Click to upload"
+            :src="filled($offer->image_path) ? app(\App\Services\ImageService::class)->url($offer->image_path) : null"
+            accept="image/*"
+            aria-labelledby="offer-image-label"
+        />
+        <p class="mt-1 text-xs text-taupe leading-snug">Optional. Shown first in the offer gallery, next to each product photo in the set.</p>
+        @error('image')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
+    </div>
     <div class="grid sm:grid-cols-2 gap-4">
-        <x-input label="Starts" name="starts_at" type="datetime-local" value="{{ old('starts_at', $offer->starts_at?->format('Y-m-d\TH:i')) }}" />
-        <x-input label="Ends" name="ends_at" type="datetime-local" value="{{ old('ends_at', $offer->ends_at?->format('Y-m-d\TH:i')) }}" />
+        <x-input label="Starts" name="starts_at" type="datetime-local" value="{{ old('starts_at', $offer->starts_at?->format('Y-m-d\TH:i')) }}" hint="Leave empty to start immediately." />
+        <x-input label="Ends" name="ends_at" type="datetime-local" value="{{ old('ends_at', $offer->ends_at?->format('Y-m-d\TH:i')) }}" hint="Leave empty to keep running." />
     </div>
     <x-input label="Sort order" name="sort_order" type="number" min="0" value="{{ old('sort_order', $offer->sort_order ?? 0) }}" />
+    <input type="hidden" name="is_active" value="0">
     <label class="flex gap-2 text-sm">
         <input type="checkbox" name="is_active" value="1" @checked(old('is_active', $offer->is_active ?? true))>
         Visible to customers
@@ -85,8 +103,8 @@
 
     <div class="border border-beige bg-[#FFFCFA] p-4 space-y-3">
         <div>
-            <h2 class="font-display text-2xl">Products</h2>
-            <p class="text-sm text-taupe">Add products and set a special offer price for each one.</p>
+            <h2 class="font-display text-2xl">Products in this set</h2>
+            <p class="text-sm text-taupe">Customers must buy every product here together to get the offer prices. Add at least two products.</p>
         </div>
 
         <div class="flex flex-wrap gap-2">
@@ -131,7 +149,13 @@
                     </template>
                 </tbody>
             </table>
-            <p class="text-sm text-taupe mt-3" x-show="selected.length === 0">Add at least one product.</p>
+            <p class="text-sm text-taupe mt-3" x-show="selected.length === 0">Add at least two products.</p>
+            <p class="text-sm text-taupe mt-3" x-show="selected.length === 1">Add one more product to make a set.</p>
+            <p class="text-sm mt-3" x-show="selected.length > 1">
+                Set total
+                <span x-text="selected.reduce((sum, item) => sum + Number(item.offer_price || 0), 0).toFixed(2)"></span>
+                <span class="text-taupe line-through ms-2" x-text="selected.reduce((sum, item) => sum + Number(item.price || 0), 0).toFixed(2)"></span>
+            </p>
         </div>
     </div>
 

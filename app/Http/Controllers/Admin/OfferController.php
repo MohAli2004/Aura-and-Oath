@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\OfferRequest;
 use App\Models\Offer;
 use App\Services\AuditService;
+use App\Services\ImageService;
 use App\Services\OfferService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,8 @@ class OfferController extends Controller
 
     public function __construct(
         protected OfferService $offers,
-        protected AuditService $audit
+        protected AuditService $audit,
+        protected ImageService $images
     ) {}
 
     public function index(): View
@@ -40,10 +42,14 @@ class OfferController extends Controller
 
     public function store(OfferRequest $request): RedirectResponse
     {
-        $data = $request->safe()->except('products');
+        $data = $request->safe()->except(['products', 'image']);
         $data['slug'] = filled($data['slug'] ?? null)
             ? $data['slug']
             : Str::slug($data['title']).'-'.Str::lower(Str::random(4));
+
+        if ($request->hasFile('image')) {
+            $data['image_path'] = $this->images->store($request->file('image'), 'offers');
+        }
 
         $offer = Offer::query()->create($data);
         $this->offers->syncProducts($offer, $request->input('products', []));
@@ -65,7 +71,13 @@ class OfferController extends Controller
 
     public function update(OfferRequest $request, Offer $offer): RedirectResponse
     {
-        $data = $request->safe()->except('products');
+        $data = $request->safe()->except(['products', 'image']);
+
+        if ($request->hasFile('image')) {
+            $this->images->delete($offer->image_path);
+            $data['image_path'] = $this->images->store($request->file('image'), 'offers');
+        }
+
         $offer->update($data);
         $this->offers->syncProducts($offer, $request->input('products', []));
         $this->audit->log('offer.updated', $offer);
@@ -76,6 +88,7 @@ class OfferController extends Controller
     public function destroy(Offer $offer): RedirectResponse
     {
         $this->audit->log('offer.deleted', $offer);
+        $this->images->delete($offer->image_path);
         $offer->delete();
         $this->offers->forgetCache();
 
@@ -91,6 +104,7 @@ class OfferController extends Controller
             'admin.offers.index',
             'offer',
             function (Offer $offer) {
+                $this->images->delete($offer->image_path);
                 $this->audit->log('offer.deleted', $offer);
             },
         );

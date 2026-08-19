@@ -20,10 +20,30 @@ class CartController extends Controller
     public function index(): View
     {
         $cart = $this->cartService->getOrCreateCart();
-        $cart->load(['items.product.images', 'items.product.activeVariants', 'items.variant']);
+        $cart->load(['items.product.images', 'items.product.activeVariants', 'items.variant', 'items.offer.products']);
+
+        $offerGroups = $cart->items
+            ->filter(fn (CartItem $item) => $item->offer_id)
+            ->groupBy('offer_id')
+            ->map(function ($items) {
+                $offer = $items->first()?->offer;
+                $quantity = (int) $items->first()?->quantity;
+
+                return [
+                    'offer' => $offer,
+                    'items' => $items,
+                    'quantity' => $quantity,
+                    'offer_total' => $items->sum(fn (CartItem $item) => $item->lineTotal()),
+                    'regular_total' => $items->sum(fn (CartItem $item) => $item->product->regularPrice($item->variant) * $item->quantity),
+                    'representative' => $items->first(),
+                ];
+            })
+            ->values();
 
         return view('storefront.cart', [
             'cart' => $cart,
+            'looseItems' => $cart->items->whereNull('offer_id')->values(),
+            'offerGroups' => $offerGroups,
             'subtotal' => $this->cartService->subtotal($cart),
         ]);
     }
@@ -105,6 +125,23 @@ class CartController extends Controller
         }
 
         return redirect()->route('cart.index')->with('success', 'Added to bag.');
+    }
+
+    public function storeOffer(Request $request, string $slug): RedirectResponse
+    {
+        $offer = \App\Models\Offer::query()
+            ->active()
+            ->where('slug', $slug)
+            ->with(['products.activeVariants'])
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'quantity' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $this->cartService->addOffer($offer, $data['quantity'] ?? 1);
+
+        return redirect()->route('cart.index')->with('success', 'Offer added to bag. All products in the set are included.');
     }
 
     public function update(Request $request, CartItem $item): RedirectResponse

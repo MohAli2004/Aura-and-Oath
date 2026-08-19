@@ -23,8 +23,10 @@ use App\Services\InventoryService;
 use App\Services\OrderService;
 use App\Services\ReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 use Tests\TestCase;
@@ -275,65 +277,147 @@ class AuraCommerceTest extends TestCase
         $this->assertEquals(ProductStatus::Active, $archived->fresh()->status);
     }
 
-    public function test_admin_can_create_hot_offer_visible_to_customers_at_special_price(): void
+    public function test_admin_can_create_hot_offer_as_a_bundle_customers_must_buy_together(): void
     {
         $admin = User::factory()->admin()->create();
-        $product = $this->createProduct([
+        $cream = $this->createProduct([
             'name' => 'Offer Cream',
             'price' => 100,
             'sku' => 'SKU-OFFER',
             'barcode' => 'BC-OFFER',
             'slug' => 'offer-cream',
         ]);
+        $mist = $this->createProduct([
+            'name' => 'Offer Mist',
+            'price' => 60,
+            'sku' => 'SKU-OFFER-2',
+            'barcode' => 'BC-OFFER-2',
+            'slug' => 'offer-mist',
+        ]);
+
+        Storage::fake('public');
+        $jpeg = base64_decode('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==');
 
         $this->actingAs($admin)
             ->post(route('admin.offers.store'), [
                 'title' => 'Weekend Deal',
                 'is_active' => 1,
+                'image' => UploadedFile::fake()->createWithContent('weekend-deal.jpg', $jpeg),
                 'products' => [
-                    ['id' => $product->id, 'offer_price' => 75],
+                    ['id' => $cream->id, 'offer_price' => 75],
+                    ['id' => $mist->id, 'offer_price' => 40],
                 ],
             ])
             ->assertRedirect(route('admin.offers.index'));
 
         $this->assertDatabaseHas('offers', ['title' => 'Weekend Deal']);
-        $this->assertEquals(75.0, $product->fresh()->effectivePrice());
-        $this->assertEquals(100.0, $product->fresh()->compareAtPrice());
+        $this->assertEquals(100.0, $cream->fresh()->effectivePrice());
+        $this->assertNull($cream->fresh()->compareAtPrice());
 
         $this->post('/logout');
 
         $this->get(route('offers.index'))
             ->assertOk()
-            ->assertSee('Weekend Deal');
+            ->assertSee('Weekend Deal')
+            ->assertSee('together');
 
         $offer = \App\Models\Offer::query()->where('title', 'Weekend Deal')->firstOrFail();
+        $this->assertNotEmpty($offer->image_path);
+        Storage::disk('public')->assertExists($offer->image_path);
 
         $this->get(route('offers.show', $offer->slug))
             ->assertOk()
+            ->assertSee($offer->imageUrl(), false)
             ->assertSee('Offer Cream')
+            ->assertSee('Offer Mist')
             ->assertSee('75.00')
-            ->assertSee('Hot offer');
+            ->assertSee('40.00')
+            ->assertSee('Add to bag');
 
         $this->get('/')
             ->assertOk()
             ->assertSee('Hot offers')
+            ->assertSee('Weekend Deal');
+
+        $this->get(route('products.show', $cream->slug))
+            ->assertOk()
+            ->assertSee('Sold as a set')
+            ->assertSee('Weekend Deal');
+
+        $this->post(route('cart.store'), [
+            'product_id' => $cream->id,
+            'quantity' => 1,
+        ])->assertRedirect();
+
+        $this->get(route('cart.index'))
+            ->assertOk()
+            ->assertSee('100.00')
+            ->assertDontSee('75.00');
+
+        $this->post(route('offers.cart', $offer->slug))
+            ->assertRedirect(route('cart.index'));
+
+        $this->get(route('cart.index'))
+            ->assertOk()
             ->assertSee('Weekend Deal')
-            ->assertSee('Offer Cream');
+            ->assertSee('Offer Cream')
+            ->assertSee('Offer Mist')
+            ->assertSee('75.00')
+            ->assertSee('40.00')
+            ->assertSee('Remove offer');
 
-        $this->get('/shop')
-            ->assertOk()
-            ->assertSee('Hot offers are on now')
-            ->assertSee('Hot offers');
+        $cart = app(\App\Services\CartService::class)->getOrCreateCart();
+        $this->assertEquals(215.0, round(app(\App\Services\CartService::class)->subtotal($cart), 2));
 
-        $this->get(route('products.show', $product->slug))
-            ->assertOk()
-            ->assertSee('Included in a hot offer')
-            ->assertSee('Weekend Deal');
+        $offerItem = $cart->items()->where('offer_id', $offer->id)->firstOrFail();
+        $this->delete(route('cart.destroy', $offerItem))->assertRedirect();
 
-        $this->get(route('search', ['q' => 'Weekend']))
+        $cart->refresh();
+        $this->assertEquals(0, $cart->items()->where('offer_id', $offer->id)->count());
+    }
+
+    public function test_future_start_date_schedules_offer_instead_of_marking_it_inactive(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $product = $this->createProduct([
+            'name' => 'Later Cream',
+            'price' => 80,
+            'sku' => 'SKU-LATER',
+            'barcode' => 'BC-LATER',
+            'slug' => 'later-cream',
+        ]);
+        $second = $this->createProduct([
+            'name' => 'Later Mist',
+            'price' => 50,
+            'sku' => 'SKU-LATER-2',
+            'barcode' => 'BC-LATER-2',
+            'slug' => 'later-mist',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.offers.store'), [
+                'title' => 'Tomorrow Deal',
+                'is_active' => 1,
+                'starts_at' => now()->addDay()->format('Y-m-d\TH:i'),
+                'products' => [
+                    ['id' => $product->id, 'offer_price' => 50],
+                    ['id' => $second->id, 'offer_price' => 30],
+                ],
+            ])
+            ->assertRedirect(route('admin.offers.index'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.offers.index'))
             ->assertOk()
-            ->assertSee('Matching offers')
-            ->assertSee('Weekend Deal');
+            ->assertSee('Tomorrow Deal')
+            ->assertSee('Scheduled')
+            ->assertDontSee('Inactive');
+
+        $this->post('/logout');
+
+        $this->get(route('offers.index'))
+            ->assertOk()
+            ->assertDontSee('Tomorrow Deal');
     }
 
     public function test_admin_products_page_renders_pagination_with_many_products(): void
