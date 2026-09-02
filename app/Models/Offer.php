@@ -109,6 +109,22 @@ class Offer extends Model
         return round((float) $this->products->sum(fn (Product $product) => (float) ($product->pivot->offer_price ?? 0)), 2);
     }
 
+    public function savingsAmount(): float
+    {
+        return round(max(0, $this->regularTotal() - $this->offerTotal()), 2);
+    }
+
+    public function savingsPercent(): int
+    {
+        $regular = $this->regularTotal();
+
+        if ($regular <= 0) {
+            return 0;
+        }
+
+        return (int) round(($this->savingsAmount() / $regular) * 100);
+    }
+
     public function imageUrl(): string
     {
         return (string) ($this->galleryItems()->first()['image'] ?? app(\App\Services\ImageService::class)->url(null));

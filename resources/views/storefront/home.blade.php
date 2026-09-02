@@ -26,19 +26,7 @@
 </section>
 
 @if(site_flag('home_show_hot_offers') && ($hotOffers ?? collect())->isNotEmpty())
-<section class="max-w-7xl mx-auto px-4 sm:px-6 py-16 rise-in">
-    <div class="flex items-end justify-between mb-8">
-        <h2 class="font-display text-4xl">Hot offers</h2>
-        <a href="{{ route('offers.index') }}" class="text-sm text-taupe">View all</a>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 items-stretch">
-        @forelse($hotOffers as $offer)
-            <x-offer-card :offer="$offer" />
-        @empty
-            <p class="text-taupe col-span-full">No hot offers yet.</p>
-        @endforelse
-    </div>
-</section>
+    <x-hot-offers-banner :offers="$hotOffers" class="max-w-7xl mx-auto px-4 sm:px-6 py-16" />
 @endif
 
 @if(site_flag('home_show_featured'))
