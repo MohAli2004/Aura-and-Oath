@@ -1,6 +1,6 @@
 # Aura & Oath
 
-Premium beauty & personal care e-commerce built with **Laravel 12**, Blade, Tailwind CSS 4, Alpine.js, MySQL/MariaDB, Vite, and PHPUnit.
+E-commerce for beauty, body care, household products, and everyday essentials, built with **Laravel 12**, Blade, Tailwind CSS 4, Alpine.js, MySQL/MariaDB, Vite, and PHPUnit.
 
 Brand palette: warm ivory, soft beige, muted blush, taupe, charcoal, subtle gold.  
 Typography: **Cormorant Garamond** (display) + **Source Sans 3** (body).

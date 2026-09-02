@@ -8,7 +8,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'name' => env('AURA_BRAND_NAME', 'Aura & Oath'),
-    'tagline' => env('AURA_TAGLINE', 'Premium beauty, quietly confident.'),
+    'tagline' => env('AURA_TAGLINE', 'Beauty, body care, and home — quietly confident.'),
     'currency' => env('AURA_CURRENCY', 'USD'),
     'currency_symbol' => env('AURA_CURRENCY_SYMBOL', '$'),
     'locale' => env('AURA_LOCALE', 'en_US'),
@@ -26,6 +26,7 @@ return [
         'whatsapp' => env('AURA_WHATSAPP', '+96181031612'),
         'address' => env('AURA_ADDRESS', 'Beirut, Lebanon'),
         'support_hours' => env('AURA_SUPPORT_HOURS', 'Mon–Fri, 10:00–18:00'),
+        // Public phone visibility is off by default; admins turn it on in Control panel.
     ],
 
     /*

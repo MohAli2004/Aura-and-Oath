@@ -72,7 +72,139 @@ class AuraCommerceTest extends TestCase
         $this->createProduct(['name' => 'Shop Serum', 'slug' => 'shop-serum', 'sku' => 'SKU-SHOP', 'barcode' => 'BC-SHOP']);
 
         $this->get('/')->assertOk();
-        $this->get('/shop')->assertOk()->assertSee('Shop Serum');
+        $this->get('/shop')
+            ->assertOk()
+            ->assertSee('Shop Serum')
+            ->assertSee('Add to bag')
+            ->assertSee('Quantity', false)
+            ->assertSee('Add to wishlist', false);
+    }
+
+    public function test_guest_can_add_product_to_bag_from_listing(): void
+    {
+        $product = $this->createProduct(['name' => 'Direct Bag Serum', 'slug' => 'direct-bag-serum']);
+
+        $this->postJson(route('cart.store'), [
+            'product_id' => $product->id,
+            'quantity' => 3,
+        ])->assertOk()->assertJson(['ok' => true]);
+
+        $this->get(route('cart.index'))
+            ->assertOk()
+            ->assertSee('Direct Bag Serum');
+
+        $cart = app(\App\Services\CartService::class)->getOrCreateCart();
+        $this->assertEquals(3, (int) $cart->items()->where('product_id', $product->id)->value('quantity'));
+    }
+
+    public function test_cart_store_picks_default_in_stock_variant(): void
+    {
+        $product = $this->createProduct([
+            'has_variants' => true,
+            'stock_quantity' => 0,
+        ]);
+
+        $product->variants()->create([
+            'name' => 'Empty shade',
+            'sku' => 'VAR-EMPTY-'.uniqid(),
+            'stock_quantity' => 0,
+            'reserved_quantity' => 0,
+            'is_active' => true,
+            'is_default' => true,
+            'price' => 20,
+        ]);
+
+        $ready = $product->variants()->create([
+            'name' => 'Ready shade',
+            'sku' => 'VAR-READY-'.uniqid(),
+            'stock_quantity' => 4,
+            'reserved_quantity' => 0,
+            'is_active' => true,
+            'is_default' => false,
+            'price' => 20,
+        ]);
+
+        $this->postJson(route('cart.store'), [
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ])->assertOk()->assertJson(['ok' => true]);
+
+        $this->assertDatabaseHas('cart_items', [
+            'product_id' => $product->id,
+            'product_variant_id' => $ready->id,
+            'quantity' => 1,
+        ]);
+    }
+
+    public function test_customer_can_save_product_to_wishlist_from_listing(): void
+    {
+        $user = User::factory()->customer()->create();
+        $product = $this->createProduct(['name' => 'Wishlist Serum']);
+
+        $this->actingAs($user)
+            ->postJson(route('wishlist.toggle'), [
+                'product_id' => $product->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('wished', true);
+
+        $this->get(route('wishlist.index'))
+            ->assertOk()
+            ->assertSee('Wishlist Serum')
+            ->assertSee('Remove from wishlist', false);
+
+        $this->actingAs($user)
+            ->postJson(route('wishlist.toggle'), [
+                'product_id' => $product->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('wished', false);
+
+        $this->assertDatabaseMissing('wishlist_items', [
+            'product_id' => $product->id,
+        ]);
+
+        $this->get(route('wishlist.index'))
+            ->assertOk()
+            ->assertDontSee('Wishlist Serum');
+    }
+
+    public function test_shop_product_card_can_cycle_variants(): void
+    {
+        $product = $this->createProduct([
+            'name' => 'Shade Palette',
+            'slug' => 'shade-palette',
+            'has_variants' => true,
+            'stock_quantity' => 0,
+        ]);
+
+        $product->variants()->create([
+            'name' => 'Soft Ivory',
+            'sku' => 'VAR-IVORY-'.uniqid(),
+            'stock_quantity' => 3,
+            'reserved_quantity' => 0,
+            'is_active' => true,
+            'is_default' => true,
+            'price' => 22,
+        ]);
+
+        $product->variants()->create([
+            'name' => 'Warm Sand',
+            'sku' => 'VAR-SAND-'.uniqid(),
+            'stock_quantity' => 2,
+            'reserved_quantity' => 0,
+            'is_active' => true,
+            'price' => 24,
+        ]);
+
+        $this->get('/shop')
+            ->assertOk()
+            ->assertSee('Shade Palette')
+            ->assertSee('Previous option', false)
+            ->assertSee('Next option', false)
+            ->assertSee('Soft Ivory', false)
+            ->assertSee('Warm Sand', false);
     }
 
     public function test_customer_can_register_and_login(): void
@@ -1031,17 +1163,18 @@ class AuraCommerceTest extends TestCase
         $this->assertEquals(140.0, (float) $top->first()->revenue);
     }
 
-    public function test_admin_dashboard_shows_profit_calculator(): void
+    public function test_admin_dashboard_shows_auto_profit_statistics(): void
     {
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)
             ->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertSee('Profit calculator')
-            ->assertSee('Selling price')
+            ->assertDontSee('Profit calculator')
+            ->assertDontSee('Selling price')
             ->assertSee('Profit today')
-            ->assertSee('Profit this month');
+            ->assertSee('Profit this month')
+            ->assertSee('Profit this year');
     }
 
     public function test_dashboard_profit_subtracts_item_cost_from_revenue(): void
@@ -1073,8 +1206,12 @@ class AuraCommerceTest extends TestCase
         ]);
 
         $profit = app(ReportService::class)->profitBetween(now()->startOfDay(), now()->endOfDay());
+        $stats = app(ReportService::class)->dashboardStats();
 
         $this->assertEquals(125.0, $profit);
+        $this->assertEquals(125.0, $stats['profit_today']);
+        $this->assertEquals(125.0, $stats['profit_month']);
+        $this->assertEquals(125.0, $stats['profit_year']);
     }
 
     public function test_admins_are_notified_when_customer_cancels_order(): void

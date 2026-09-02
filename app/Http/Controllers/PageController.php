@@ -34,7 +34,7 @@ class PageController extends Controller
             'message' => ['required', 'string', 'max:5000'],
         ]);
 
-        $contactEmail = config('aura.contact.email');
+        $contactEmail = \App\Support\SiteOptions::fieldValue('support_email') ?: config('aura.contact.email');
 
         // In-app admin notification first so contact requests are never lost if mail fails.
         $this->notifications->notifyContactMessage(
@@ -54,12 +54,14 @@ class PageController extends Controller
                 'exception' => $e,
             ]);
 
+            $publicEmail = store_public_email();
+            $fallback = $publicEmail
+                ? "We couldn't send your message right now. Please try again later or email us directly at {$publicEmail}."
+                : "We couldn't send your message right now. Please try again later.";
+
             return back()
                 ->withInput()
-                ->with(
-                    'error',
-                    "We couldn't send your message right now. Please try again later or email us directly at {$contactEmail}."
-                );
+                ->with('error', $fallback);
         }
 
         return back()->with('success', 'Thank you. We will get back to you soon.');

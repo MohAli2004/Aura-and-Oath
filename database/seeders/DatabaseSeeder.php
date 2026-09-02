@@ -29,6 +29,7 @@ use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\SiteOptions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -53,15 +54,9 @@ class DatabaseSeeder extends Seeder
     protected function seedSettings(): void
     {
         $rows = [
-            ['group' => 'general', 'key' => 'store_name', 'value' => 'Aura & Oath', 'type' => 'string', 'is_public' => true],
-            ['group' => 'general', 'key' => 'support_email', 'value' => 'auraandouth@gmail.com', 'type' => 'string', 'is_public' => true],
             ['group' => 'general', 'key' => 'logo_path', 'value' => '', 'type' => 'string', 'is_public' => true],
             ['group' => 'general', 'key' => 'favicon_path', 'value' => '', 'type' => 'string', 'is_public' => true],
             ['group' => 'general', 'key' => 'home_background_path', 'value' => '', 'type' => 'string', 'is_public' => true],
-            ['group' => 'store', 'key' => 'tax_rate', 'value' => '0', 'type' => 'decimal', 'is_public' => true],
-            ['group' => 'store', 'key' => 'currency', 'value' => 'USD', 'type' => 'string', 'is_public' => true],
-            ['group' => 'store', 'key' => 'currency_symbol', 'value' => '$', 'type' => 'string', 'is_public' => true],
-            ['group' => 'shipping', 'key' => 'default_delivery_note', 'value' => 'Delivery within Lebanon in 1–3 business days, depending on distance.', 'type' => 'string', 'is_public' => true],
             [
                 'group' => 'print',
                 'key' => 'invoice_fields',
@@ -91,6 +86,27 @@ class DatabaseSeeder extends Seeder
                 'is_public' => false,
             ],
         ];
+
+        foreach (SiteOptions::fields() as $key => $meta) {
+            $rows[] = [
+                'group' => $meta['group'],
+                'key' => $key,
+                'value' => SiteOptions::fieldDefaults()[$key] ?? '',
+                'type' => $meta['type'],
+                'is_public' => $meta['public'],
+            ];
+        }
+
+        foreach (SiteOptions::flags() as $key => $default) {
+            $meta = SiteOptions::flagMeta()[$key];
+            $rows[] = [
+                'group' => $meta['group'],
+                'key' => $key,
+                'value' => $default ? '1' : '0',
+                'type' => 'boolean',
+                'is_public' => $meta['public'],
+            ];
+        }
 
         foreach ($rows as $row) {
             Setting::query()->updateOrCreate(['key' => $row['key']], $row);
@@ -481,23 +497,32 @@ class DatabaseSeeder extends Seeder
 
     protected function seedBanners(): void
     {
-        Banner::query()->updateOrCreate(
-            ['title' => 'Quiet Luxury for Skin & Ritual'],
-            [
-                'subtitle' => 'Discover Aura & Oath — premium beauty, softly composed.',
-                'image_path' => 'images/home-hero.png',
-                'link_url' => '/shop',
-                'button_text' => 'Shop the collection',
-                'placement' => 'home_hero',
-                'sort_order' => 1,
-                'is_active' => true,
-            ]
-        );
+        $heroCopy = [
+            'title' => 'Quiet luxury for home and self',
+            'subtitle' => 'Discover Aura & Oath — beauty, household, and everyday essentials, softly composed.',
+            'image_path' => 'images/home-hero.png',
+            'link_url' => '/shop',
+            'button_text' => 'Shop the collection',
+            'placement' => 'home_hero',
+            'sort_order' => 1,
+            'is_active' => true,
+        ];
+
+        $hero = Banner::query()->whereIn('title', [
+            'Quiet Luxury for Skin & Ritual',
+            $heroCopy['title'],
+        ])->first();
+
+        if ($hero) {
+            $hero->update($heroCopy);
+        } else {
+            Banner::query()->create($heroCopy);
+        }
 
         Banner::query()->updateOrCreate(
             ['title' => 'New Arrivals'],
             [
-                'subtitle' => 'Fresh textures, muted tones, lasting care.',
+                'subtitle' => 'Fresh finds, muted tones, lasting care.',
                 'image_path' => 'images/home-hero.png',
                 'link_url' => '/shop?sort=newest',
                 'button_text' => 'Explore new',

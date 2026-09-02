@@ -17,7 +17,7 @@
     );
     $defaultPaymentMethod = old(
         'payment_method',
-        data_get($draft, 'payment_method', $paymentMethods[0]->value)
+        data_get($draft, 'payment_method', ($paymentMethods[0] ?? null)?->value ?? '')
     );
     $customerNote = old('customer_note', data_get($draft, 'customer_note'));
     $regionFees = $regions->mapWithKeys(fn ($region) => [(string) $region->id => (float) $region->fee]);
@@ -134,38 +134,44 @@
 
             <div data-field-wrap>
                 <label class="label" for="payment_method">Payment method <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required</span></label>
-                <select
-                    id="payment_method"
-                    name="payment_method"
-                    class="input"
-                    x-model="method"
-                    required
-                    data-required
-                    data-required-label="Payment method"
-                    @change="clearFieldError($event.target)"
-                >
-                    @foreach($paymentMethods as $method)
+                @if (count($paymentMethods))
+                    <select
+                        id="payment_method"
+                        name="payment_method"
+                        class="input"
+                        x-model="method"
+                        required
+                        data-required
+                        data-required-label="Payment method"
+                        @change="clearFieldError($event.target)"
+                    >
+                        @foreach($paymentMethods as $method)
                         <option value="{{ $method->value }}" @selected($defaultPaymentMethod === $method->value)>{{ $method->label() }}</option>
                     @endforeach
-                </select>
-                <div
-                    class="mt-3 border border-beige bg-[#FFFCFA] p-4 text-sm space-y-2"
-                    x-show="method === '{{ \App\Enums\PaymentMethod::WishAccount->value }}'"
-                    x-cloak
-                >
-                    <p class="font-medium">Pay with Wish Account</p>
-                    @if ($whishPayEnabled)
-                        <p class="text-taupe">After you place the order, you will confirm payment in the Whish app (phone + OTP). The order total will be charged from your Wish balance.</p>
-                        <div><span class="text-taupe">Amount:</span> <span x-text="format(total)">{{ money($quote['total']) }}</span></div>
-                    @else
-                        <p class="text-taupe">{{ config('aura.payments.wish.instructions') }}</p>
-                        <div class="space-y-1">
-                            <div><span class="text-taupe">Account name:</span> {{ config('aura.payments.wish.account_name') }}</div>
-                            <div><span class="text-taupe">Wish number:</span> {{ config('aura.payments.wish.account_number') }}</div>
+                    </select>
+                    @if(collect($paymentMethods)->contains(fn ($method) => $method === \App\Enums\PaymentMethod::WishAccount))
+                    <div
+                        class="mt-3 border border-beige bg-[#FFFCFA] p-4 text-sm space-y-2"
+                        x-show="method === '{{ \App\Enums\PaymentMethod::WishAccount->value }}'"
+                        x-cloak
+                    >
+                        <p class="font-medium">Pay with Wish Account</p>
+                        @if ($whishPayEnabled)
+                            <p class="text-taupe">After you place the order, you will confirm payment in the Whish app (phone + OTP). The order total will be charged from your Wish balance.</p>
                             <div><span class="text-taupe">Amount:</span> <span x-text="format(total)">{{ money($quote['total']) }}</span></div>
-                        </div>
+                        @else
+                            <p class="text-taupe">{{ store_wish('instructions') }}</p>
+                            <div class="space-y-1">
+                                <div><span class="text-taupe">Account name:</span> {{ store_wish('account_name') }}</div>
+                                <div><span class="text-taupe">Wish number:</span> {{ store_wish('account_number') }}</div>
+                                <div><span class="text-taupe">Amount:</span> <span x-text="format(total)">{{ money($quote['total']) }}</span></div>
+                            </div>
+                        @endif
+                    </div>
                     @endif
-                </div>
+                @else
+                    <p class="text-sm text-taupe">Payments are temporarily unavailable. Please check back shortly.</p>
+                @endif
             </div>
 
             <div>

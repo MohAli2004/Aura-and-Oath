@@ -229,7 +229,13 @@ class Product extends Model
             ? $this->activeVariants
             : $this->activeVariants()->get();
 
-        return $variants->firstWhere('is_default', true) ?? $variants->first();
+        $inStock = $variants->first(function (ProductVariant $variant) {
+            return ! $this->track_inventory || $variant->availableStock() > 0;
+        });
+
+        return $inStock
+            ?? $variants->firstWhere('is_default', true)
+            ?? $variants->first();
     }
 
     public function offerPrice(): ?float

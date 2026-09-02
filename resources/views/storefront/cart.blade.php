@@ -4,7 +4,7 @@
 <div class="max-w-5xl mx-auto px-4 sm:px-6 py-10">
     <h1 class="font-display text-5xl mb-8">Your bag</h1>
     @if($cart->items->isEmpty())
-        <x-empty-state title="Your bag is empty" message="Discover something beautiful." :action="route('shop')" actionLabel="Shop now" />
+        <x-empty-state title="Your bag is empty" message="Discover something you’ll love." :action="route('shop')" actionLabel="Shop now" />
     @else
         <div class="space-y-8">
             @foreach($offerGroups as $group)

@@ -1,6 +1,7 @@
 {
   "name": "Aura & Oath",
   "short_name": "Aura",
+  "description": "Beauty, body care, household products, and everyday essentials — quietly confident.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F7F3EE",

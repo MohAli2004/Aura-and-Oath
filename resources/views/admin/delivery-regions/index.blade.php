@@ -23,7 +23,7 @@
                         @endif
                         <span class="text-taupe">· {{ money($region->fee) }}</span>
                         @unless($region->is_active)
-                            <span class="text-taupe">· Inactive</span>
+                            <span class="text-taupe">· Hidden from customers</span>
                         @endunless
                     </div>
                     @if($region->description)

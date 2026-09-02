@@ -35,7 +35,13 @@ class Setting extends Model
 
     protected static function booted(): void
     {
-        static::saved(fn () => Cache::forget('aura.settings'));
-        static::deleted(fn () => Cache::forget('aura.settings'));
+        static::saved(function () {
+            Cache::forget('aura.settings');
+            Cache::forget('storefront.home');
+        });
+        static::deleted(function () {
+            Cache::forget('aura.settings');
+            Cache::forget('storefront.home');
+        });
     }
 }

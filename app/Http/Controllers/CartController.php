@@ -56,17 +56,30 @@ class CartController extends Controller
             'quantity' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        $product = Product::query()->findOrFail($data['product_id']);
+        $product = Product::query()->with('activeVariants')->findOrFail($data['product_id']);
         $variant = ! empty($data['product_variant_id'])
             ? ProductVariant::query()->findOrFail($data['product_variant_id'])
-            : null;
+            : $product->defaultVariantForCart();
 
-        $this->cartService->add($product, $data['quantity'] ?? 1, $variant);
+        try {
+            $this->cartService->add($product, $data['quantity'] ?? 1, $variant);
+        } catch (ValidationException $e) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => collect($e->errors())->flatten()->first() ?: 'Could not add to bag.',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+
+            throw $e;
+        }
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'ok' => true,
                 'message' => 'Added to bag.',
+                'count' => $this->cartService->count(),
                 'redirect' => route('cart.index'),
             ]);
         }

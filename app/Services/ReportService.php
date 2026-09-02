@@ -45,6 +45,7 @@ class ReportService
                 ->sum('total'),
             'profit_today' => $this->profitBetween(now()->startOfDay(), now()->endOfDay()),
             'profit_month' => $this->profitBetween(now()->startOfMonth(), now()->endOfMonth()),
+            'profit_year' => $this->profitBetween(now()->startOfYear(), now()->endOfYear()),
         ];
     }
 

@@ -767,7 +767,7 @@
                     Short description <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
                 </label>
                 <textarea id="short_description" name="short_description" class="input" rows="2">{{ old('short_description', $product->short_description) }}</textarea>
-                <p class="mt-1 text-xs text-taupe leading-snug">One short line under the title (e.g. Lightweight serum for daily glow).</p>
+                <p class="mt-1 text-xs text-taupe leading-snug">One short line under the title (e.g. Gentle cleanser for daily use).</p>
             </div>
             <div>
                 <label class="label" for="description">
@@ -781,7 +781,7 @@
                     Ingredients <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
                 </label>
                 <textarea id="ingredients" name="ingredients" class="input" rows="3">{{ old('ingredients', $product->ingredients) }}</textarea>
-                <p class="mt-1 text-xs text-taupe leading-snug">List what’s in the formula (for cosmetics products).</p>
+                <p class="mt-1 text-xs text-taupe leading-snug">List ingredients or contents when relevant (cosmetics, household, and similar products).</p>
             </div>
             <div>
                 <label class="label" for="how_to_use">

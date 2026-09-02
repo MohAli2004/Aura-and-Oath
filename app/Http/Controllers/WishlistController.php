@@ -60,6 +60,53 @@ class WishlistController extends Controller
         return back()->with('success', $message);
     }
 
+    public function toggle(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'product_id' => ['required', 'exists:products,id'],
+            'product_variant_id' => ['nullable', 'exists:product_variants,id'],
+        ]);
+
+        $wishlist = $this->wishlist();
+        $variantId = $data['product_variant_id'] ?? null;
+
+        if ($variantId) {
+            $variant = ProductVariant::query()->findOrFail($variantId);
+            abort_unless((int) $variant->product_id === (int) $data['product_id'], 422);
+        }
+
+        $existing = WishlistItem::query()
+            ->where('wishlist_id', $wishlist->id)
+            ->where('product_id', $data['product_id'])
+            ->get();
+
+        if ($existing->isNotEmpty()) {
+            $existing->each->delete();
+
+            return response()->json([
+                'ok' => true,
+                'wished' => false,
+                'message' => 'Removed from wishlist.',
+                'count' => $wishlist->items()->count(),
+            ]);
+        }
+
+        $item = WishlistItem::query()->create([
+            'wishlist_id' => $wishlist->id,
+            'product_id' => $data['product_id'],
+            'product_variant_id' => $variantId,
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'wished' => true,
+            'created' => true,
+            'message' => 'Saved to wishlist.',
+            'item_id' => $item->id,
+            'count' => $wishlist->items()->count(),
+        ]);
+    }
+
     public function destroy(Request $request, WishlistItem $item): JsonResponse|RedirectResponse
     {
         abort_unless($item->wishlist->user_id === Auth::id(), 403);

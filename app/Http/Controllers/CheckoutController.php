@@ -10,6 +10,7 @@ use App\Services\CouponService;
 use App\Services\DeliveryFeeService;
 use App\Services\OrderPricingService;
 use App\Services\WhishPayService;
+use App\Support\SiteOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -95,7 +96,7 @@ class CheckoutController extends Controller
                 'cart' => $cart,
                 'quote' => $quote,
                 'regions' => $this->deliveryFeeService->activeRegions(),
-                'paymentMethods' => PaymentMethod::cases(),
+                'paymentMethods' => SiteOptions::enabledPaymentMethods(),
                 'idempotencyToken' => $token,
                 'addresses' => $addresses,
                 'whishPayEnabled' => $this->whishPayService->isConfigured(),

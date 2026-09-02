@@ -16,7 +16,12 @@
         <x-input label="Est. days max" name="estimated_days_max" type="number" min="0" value="{{ old('estimated_days_max', $region->estimated_days_max ?? 5) }}" required />
     </div>
     <x-input label="Sort order" name="sort_order" type="number" min="0" value="{{ old('sort_order', $region->sort_order ?? 0) }}" />
-    <label class="flex gap-2 text-sm"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $region->is_active ?? true))> Active</label>
+    <x-admin.toggle
+        name="is_active"
+        label="Show this delivery choice to customers"
+        hint="Hidden regions stay in admin so you can show them again later."
+        :checked="old('is_active', $region->is_active ?? true)"
+    />
     <button class="btn btn-primary" type="submit">Save</button>
 </form>
 @if($region->exists)

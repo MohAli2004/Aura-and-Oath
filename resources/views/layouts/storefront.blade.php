@@ -48,16 +48,46 @@
 </head>
 <body class="min-h-screen flex flex-col bg-ivory text-charcoal overflow-x-hidden" x-data="{ open: false, nav: '' }" @keydown.escape.window="open = false; nav = ''">
     <header class="border-b border-beige/80 bg-[#FFFCFA]/95 backdrop-blur sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
-            <div class="min-w-0 shrink">
-                <x-brand-logo size="md" class="max-w-[160px] sm:max-w-none" />
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+            <div class="flex items-center justify-between gap-3 lg:hidden">
+                <div class="min-w-0 shrink">
+                    <x-brand-logo size="md" class="max-w-[160px] sm:max-w-none" />
+                </div>
+                <form action="{{ route('search') }}" method="GET" class="hidden md:block flex-1 max-w-md">
+                    <input type="search" name="q" value="{{ request('q') }}" placeholder="Search products and offers..." class="input" aria-label="Search products">
+                </form>
+                <div class="flex items-center gap-2">
+                    @auth
+                        <x-notification-bell
+                            :feed-url="route('account.notifications.feed')"
+                            :mark-read-url="route('account.notifications.read', ['id' => '__ID__'])"
+                            :mark-all-url="route('account.notifications.read-all')"
+                            :index-url="route('account.notifications.index')"
+                        />
+                    @endauth
+                    <a href="{{ route('cart.index') }}" class="btn btn-secondary px-3 py-2 relative inline-flex items-center gap-2" aria-label="Bag">
+                        <x-icon name="bag" class="w-5 h-5" />
+                        Bag
+                        <span data-cart-count class="absolute -top-1 -right-1 text-[10px] bg-blush text-white px-1.5 rounded-full" @if(($cartCount ?? 0) < 1) hidden @endif>{{ $cartCount ?? 0 }}</span>
+                    </a>
+                    <button class="btn btn-secondary px-3 py-2 relative z-10 inline-flex items-center gap-2" @click="open = true" type="button" aria-label="Open menu">
+                        <x-icon name="menu" class="w-5 h-5" />
+                        Menu
+                    </button>
+                </div>
             </div>
 
-            <form action="{{ route('search') }}" method="GET" class="hidden md:block flex-1 max-w-md">
-                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search products and offers..." class="input" aria-label="Search products">
-            </form>
+            <div class="storefront-header-desktop">
+                <div class="storefront-header-left">
+                    <div class="min-w-0 shrink">
+                        <x-brand-logo size="md" />
+                    </div>
+                    <form action="{{ route('search') }}" method="GET" class="storefront-header-search">
+                        <input type="search" name="q" value="{{ request('q') }}" placeholder="Search products and offers..." class="input" aria-label="Search products">
+                    </form>
+                </div>
 
-            <nav class="hidden lg:flex items-center gap-5 xl:gap-6 text-sm tracking-wide">
+                <nav class="storefront-header-center text-sm tracking-wide">
                 <div class="relative" @click.outside="nav === 'shop' && (nav = '')">
                     <button type="button" class="inline-flex items-center gap-1 min-h-11" @click="nav = nav === 'shop' ? '' : 'shop'" :aria-expanded="nav === 'shop'">
                         Shop <span class="text-taupe text-xs" :class="nav === 'shop' && 'rotate-90'">›</span>
@@ -167,7 +197,9 @@
                         <x-nav-item class="px-4 py-2.5" :href="route('orders.track')" icon="track" label="Track order" />
                     </div>
                 </div>
+                </nav>
 
+                <div class="storefront-header-right text-sm tracking-wide">
                 @auth
                     <x-notification-bell
                         :feed-url="route('account.notifications.feed')"
@@ -211,32 +243,9 @@
                 <a href="{{ route('cart.index') }}" class="relative min-h-11 inline-flex items-center gap-2">
                     <x-nav-icon name="bag" class="h-6 w-6" />
                     Bag
-                    @if(($cartCount ?? 0) > 0)
-                        <span class="absolute -top-2 -right-3 text-[10px] bg-blush text-white px-1.5 rounded-full">{{ $cartCount }}</span>
-                    @endif
+                    <span data-cart-count class="absolute -top-2 -right-3 text-[10px] bg-blush text-white px-1.5 rounded-full" @if(($cartCount ?? 0) < 1) hidden @endif>{{ $cartCount ?? 0 }}</span>
                 </a>
-            </nav>
-
-            <div class="flex items-center gap-2 lg:hidden">
-                @auth
-                    <x-notification-bell
-                        :feed-url="route('account.notifications.feed')"
-                        :mark-read-url="route('account.notifications.read', ['id' => '__ID__'])"
-                        :mark-all-url="route('account.notifications.read-all')"
-                        :index-url="route('account.notifications.index')"
-                    />
-                @endauth
-                <a href="{{ route('cart.index') }}" class="btn btn-secondary px-3 py-2 relative inline-flex items-center gap-2" aria-label="Bag">
-                    <x-icon name="bag" class="w-5 h-5" />
-                    Bag
-                    @if(($cartCount ?? 0) > 0)
-                        <span class="absolute -top-1 -right-1 text-[10px] bg-blush text-white px-1.5 rounded-full">{{ $cartCount }}</span>
-                    @endif
-                </a>
-                <button class="btn btn-secondary px-3 py-2 relative z-10 inline-flex items-center gap-2" @click="open = true" type="button" aria-label="Open menu">
-                    <x-icon name="menu" class="w-5 h-5" />
-                    Menu
-                </button>
+                </div>
             </div>
         </div>
     </header>
@@ -484,6 +493,7 @@
                     <x-nav-item class="py-1.5" :href="route('orders.track')" icon="track" label="Track order" />
                     <x-nav-item class="py-1.5" :href="route('returns.index')" icon="returns" label="Returns" />
                 </div>
+                @if(site_flag('show_newsletter'))
                 <div class="label mt-8 mb-3">Newsletter</div>
                 <form
                     method="POST"
@@ -519,7 +529,15 @@
                         <span x-show="done && !submitting" x-cloak>Subscribed</span>
                     </button>
                 </form>
-                <p class="mt-4 text-taupe text-xs break-words">{{ config('aura.contact.email') }} · {{ config('aura.contact.phone') }}</p>
+                @endif
+                <x-store-contact class="mt-4 text-taupe text-xs" />
+                @if(site_flag('show_social_links') && count($socialLinks = \App\Support\SiteOptions::socialLinks()))
+                    <div class="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                        @foreach($socialLinks as $network)
+                            <a class="underline decoration-beige underline-offset-2 hover:text-charcoal" href="{{ $network['url'] }}" target="_blank" rel="noopener noreferrer">{{ $network['label'] }}</a>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </div>
     </footer>

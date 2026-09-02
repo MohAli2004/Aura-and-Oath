@@ -3,8 +3,12 @@
 @section('content')
 <div
     class="max-w-6xl mx-auto px-4 sm:px-6 py-10"
+    @aura-wishlist-removed.window="syncEmpty()"
     x-data="{
         empty: @js($wishlist->items->isEmpty()),
+        syncEmpty() {
+            this.empty = ! document.querySelector('[data-wishlist-item]');
+        },
         async remove(url, event) {
             const card = event.currentTarget.closest('[data-wishlist-item]');
             try {
@@ -33,7 +37,7 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-5" x-show="!empty">
         @foreach($wishlist->items as $item)
             <div data-wishlist-item>
-                <x-product-card :product="$item->product" />
+                <x-product-card :product="$item->product" :in-wishlist="true" />
                 <button
                     class="btn btn-secondary w-full mt-2"
                     type="button"

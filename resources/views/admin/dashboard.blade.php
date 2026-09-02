@@ -12,6 +12,9 @@
         ['Customers', $stats['customers']],
         ['Active products', $stats['products_active']],
         ['Revenue this month', money($stats['revenue_month'])],
+        ['Profit today', money($stats['profit_today'])],
+        ['Profit this month', money($stats['profit_month'])],
+        ['Profit this year', money($stats['profit_year'])],
     ] as [$label, $value])
         <div class="border border-beige bg-[#FFFCFA] p-3 sm:p-4">
             <div class="text-[10px] uppercase leading-snug tracking-widest text-taupe sm:text-xs">{{ $label }}</div>
@@ -19,11 +22,6 @@
         </div>
     @endforeach
 </div>
-
-<x-admin.profit-calculator
-    :profit-today="$stats['profit_today'] ?? 0"
-    :profit-month="$stats['profit_month'] ?? 0"
-/>
 
 <div class="grid lg:grid-cols-2 gap-8">
     <div>

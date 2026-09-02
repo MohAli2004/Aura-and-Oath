@@ -25,6 +25,106 @@ if (! function_exists('aura')) {
     }
 }
 
+if (! function_exists('site_flag')) {
+    function site_flag(string $key): bool
+    {
+        return \App\Support\SiteOptions::flag($key);
+    }
+}
+
+if (! function_exists('store_contact_phone')) {
+    function store_contact_phone(): string
+    {
+        return \App\Support\SiteOptions::fieldValue('contact_phone');
+    }
+}
+
+if (! function_exists('store_public_phone')) {
+    function store_public_phone(): ?string
+    {
+        if (! site_flag('show_phone_to_customers')) {
+            return null;
+        }
+
+        $phone = store_contact_phone();
+
+        return $phone !== '' ? $phone : null;
+    }
+}
+
+if (! function_exists('store_public_email')) {
+    function store_public_email(): ?string
+    {
+        if (! site_flag('show_email_to_customers')) {
+            return null;
+        }
+
+        $email = \App\Support\SiteOptions::fieldValue('support_email');
+
+        return $email !== '' ? $email : null;
+    }
+}
+
+if (! function_exists('store_public_whatsapp')) {
+    function store_public_whatsapp(): ?string
+    {
+        if (! site_flag('show_whatsapp_to_customers')) {
+            return null;
+        }
+
+        $phone = \App\Support\SiteOptions::fieldValue('contact_whatsapp');
+
+        return $phone !== '' ? $phone : null;
+    }
+}
+
+if (! function_exists('store_whatsapp_url')) {
+    function store_whatsapp_url(): ?string
+    {
+        $phone = store_public_whatsapp();
+        if ($phone === null) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $phone);
+
+        return $digits ? 'https://wa.me/'.$digits : null;
+    }
+}
+
+if (! function_exists('store_public_address')) {
+    function store_public_address(): ?string
+    {
+        if (! site_flag('show_address_to_customers')) {
+            return null;
+        }
+
+        $address = \App\Support\SiteOptions::fieldValue('contact_address');
+
+        return $address !== '' ? $address : null;
+    }
+}
+
+if (! function_exists('store_public_hours')) {
+    function store_public_hours(): ?string
+    {
+        if (! site_flag('show_hours_to_customers')) {
+            return null;
+        }
+
+        $hours = \App\Support\SiteOptions::fieldValue('support_hours');
+
+        return $hours !== '' ? $hours : null;
+    }
+}
+
+if (! function_exists('store_wish')) {
+    function store_wish(string $key): string
+    {
+        return \App\Support\SiteOptions::fieldValue('wish_'.$key);
+    }
+}
+
 if (! function_exists('store_logo_url')) {
     function store_logo_url(): ?string
     {

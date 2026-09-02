@@ -28,7 +28,7 @@ class SettingsService
     public function set(string $key, mixed $value, string $type = 'string', string $group = 'general', bool $isPublic = false): Setting
     {
         $stored = match ($type) {
-            'boolean' => $value ? '1' : '0',
+            'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN) ? '1' : '0',
             'json' => json_encode($value),
             default => (string) $value,
         };
@@ -51,6 +51,7 @@ class SettingsService
     public function clear(): void
     {
         Cache::forget(self::CACHE_KEY);
+        Cache::forget('storefront.home');
     }
 
     public function group(string $group): array

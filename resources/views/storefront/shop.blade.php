@@ -44,7 +44,7 @@
             @if($products->isEmpty())
                 <x-empty-state title="No products found" message="Try adjusting your filters." :action="route('shop')" actionLabel="Reset" />
             @else
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5">
+                <div class="grid grid-cols-2 items-stretch md:grid-cols-3 gap-3 sm:gap-5">
                     @foreach($products as $product)
                         <x-product-card :product="$product" />
                     @endforeach

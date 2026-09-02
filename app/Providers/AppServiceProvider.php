@@ -8,6 +8,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\WishlistItem;
 use App\Policies\OrderPolicy;
 use App\Policies\ProductPolicy;
 use App\Services\AdminNavBadgeService;
@@ -41,6 +42,28 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(Login::class, MergeGuestCartOnLogin::class);
         Event::listen(NotificationSent::class, SendWebPushOnDatabaseNotification::class);
+
+        View::composer('components.product-card', function ($view) {
+            static $wishlistProductIds = null;
+
+            if ($wishlistProductIds === null) {
+                $wishlistProductIds = [];
+
+                try {
+                    if (Auth::check()) {
+                        $wishlistProductIds = WishlistItem::query()
+                            ->whereHas('wishlist', fn ($query) => $query->where('user_id', Auth::id()))
+                            ->pluck('product_id')
+                            ->map(fn ($id) => (int) $id)
+                            ->all();
+                    }
+                } catch (\Throwable) {
+                    $wishlistProductIds = [];
+                }
+            }
+
+            $view->with('wishlistProductIds', $wishlistProductIds);
+        });
 
         view()->composer('layouts.storefront', function ($view) {
             try {

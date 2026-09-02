@@ -1,8 +1,163 @@
 @extends('layouts.admin')
-@section('heading', 'Settings')
+@section('heading', 'Control panel')
+@section('title', 'Control panel')
 @section('content')
 <form method="POST" action="{{ route('admin.settings.update') }}" enctype="multipart/form-data" class="max-w-3xl space-y-8">
     @csrf @method('PUT')
+
+    <section class="border border-beige bg-[#FFFCFA] p-6 space-y-5">
+        <div>
+            <h2 class="font-display text-2xl">Customer contact</h2>
+            <p class="text-sm text-taupe mt-1">Choose what shoppers can see. The phone number is hidden until you turn it on.</p>
+        </div>
+
+        <x-admin.toggle
+            name="flags[show_phone_to_customers]"
+            label="Show phone number to customers"
+            hint="Footer, contact page, and other public pages."
+            :checked="$flags['show_phone_to_customers']"
+        />
+        <x-input
+            label="Phone number"
+            name="fields[contact_phone]"
+            value="{{ $fields['contact_phone'] }}"
+            hint="Stored even while hidden so you can show it again later."
+        />
+
+        <x-admin.toggle
+            name="flags[show_whatsapp_to_customers]"
+            label="Show WhatsApp to customers"
+            :checked="$flags['show_whatsapp_to_customers']"
+        />
+        <x-input label="WhatsApp number" name="fields[contact_whatsapp]" value="{{ $fields['contact_whatsapp'] }}" />
+
+        <x-admin.toggle
+            name="flags[show_email_to_customers]"
+            label="Show email to customers"
+            :checked="$flags['show_email_to_customers']"
+        />
+        <x-input label="Support email" name="fields[support_email]" type="email" value="{{ $fields['support_email'] }}" />
+
+        <x-admin.toggle
+            name="flags[show_address_to_customers]"
+            label="Show address to customers"
+            :checked="$flags['show_address_to_customers']"
+        />
+        <x-input label="Address" name="fields[contact_address]" value="{{ $fields['contact_address'] }}" />
+
+        <x-admin.toggle
+            name="flags[show_hours_to_customers]"
+            label="Show support hours to customers"
+            :checked="$flags['show_hours_to_customers']"
+        />
+        <x-input label="Support hours" name="fields[support_hours]" value="{{ $fields['support_hours'] }}" />
+    </section>
+
+    <section class="border border-beige bg-[#FFFCFA] p-6 space-y-5">
+        <div>
+            <h2 class="font-display text-2xl">Delivery choices</h2>
+            <p class="text-sm text-taupe mt-1">Hide a region from checkout without deleting it. You can show it again here or on the Delivery page.</p>
+        </div>
+
+        @forelse($deliveryRegions as $region)
+            <x-admin.toggle
+                name="delivery_regions[{{ $region->id }}]"
+                :label="$region->name.($region->code ? ' · '.$region->code : '').' · '.money($region->fee)"
+                :hint="$region->is_active ? 'Visible at checkout.' : 'Hidden from customers.'"
+                :checked="old('delivery_regions.'.$region->id, $region->is_active)"
+            />
+        @empty
+            <p class="text-sm text-taupe">No delivery regions yet.</p>
+        @endforelse
+
+        <a href="{{ route('admin.delivery-regions.index') }}" class="inline-block text-sm underline">Add or edit regions</a>
+    </section>
+
+    <section class="border border-beige bg-[#FFFCFA] p-6 space-y-5">
+        <div>
+            <h2 class="font-display text-2xl">Payments</h2>
+            <p class="text-sm text-taupe mt-1">Methods customers can choose at checkout. Keep at least one visible.</p>
+        </div>
+        <x-admin.toggle
+            name="flags[payment_cod_enabled]"
+            label="Cash on delivery"
+            :checked="$flags['payment_cod_enabled']"
+        />
+        <x-admin.toggle
+            name="flags[payment_wish_enabled]"
+            label="Wish Account"
+            :checked="$flags['payment_wish_enabled']"
+        />
+        <x-input label="Wish account name" name="fields[wish_account_name]" value="{{ $fields['wish_account_name'] }}" />
+        <x-input label="Wish account number" name="fields[wish_account_number]" value="{{ $fields['wish_account_number'] }}" />
+        <div>
+            <label class="label" for="fields[wish_instructions]">Wish instructions</label>
+            <textarea id="fields[wish_instructions]" name="fields[wish_instructions]" class="input" rows="3">{{ $fields['wish_instructions'] }}</textarea>
+        </div>
+    </section>
+
+    <section class="border border-beige bg-[#FFFCFA] p-6 space-y-5">
+        <div>
+            <h2 class="font-display text-2xl">Homepage sections</h2>
+            <p class="text-sm text-taupe mt-1">Show or hide blocks on the main storefront page.</p>
+        </div>
+        <x-admin.toggle name="flags[home_show_hot_offers]" label="Hot offers" :checked="$flags['home_show_hot_offers']" />
+        <x-admin.toggle name="flags[home_show_featured]" label="Featured products" :checked="$flags['home_show_featured']" />
+        <x-admin.toggle name="flags[home_show_shop_by_gender]" label="Shop by gender" :checked="$flags['home_show_shop_by_gender']" />
+        <x-admin.toggle name="flags[home_show_women]" label="Women products" :checked="$flags['home_show_women']" />
+        <x-admin.toggle name="flags[home_show_men]" label="Men products" :checked="$flags['home_show_men']" />
+        <x-admin.toggle name="flags[home_show_unisex]" label="Unisex products" :checked="$flags['home_show_unisex']" />
+        <x-admin.toggle name="flags[home_show_categories]" label="Categories" :checked="$flags['home_show_categories']" />
+        <x-admin.toggle name="flags[home_show_bestsellers]" label="Bestsellers" :checked="$flags['home_show_bestsellers']" />
+        <x-admin.toggle name="flags[home_show_new_arrivals]" label="New arrivals" :checked="$flags['home_show_new_arrivals']" />
+        <x-admin.toggle name="flags[show_newsletter]" label="Footer newsletter" :checked="$flags['show_newsletter']" />
+    </section>
+
+    <section class="border border-beige bg-[#FFFCFA] p-6 space-y-5">
+        <div>
+            <h2 class="font-display text-2xl">Social links</h2>
+            <p class="text-sm text-taupe mt-1">Empty URLs are not shown. Turn the group off to hide all of them.</p>
+        </div>
+        <x-admin.toggle name="flags[show_social_links]" label="Show social links" :checked="$flags['show_social_links']" />
+        <x-input label="Instagram" name="fields[social_instagram]" value="{{ $fields['social_instagram'] }}" />
+        <x-input label="Facebook" name="fields[social_facebook]" value="{{ $fields['social_facebook'] }}" />
+        <x-input label="TikTok" name="fields[social_tiktok]" value="{{ $fields['social_tiktok'] }}" />
+        <x-input label="YouTube" name="fields[social_youtube]" value="{{ $fields['social_youtube'] }}" />
+    </section>
+
+    <section class="border border-beige bg-[#FFFCFA] p-6 space-y-5">
+        <div>
+            <h2 class="font-display text-2xl">Store</h2>
+        </div>
+        <x-input label="Store name" name="fields[store_name]" value="{{ $fields['store_name'] }}" />
+        <x-input label="Tax rate" name="fields[tax_rate]" value="{{ $fields['tax_rate'] }}" hint="Used as a decimal, e.g. 0.11 for 11%." />
+        <div class="grid sm:grid-cols-2 gap-4">
+            <x-input label="Currency" name="fields[currency]" value="{{ $fields['currency'] }}" />
+            <x-input label="Currency symbol" name="fields[currency_symbol]" value="{{ $fields['currency_symbol'] }}" />
+        </div>
+        <div>
+            <label class="label" for="fields[default_delivery_note]">Default delivery note</label>
+            <textarea id="fields[default_delivery_note]" name="fields[default_delivery_note]" class="input" rows="3">{{ $fields['default_delivery_note'] }}</textarea>
+        </div>
+    </section>
+
+    <section class="border border-beige bg-[#FFFCFA] p-6 space-y-4">
+        <div>
+            <h2 class="font-display text-2xl">Catalog &amp; marketing</h2>
+            <p class="text-sm text-taupe mt-1">Add, hide, or edit items on their dedicated pages. Visibility flags on those records still apply.</p>
+        </div>
+        <div class="divide-y divide-beige border border-beige">
+            @foreach($catalogLinks as $link)
+                <a href="{{ route($link['route']) }}" class="flex items-center justify-between gap-3 px-4 py-3 hover:bg-beige/30">
+                    <div class="min-w-0">
+                        <div class="text-sm">{{ $link['label'] }}</div>
+                        <div class="text-xs text-taupe">{{ $link['status'] }} · {{ $link['hint'] }}</div>
+                    </div>
+                    <span class="text-xs text-taupe shrink-0">Manage</span>
+                </a>
+            @endforeach
+        </div>
+    </section>
 
     <section class="border border-beige bg-[#FFFCFA] p-6 space-y-4">
         <div>
@@ -94,24 +249,6 @@
         @endif
     </section>
 
-    <section class="border border-beige bg-[#FFFCFA] p-6 space-y-4">
-        <h2 class="font-display text-2xl">Store settings</h2>
-        @foreach($settings as $setting)
-            <div>
-                <label class="label" for="setting-{{ $setting->key }}">
-                    {{ str_replace('_', ' ', $setting->key) }}
-                    <span class="normal-case tracking-normal text-taupe">({{ $setting->group }})</span>
-                </label>
-                <input
-                    id="setting-{{ $setting->key }}"
-                    class="input"
-                    name="settings[{{ $setting->key }}]"
-                    value="{{ old('settings.'.$setting->key, $setting->value) }}"
-                >
-            </div>
-        @endforeach
-    </section>
-
     <section class="border border-beige bg-[#FFFCFA] p-6 space-y-6">
         <div>
             <h2 class="font-display text-2xl">Print documents</h2>
@@ -175,6 +312,6 @@
         </div>
     </section>
 
-    <button class="btn btn-primary" type="submit">Save settings</button>
+    <button class="btn btn-primary" type="submit">Save control panel</button>
 </form>
 @endsection

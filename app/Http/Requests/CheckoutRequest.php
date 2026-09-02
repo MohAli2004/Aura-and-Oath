@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\PaymentMethod;
+use App\Support\SiteOptions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,9 +15,11 @@ class CheckoutRequest extends FormRequest
 
     public function rules(): array
     {
+        $paymentValues = SiteOptions::enabledPaymentMethodValues();
+
         return [
             'customer_note' => ['nullable', 'string', 'max:1000'],
-            'payment_method' => ['required', Rule::enum(PaymentMethod::class)],
+            'payment_method' => ['required', Rule::in($paymentValues ?: ['__none__'])],
             'delivery_region_id' => [
                 'required',
                 Rule::exists('delivery_regions', 'id')->where('is_active', true),
