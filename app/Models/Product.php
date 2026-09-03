@@ -107,12 +107,20 @@ class Product extends Model
 
     public function images(): HasMany
     {
-        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
+        return $this->hasMany(ProductImage::class)
+            ->whereNull('product_variant_id')
+            ->orderBy('sort_order');
+    }
+
+    public function allImages(): HasMany
+    {
+        return $this->hasMany(ProductImage::class);
     }
 
     public function primaryImage(): BelongsTo
     {
         return $this->belongsTo(ProductImage::class, 'id', 'product_id')
+            ->whereNull('product_variant_id')
             ->where('is_primary', true);
     }
 
@@ -275,9 +283,12 @@ class Product extends Model
                     ? $this->variants->where('is_active', true)->values()
                     : $this->activeVariants()->get());
 
-            $withImage = $variants->first(fn (ProductVariant $variant) => filled($variant->image_path));
-
-            return $withImage?->image_path;
+            foreach ($variants as $variant) {
+                $path = $variant->primaryImagePath();
+                if (filled($path)) {
+                    return $path;
+                }
+            }
         }
 
         if (! $this->relationLoaded('images')) {

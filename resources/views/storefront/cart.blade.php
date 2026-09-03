@@ -40,7 +40,7 @@
                     <div class="space-y-3">
                         @foreach($group['items'] as $item)
                             @php
-                                $imagePath = $item->variant?->image_path ?: $item->product?->primaryImagePath();
+                                $imagePath = $item->variant?->primaryImagePath() ?: $item->product?->primaryImagePath();
                                 $imageUrl = $images->url($imagePath);
                                 $productUrl = $item->product ? route('products.show', $item->product->slug) : null;
                             @endphp
@@ -66,7 +66,7 @@
             @foreach($looseItems as $item)
                 @php
                     $images = app(\App\Services\ImageService::class);
-                    $imagePath = $item->variant?->image_path ?: $item->product?->primaryImagePath();
+                    $imagePath = $item->variant?->primaryImagePath() ?: $item->product?->primaryImagePath();
                     $imageUrl = $images->url($imagePath);
                     $productUrl = $item->product
                         ? route('products.show', $item->product->slug)

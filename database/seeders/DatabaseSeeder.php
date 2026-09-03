@@ -353,7 +353,7 @@ class DatabaseSeeder extends Seeder
             $product->categories()->sync([$categories[$i % $categories->count()]->id]);
 
             ProductImage::query()->updateOrCreate(
-                ['product_id' => $product->id, 'is_primary' => true],
+                ['product_id' => $product->id, 'product_variant_id' => null, 'is_primary' => true],
                 [
                     'path' => 'images/placeholders/product.svg',
                     'alt' => $product->name,

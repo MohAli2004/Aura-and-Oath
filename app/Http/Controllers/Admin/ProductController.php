@@ -79,7 +79,17 @@ class ProductController extends Controller
 
     public function store(ProductRequest $request): RedirectResponse
     {
-        $data = $request->safe()->except(['image', 'variant_images', 'pending_image', 'pending_variant_images', 'categories']);
+        $data = $request->safe()->except([
+            'image',
+            'images',
+            'variant_images',
+            'pending_image',
+            'pending_images',
+            'pending_variant_images',
+            'existing_image_ids',
+            'existing_variant_image_ids',
+            'categories',
+        ]);
         $categoryIds = array_values(array_unique(array_map('intval', $request->input('categories', []) ?: [])));
         $data['category_id'] = $categoryIds[0] ?? null;
 
@@ -104,9 +114,10 @@ class ProductController extends Controller
 
         if ($hasVariants) {
             $variantIds = $this->variants->syncVariants($product, $variants);
+            $this->handleProductImages($request, $product);
             $this->handleVariantImages($request, $variantIds);
         } else {
-            $this->handleImage($request, $product);
+            $this->handleProductImages($request, $product);
             $this->variants->syncVariants($product, []);
         }
 
@@ -119,7 +130,7 @@ class ProductController extends Controller
 
     public function edit(Product $product): View
     {
-        $product->load(['images', 'variants.attributeValues.attribute', 'categories']);
+        $product->load(['images', 'variants.images', 'variants.attributeValues.attribute', 'categories']);
 
         return view('admin.products.form', [
             'product' => $product,
@@ -132,7 +143,17 @@ class ProductController extends Controller
 
     public function update(ProductRequest $request, Product $product): RedirectResponse
     {
-        $data = $request->safe()->except(['image', 'variant_images', 'pending_image', 'pending_variant_images', 'categories']);
+        $data = $request->safe()->except([
+            'image',
+            'images',
+            'variant_images',
+            'pending_image',
+            'pending_images',
+            'pending_variant_images',
+            'existing_image_ids',
+            'existing_variant_image_ids',
+            'categories',
+        ]);
         $categoryIds = array_values(array_unique(array_map('intval', $request->input('categories', []) ?: [])));
         $data['category_id'] = $categoryIds[0] ?? null;
         // Keep the existing SKU; do not require manual entry on edit.
@@ -153,9 +174,10 @@ class ProductController extends Controller
 
         if ($hasVariants) {
             $variantIds = $this->variants->syncVariants($product, $variants);
+            $this->handleProductImages($request, $product);
             $this->handleVariantImages($request, $variantIds);
         } else {
-            $this->handleImage($request, $product);
+            $this->handleProductImages($request, $product);
             $this->variants->syncVariants($product, []);
         }
 
@@ -302,11 +324,11 @@ class ProductController extends Controller
     {
         DB::transaction(function () use ($product) {
             $product->load([
-                'images',
+                'allImages',
                 'variants' => fn ($query) => $query->withTrashed(),
             ]);
 
-            foreach ($product->images as $image) {
+            foreach ($product->allImages as $image) {
                 $this->images->delete($image->path);
             }
 
@@ -323,39 +345,16 @@ class ProductController extends Controller
         });
     }
 
-    protected function handleImage(Request $request, Product $product): void
+    protected function handleProductImages(Request $request, Product $product): void
     {
-        $formKey = $request->route('product')?->getKey()
-            ? (string) $request->route('product')->getKey()
-            : 'new';
-        $pending = $request->input('pending_image') ?: session("product_form.{$formKey}.pending_image");
-        $path = null;
+        $keepIds = $this->intIds($request->input('existing_image_ids', []));
+        $newPaths = $this->resolveNewImagePaths(
+            $request->input('pending_images', []),
+            $request->file('images', []) ?? [],
+            $request->file('image'),
+        );
 
-        if ($request->hasFile('image')) {
-            if (is_string($pending) && $this->images->isTempPath($pending)) {
-                $this->images->delete($pending);
-            }
-            $path = $this->images->store($request->file('image'), 'products');
-        } elseif (is_string($pending) && $pending !== '') {
-            $path = $this->images->promoteTemp($pending, 'products');
-        }
-
-        if (! $path) {
-            return;
-        }
-
-        foreach ($product->images()->get() as $existing) {
-            $this->images->delete($existing->path);
-            $existing->delete();
-        }
-
-        ProductImage::query()->create([
-            'product_id' => $product->id,
-            'path' => $path,
-            'alt' => $product->name,
-            'sort_order' => 0,
-            'is_primary' => true,
-        ]);
+        $this->syncGallery($product->id, null, $keepIds, $newPaths, $product->name);
     }
 
     /**
@@ -375,40 +374,167 @@ class ProductController extends Controller
             $pendingVariants = [];
         }
 
+        $existingByIndex = $request->input('existing_variant_image_ids', []);
+        if (! is_array($existingByIndex)) {
+            $existingByIndex = [];
+        }
+
         foreach ($variantIds as $index => $variantId) {
-            $pending = $pendingVariants[$index] ?? $pendingVariants[(string) $index] ?? null;
-            $path = null;
-
-            if (isset($files[$index]) && $files[$index]) {
-                if (is_string($pending) && $this->images->isTempPath($pending)) {
-                    $this->images->delete($pending);
-                }
-                $path = $this->images->store($files[$index], 'products');
-            } elseif (is_string($pending) && $pending !== '') {
-                $path = $this->images->promoteTemp($pending, 'products');
-            }
-
-            if (! $path) {
-                continue;
-            }
-
-            $variant = ProductVariant::query()->find($variantId);
+            $variant = ProductVariant::query()->with('images')->find($variantId);
             if (! $variant) {
                 continue;
             }
 
-            if ($variant->image_path && $variant->image_path !== $path) {
-                $this->images->delete($variant->image_path);
+            $pending = $pendingVariants[$index] ?? $pendingVariants[(string) $index] ?? [];
+            if (is_string($pending) && $pending !== '') {
+                $pending = [$pending];
+            }
+            if (! is_array($pending)) {
+                $pending = [];
             }
 
-            $variant->update(['image_path' => $path]);
+            $uploaded = $files[$index] ?? $files[(string) $index] ?? [];
+            if ($uploaded instanceof \Illuminate\Http\UploadedFile) {
+                $uploaded = [$uploaded];
+            }
+            if (! is_array($uploaded)) {
+                $uploaded = [];
+            }
+
+            $keepIds = $this->intIds($existingByIndex[$index] ?? $existingByIndex[(string) $index] ?? []);
+            $newPaths = $this->resolveNewImagePaths($pending, $uploaded);
+            $hadGallery = $variant->images->isNotEmpty();
+            $legacyPath = $variant->getAttributes()['image_path'] ?? null;
+
+            $this->syncGallery($variant->product_id, $variant->id, $keepIds, $newPaths, $variant->displayName());
+
+            $first = $variant->images()->orderBy('sort_order')->first();
+
+            if ($first) {
+                if ($legacyPath && $legacyPath !== $first->path && $variant->images()->where('path', $legacyPath)->doesntExist()) {
+                    $this->images->delete($legacyPath);
+                }
+                $variant->update(['image_path' => $first->path]);
+            } elseif ($hadGallery || $keepIds !== [] || $newPaths !== []) {
+                if ($legacyPath) {
+                    $this->images->delete($legacyPath);
+                }
+                $variant->update(['image_path' => null]);
+            }
         }
+    }
+
+    /**
+     * @param  list<int>  $keepIds
+     * @param  list<string>  $newPaths
+     */
+    protected function syncGallery(int $productId, ?int $variantId, array $keepIds, array $newPaths, string $alt): void
+    {
+        $query = ProductImage::query()
+            ->where('product_id', $productId)
+            ->when(
+                $variantId === null,
+                fn ($q) => $q->whereNull('product_variant_id'),
+                fn ($q) => $q->where('product_variant_id', $variantId),
+            );
+
+        $ownedIds = $query->clone()->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $keepIds = array_values(array_filter($keepIds, fn (int $id) => in_array($id, $ownedIds, true)));
+
+        foreach ($query->clone()->get() as $image) {
+            if (! in_array((int) $image->id, $keepIds, true)) {
+                $this->images->delete($image->path);
+                $image->delete();
+            }
+        }
+
+        $order = 0;
+        foreach ($keepIds as $id) {
+            ProductImage::query()->whereKey($id)->update([
+                'sort_order' => $order,
+                'is_primary' => $order === 0,
+            ]);
+            $order++;
+        }
+
+        foreach ($newPaths as $path) {
+            ProductImage::query()->create([
+                'product_id' => $productId,
+                'product_variant_id' => $variantId,
+                'path' => $path,
+                'alt' => $alt,
+                'sort_order' => $order,
+                'is_primary' => $order === 0,
+            ]);
+            $order++;
+        }
+    }
+
+    /**
+     * @param  mixed  $pending
+     * @param  mixed  $files
+     * @return list<string>
+     */
+    protected function resolveNewImagePaths(mixed $pending, mixed $files, mixed $legacyFile = null): array
+    {
+        $pendingList = [];
+        if (is_string($pending) && $pending !== '') {
+            $pendingList = [$pending];
+        } elseif (is_array($pending)) {
+            $pendingList = array_values(array_filter($pending, fn ($path) => is_string($path) && $path !== ''));
+        }
+
+        if ($pendingList !== []) {
+            $paths = [];
+            foreach ($pendingList as $path) {
+                if ($this->images->isTempPath($path)) {
+                    $promoted = $this->images->promoteTemp($path, 'products');
+                    if ($promoted) {
+                        $paths[] = $promoted;
+                    }
+                }
+            }
+
+            return $paths;
+        }
+
+        $fileList = [];
+        if ($files instanceof \Illuminate\Http\UploadedFile) {
+            $fileList = [$files];
+        } elseif (is_array($files)) {
+            $fileList = $files;
+        }
+        if ($legacyFile instanceof \Illuminate\Http\UploadedFile) {
+            $fileList[] = $legacyFile;
+        }
+
+        $paths = [];
+        foreach ($fileList as $file) {
+            if ($file instanceof \Illuminate\Http\UploadedFile) {
+                $paths[] = $this->images->store($file, 'products');
+            }
+        }
+
+        return $paths;
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function intIds(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('intval', $value), fn (int $id) => $id > 0));
     }
 
     protected function clearPendingUploads(string $formKey): void
     {
         session()->forget([
             "product_form.{$formKey}.pending_image",
+            "product_form.{$formKey}.pending_images",
             "product_form.{$formKey}.pending_variant_images",
         ]);
     }

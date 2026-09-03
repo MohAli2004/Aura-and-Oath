@@ -12,6 +12,8 @@ use App\Enums\UserRole;
 use App\Models\DeliveryRegion;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductImage;
+use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\NewUserRegisteredNotification;
 use App\Notifications\OrderCancelledByCustomerNotification;
@@ -1603,5 +1605,139 @@ class AuraCommerceTest extends TestCase
             ->assertSee('SEO serum description for search.', false)
             ->assertSee('<meta name="description"', false)
             ->assertSee('property="og:title"', false);
+    }
+
+    public function test_admin_product_form_does_not_leak_alpine_javascript(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $html = $this->actingAs($admin)
+            ->get(route('admin.products.create'))
+            ->assertOk()
+            ->assertSee('Save product', false)
+            ->assertSee('x-data="productForm(', false)
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/<script nonce="[^"]+">\s*document\.addEventListener\(\'alpine:init\'/',
+            $html
+        );
+
+        $formStart = strpos($html, 'x-data="productForm(');
+        $this->assertNotFalse($formStart);
+        $tabBar = strpos($html, 'flex flex-wrap gap-2 mb-4 text-sm', $formStart);
+        $this->assertNotFalse($tabBar, 'Expected product form tab bar after x-data.');
+        $between = substr($html, $formStart, $tabBar - $formStart);
+        $this->assertStringNotContainsString('enableVariants', $between);
+        $this->assertStringNotContainsString('img.file', $between);
+        $this->assertStringNotContainsString('syncImageFileInputs', $between);
+    }
+
+    public function test_admin_can_attach_multiple_images_to_a_product_and_variant(): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->admin()->create();
+        $jpeg = base64_decode('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==');
+
+        $this->actingAs($admin)
+            ->post('/admin/products', [
+                'name' => 'Gallery Serum',
+                'barcode' => '6229990000771',
+                'price' => 40,
+                'stock_quantity' => 5,
+                'status' => 'active',
+                'visibility' => 'public',
+                'track_inventory' => 1,
+                'images' => [
+                    UploadedFile::fake()->createWithContent('gallery-one.jpg', $jpeg),
+                    UploadedFile::fake()->createWithContent('gallery-two.jpg', $jpeg),
+                ],
+            ])
+            ->assertRedirect(route('admin.products.index'));
+
+        $product = Product::query()->where('name', 'Gallery Serum')->firstOrFail();
+        $this->assertCount(2, $product->images);
+        $this->assertTrue($product->images->every(fn (ProductImage $image) => $image->product_variant_id === null));
+
+        $this->get('/products/'.$product->slug)
+            ->assertOk()
+            ->assertSee(basename($product->images[0]->path), false)
+            ->assertSee(basename($product->images[1]->path), false);
+
+        $this->actingAs($admin)
+            ->post('/admin/products', [
+                'name' => 'Shade Duo',
+                'price' => 22,
+                'status' => 'active',
+                'visibility' => 'public',
+                'track_inventory' => 1,
+                'images' => [
+                    UploadedFile::fake()->createWithContent('product-fallback.jpg', $jpeg),
+                ],
+                'variants_json' => json_encode([
+                    [
+                        'name' => 'Ivory',
+                        'barcode' => '6229990000772',
+                        'price' => 22,
+                        'stock_quantity' => 3,
+                        'is_active' => true,
+                        'is_default' => true,
+                    ],
+                    [
+                        'name' => 'Sand',
+                        'barcode' => '6229990000773',
+                        'price' => 24,
+                        'stock_quantity' => 2,
+                        'is_active' => true,
+                        'is_default' => false,
+                    ],
+                ]),
+                'variant_images' => [
+                    0 => [
+                        UploadedFile::fake()->createWithContent('ivory-a.jpg', $jpeg),
+                        UploadedFile::fake()->createWithContent('ivory-b.jpg', $jpeg),
+                    ],
+                ],
+            ])
+            ->assertRedirect(route('admin.products.index'));
+
+        $duo = Product::query()->where('name', 'Shade Duo')->with(['images', 'variants.images'])->firstOrFail();
+        $this->assertCount(1, $duo->images);
+        $ivory = $duo->variants->firstWhere('name', 'Ivory');
+        $sand = $duo->variants->firstWhere('name', 'Sand');
+        $this->assertInstanceOf(ProductVariant::class, $ivory);
+        $this->assertInstanceOf(ProductVariant::class, $sand);
+        $this->assertCount(2, $ivory->images);
+        $this->assertCount(0, $sand->images);
+        $this->assertNotNull($ivory->image_path);
+        $this->assertSame($ivory->images->first()->path, $ivory->primaryImagePath());
+
+        $page = $this->get('/products/'.$duo->slug);
+        $page->assertOk()
+            ->assertSee(basename($ivory->images[0]->path), false)
+            ->assertSee(basename($ivory->images[1]->path), false)
+            ->assertSee(basename($duo->images->first()->path), false);
+    }
+
+    public function test_variant_image_path_column_still_works_as_primary_fallback(): void
+    {
+        $product = $this->createProduct([
+            'has_variants' => true,
+            'stock_quantity' => 0,
+        ]);
+
+        $variant = $product->variants()->create([
+            'name' => 'Classic',
+            'sku' => 'VAR-IMG-'.uniqid(),
+            'image_path' => 'products/legacy.jpg',
+            'stock_quantity' => 2,
+            'reserved_quantity' => 0,
+            'is_active' => true,
+            'is_default' => true,
+            'price' => 20,
+        ]);
+
+        $this->assertSame('products/legacy.jpg', $variant->primaryImagePath());
+        $this->assertSame('products/legacy.jpg', $product->fresh()->load('activeVariants')->primaryImagePath());
     }
 }

@@ -2,9 +2,57 @@
 @php
     $images = app(\App\Services\ImageService::class);
     $firstVariant = $product->activeVariants->first();
-    $defaultImage = $product->has_variants
-        ? $images->url($firstVariant?->image_path)
-        : $images->url($product->primaryImagePath());
+    $productGalleryPayload = $product->images->map(function ($image, $index) use ($images, $product) {
+        return [
+            'id' => 'image-'.$image->id,
+            'image' => $images->url($image->path),
+            'label' => $image->alt ?: ($product->name.' photo '.($index + 1)),
+        ];
+    })->values();
+
+    $variantsPayload = $product->activeVariants->map(function ($variant) use ($images, $product) {
+        $variantImages = $variant->images->map(function ($image, $index) use ($images, $variant) {
+            return [
+                'id' => 'variant-'.$variant->id.'-image-'.$image->id,
+                'image' => $images->url($image->path),
+                'label' => $image->alt ?: ($variant->displayName().' photo '.($index + 1)),
+            ];
+        })->values();
+
+        if ($variantImages->isEmpty() && filled($variant->primaryImagePath())) {
+            $variantImages = collect([[
+                'id' => 'variant-'.$variant->id.'-legacy',
+                'image' => $images->url($variant->primaryImagePath()),
+                'label' => $variant->displayName(),
+            ]]);
+        }
+
+        $firstVariantImage = $variantImages->first();
+        $primary = is_array($firstVariantImage)
+            ? $firstVariantImage['image']
+            : $images->url($product->primaryImagePath());
+
+        return [
+            'id' => (string) $variant->id,
+            'name' => $variant->displayName(),
+            'price' => (float) $product->effectivePrice($variant),
+            'priceLabel' => money($product->effectivePrice($variant)),
+            'compareAt' => $product->compareAtPrice($variant) !== null
+                ? money($product->compareAtPrice($variant))
+                : null,
+            'stock' => $variant->availableStock(),
+            'threshold' => (int) $variant->low_stock_threshold,
+            'image' => $primary,
+            'images' => $variantImages->all(),
+            'purchasable' => ! $product->track_inventory || $variant->availableStock() > 0,
+        ];
+    })->values();
+
+    $defaultImage = $firstVariant && filled($firstVariant->primaryImagePath())
+        ? $images->url($firstVariant->primaryImagePath())
+        : (is_array($productGalleryPayload->first())
+            ? $productGalleryPayload->first()['image']
+            : $images->url($product->primaryImagePath()));
     $seoTitle = $product->meta_title ?: ($product->name.' — '.config('aura.name'));
     $seoDescription = $product->meta_description
         ?: ($product->short_description ?: Str::limit(strip_tags((string) $product->description), 160));
@@ -17,58 +65,26 @@
 @section('canonical', route('products.show', $product->slug))
 @section('content')
 @php
-    $variantsPayload = $product->activeVariants->map(function ($variant) use ($images, $product) {
-        $image = $variant->image_path
-            ? $images->url($variant->image_path)
-            : $images->url(null);
-
-        return [
-            'id' => (string) $variant->id,
-            'name' => $variant->displayName(),
-            'price' => (float) $product->effectivePrice($variant),
-            'priceLabel' => money($product->effectivePrice($variant)),
-            'compareAt' => $product->compareAtPrice($variant) !== null
-                ? money($product->compareAtPrice($variant))
-                : null,
-            'stock' => $variant->availableStock(),
-            'threshold' => (int) $variant->low_stock_threshold,
-            'image' => $image,
-            'purchasable' => ! $product->track_inventory || $variant->availableStock() > 0,
-        ];
-    })->values();
-
-    $galleryPayload = $product->has_variants && $product->activeVariants->isNotEmpty()
-        ? $product->activeVariants->map(function ($variant) use ($images, $product) {
-            return [
-                'id' => 'variant-'.$variant->id,
-                'variantId' => (string) $variant->id,
-                'image' => $variant->image_path ? $images->url($variant->image_path) : $images->url(null),
-                'label' => $variant->displayName(),
-                'purchasable' => ! $product->track_inventory || $variant->availableStock() > 0,
-            ];
-        })->values()
-        : $product->images->map(function ($image, $index) use ($images, $product) {
-            return [
-                'id' => 'image-'.$image->id,
-                'variantId' => null,
-                'image' => $images->url($image->path),
-                'label' => $image->alt ?: ($product->name.' photo '.($index + 1)),
-                'purchasable' => true,
-            ];
-        })->values();
-
-    if ($galleryPayload->isEmpty()) {
-        $galleryPayload = collect([[
+    if ($productGalleryPayload->isEmpty() && ! $product->has_variants) {
+        $productGalleryPayload = collect([[
             'id' => 'fallback',
-            'variantId' => $product->has_variants ? (string) ($firstVariant?->id ?? '') : null,
             'image' => $defaultImage,
             'label' => $product->name,
-            'purchasable' => true,
         ]]);
     }
 
     $initialVariantId = (string) ($firstVariant?->id ?? '');
-    $initialGalleryId = (string) ($galleryPayload->first()['id'] ?? 'fallback');
+    $initialGallery = collect();
+    if ($firstVariant) {
+        $match = $variantsPayload->firstWhere('id', $initialVariantId);
+        if (is_array($match) && ! empty($match['images'])) {
+            $initialGallery = collect($match['images']);
+        }
+    }
+    if ($initialGallery->isEmpty()) {
+        $initialGallery = $productGalleryPayload;
+    }
+    $initialGalleryId = (string) (is_array($initialGallery->first()) ? $initialGallery->first()['id'] : 'fallback');
     $currencySymbol = config('aura.currency_symbol', '$');
 @endphp
 
@@ -91,7 +107,7 @@
         cartIndexUrl: @js(route('cart.index')),
         csrf: @js(csrf_token()),
         variants: @js($variantsPayload),
-        gallery: @js($galleryPayload),
+        productGallery: @js($productGalleryPayload),
         variantId: @js($initialVariantId),
         galleryId: @js($initialGalleryId),
         quantity: 1,
@@ -101,6 +117,12 @@
         confirming: false,
         get selected() {
             return this.variants.find((item) => item.id === String(this.variantId)) || this.variants[0] || null;
+        },
+        get gallery() {
+            if (this.selected?.images?.length) {
+                return this.selected.images;
+            }
+            return this.productGallery;
         },
         get activeGalleryItem() {
             return this.gallery.find((item) => item.id === String(this.galleryId)) || this.gallery[0] || null;
@@ -160,19 +182,12 @@
             const item = this.gallery.find((entry) => entry.id === String(id));
             if (! item) return;
             this.galleryId = String(item.id);
-            if (item.variantId) {
-                this.variantId = String(item.variantId);
-                this.stageError = '';
-            }
             this.$nextTick(() => this.scrollPreviewIntoView());
         },
         selectVariant(id) {
             this.variantId = String(id);
             this.stageError = '';
-            const match = this.gallery.find((item) => String(item.variantId) === String(id));
-            if (match) {
-                this.galleryId = String(match.id);
-            }
+            this.galleryId = String(this.gallery[0]?.id || '');
             this.$nextTick(() => this.scrollPreviewIntoView());
         },
         scrollPreviewIntoView() {
@@ -398,6 +413,37 @@
             @endif
             @if($product->sizeLabel() && ! $product->has_variants)
                 <p class="text-sm text-taupe mb-3">Size: {{ $product->sizeLabel() }}</p>
+            @endif
+
+            @if($product->has_variants && $product->activeVariants->count() >= 2)
+                <div
+                    x-show="variants.length >= 2"
+                    x-cloak
+                    class="lg:hidden mb-4"
+                >
+                    <p class="text-[11px] uppercase tracking-[0.16em] text-taupe mb-2">Also available in</p>
+                    <div
+                        class="flex gap-2 overflow-x-auto overscroll-x-contain touch-pan-x pb-1 -mx-1 px-1"
+                        role="listbox"
+                        aria-label="Quick option picker"
+                    >
+                        <template x-for="variant in variants" :key="'mobile-chip-' + variant.id">
+                            <button
+                                type="button"
+                                role="option"
+                                class="shrink-0 border px-3 py-1.5 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                                :class="variantId === variant.id
+                                    ? 'border-charcoal bg-ivory text-charcoal'
+                                    : 'border-beige bg-[#FFFCFA] text-taupe hover:border-gold'"
+                                :aria-selected="variantId === variant.id"
+                                :disabled="!variant.purchasable"
+                                @click="selectVariant(variant.id)"
+                            >
+                                <span x-text="variant.name"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
             @endif
 
             <div class="mb-4 flex flex-wrap items-baseline gap-3">

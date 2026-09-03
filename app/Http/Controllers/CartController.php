@@ -20,7 +20,7 @@ class CartController extends Controller
     public function index(): View
     {
         $cart = $this->cartService->getOrCreateCart();
-        $cart->load(['items.product.images', 'items.product.activeVariants', 'items.variant', 'items.offer.products']);
+        $cart->load(['items.product.images', 'items.product.activeVariants', 'items.variant.images', 'items.offer.products']);
 
         $offerGroups = $cart->items
             ->filter(fn (CartItem $item) => $item->offer_id)

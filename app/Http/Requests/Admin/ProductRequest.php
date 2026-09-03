@@ -50,11 +50,22 @@ class ProductRequest extends FormRequest
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:255'],
             'image' => ['nullable', 'image', 'max:4096'],
-            'variant_images' => ['nullable', 'array'],
-            'variant_images.*' => ['nullable', 'image', 'max:4096'],
+            'images' => ['nullable', 'array', 'max:20'],
+            'images.*' => ['nullable', 'image', 'max:4096'],
+            'existing_image_ids' => ['nullable', 'array'],
+            'existing_image_ids.*' => ['nullable', 'integer'],
             'pending_image' => ['nullable', 'string', 'max:255'],
+            'pending_images' => ['nullable', 'array', 'max:20'],
+            'pending_images.*' => ['nullable', 'string', 'max:255'],
+            'variant_images' => ['nullable', 'array'],
+            'variant_images.*' => ['nullable'],
+            'variant_images.*.*' => ['nullable', 'image', 'max:4096'],
+            'existing_variant_image_ids' => ['nullable', 'array'],
+            'existing_variant_image_ids.*' => ['nullable', 'array'],
+            'existing_variant_image_ids.*.*' => ['nullable', 'integer'],
             'pending_variant_images' => ['nullable', 'array'],
-            'pending_variant_images.*' => ['nullable', 'string', 'max:255'],
+            'pending_variant_images.*' => ['nullable'],
+            'pending_variant_images.*.*' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -103,7 +114,7 @@ class ProductRequest extends FormRequest
     /**
      * Persist uploaded images to temp storage so they survive a page reload.
      *
-     * @return array{pending_image: ?string, pending_variant_images: array<int|string, string>}
+     * @return array{pending_image: ?string, pending_images: list<string>, pending_variant_images: array<int|string, list<string>>}
      */
     protected function persistUploads(): array
     {
@@ -111,51 +122,129 @@ class ProductRequest extends FormRequest
         $images = app(ImageService::class);
         $formKey = $this->pendingFormKey();
 
-        $pendingImage = $this->input('pending_image') ?: session("product_form.{$formKey}.pending_image");
-        $pendingVariants = $this->input('pending_variant_images', []);
-        if (! is_array($pendingVariants) || $pendingVariants === []) {
-            $pendingVariants = session("product_form.{$formKey}.pending_variant_images", []);
+        $pendingImages = $this->stringList($this->input('pending_images', []));
+        $legacyPending = $this->input('pending_image') ?: session("product_form.{$formKey}.pending_image");
+        if (is_string($legacyPending) && $legacyPending !== '' && ! in_array($legacyPending, $pendingImages, true)) {
+            $pendingImages[] = $legacyPending;
         }
-        if (! is_array($pendingVariants)) {
-            $pendingVariants = [];
+        if ($pendingImages === []) {
+            $pendingImages = $this->stringList(session("product_form.{$formKey}.pending_images", []));
         }
 
-        if ($this->hasFile('image')) {
-            if (is_string($pendingImage) && $images->isTempPath($pendingImage)) {
-                $images->delete($pendingImage);
-            }
-            $pendingImage = $images->store($this->file('image'), 'products/tmp');
+        $sessionPendingImages = $this->stringList(session("product_form.{$formKey}.pending_images", []));
+        if (is_string($legacyPending) && $legacyPending !== '') {
+            $sessionPendingImages[] = $legacyPending;
         }
+
+        $newFiles = $this->fileList($this->file('images', []) ?? []);
+        if ($this->hasFile('image')) {
+            $newFiles[] = $this->file('image');
+        }
+
+        foreach ($newFiles as $file) {
+            $pendingImages[] = $images->store($file, 'products/tmp');
+        }
+
+        foreach (array_diff($sessionPendingImages, $pendingImages) as $stale) {
+            if ($images->isTempPath($stale)) {
+                $images->delete($stale);
+            }
+        }
+
+        $pendingVariants = $this->normalizePendingVariantMap(
+            $this->input('pending_variant_images', [])
+        );
+        if ($pendingVariants === []) {
+            $pendingVariants = $this->normalizePendingVariantMap(
+                session("product_form.{$formKey}.pending_variant_images", [])
+            );
+        }
+
+        $sessionPendingVariants = $this->normalizePendingVariantMap(
+            session("product_form.{$formKey}.pending_variant_images", [])
+        );
 
         $files = $this->file('variant_images', []) ?? [];
-        foreach ($files as $index => $file) {
-            if (! $file instanceof UploadedFile) {
-                continue;
+        foreach ($files as $index => $group) {
+            $list = $this->fileList($group);
+            if (! isset($pendingVariants[$index])) {
+                $pendingVariants[$index] = [];
             }
-
-            $existing = $pendingVariants[$index] ?? $pendingVariants[(string) $index] ?? null;
-            if (is_string($existing) && $images->isTempPath($existing)) {
-                $images->delete($existing);
+            foreach ($list as $file) {
+                $pendingVariants[$index][] = $images->store($file, 'products/tmp');
             }
-
-            $pendingVariants[$index] = $images->store($file, 'products/tmp');
         }
 
-        // Drop empty keys.
-        $pendingVariants = collect($pendingVariants)
-            ->filter(fn ($path) => filled($path))
-            ->mapWithKeys(fn ($path, $key) => [(string) $key => (string) $path])
-            ->all();
+        foreach ($sessionPendingVariants as $index => $paths) {
+            $kept = $pendingVariants[$index] ?? $pendingVariants[(string) $index] ?? [];
+            foreach (array_diff($paths, $kept) as $stale) {
+                if ($images->isTempPath($stale)) {
+                    $images->delete($stale);
+                }
+            }
+        }
 
         session([
-            "product_form.{$formKey}.pending_image" => $pendingImage ?: null,
+            "product_form.{$formKey}.pending_image" => $pendingImages[0] ?? null,
+            "product_form.{$formKey}.pending_images" => $pendingImages,
             "product_form.{$formKey}.pending_variant_images" => $pendingVariants,
         ]);
 
         return [
-            'pending_image' => $pendingImage ?: null,
+            'pending_image' => $pendingImages[0] ?? null,
+            'pending_images' => $pendingImages,
             'pending_variant_images' => $pendingVariants,
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function stringList(mixed $value): array
+    {
+        if (is_string($value) && $value !== '') {
+            return [$value];
+        }
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter($value, fn ($path) => is_string($path) && $path !== ''));
+    }
+
+    /**
+     * @return array<int|string, list<string>>
+     */
+    protected function normalizePendingVariantMap(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($value as $index => $paths) {
+            $list = $this->stringList($paths);
+            if ($list !== []) {
+                $normalized[$index] = $list;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @return list<UploadedFile>
+     */
+    protected function fileList(mixed $value): array
+    {
+        if ($value instanceof UploadedFile) {
+            return [$value];
+        }
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter($value, fn ($file) => $file instanceof UploadedFile));
     }
 
     protected function pendingFormKey(): string

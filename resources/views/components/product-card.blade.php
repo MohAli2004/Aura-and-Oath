@@ -18,7 +18,9 @@
         return [
             'id' => (int) $variant->id,
             'name' => $variant->displayName(),
-            'image' => $variant->image_path ? $images->url($variant->image_path) : $imgUrl,
+            'image' => filled($variant->primaryImagePath())
+                ? $images->url($variant->primaryImagePath())
+                : $imgUrl,
             'priceLabel' => money($product->regularPrice($variant)),
             'compareAt' => $product->compareAtPrice($variant) !== null
                 && (float) $product->compareAtPrice($variant) > (float) $product->regularPrice($variant)

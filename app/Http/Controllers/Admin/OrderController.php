@@ -85,7 +85,7 @@ class OrderController extends Controller
         $order->load([
             'items.product.images',
             'items.product.activeVariants',
-            'items.variant',
+            'items.variant.images',
             'addresses',
             'statusHistories.changer',
             'notes.user',

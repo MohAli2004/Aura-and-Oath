@@ -15,7 +15,7 @@ class ProductController extends Controller
     public function show(Request $request, string $slug, ProductRecommendationService $recommendations, OfferService $offers): View
     {
         $product = Product::query()
-            ->with(['images', 'brand', 'categories', 'activeVariants.attributeValues.attribute'])
+            ->with(['images', 'brand', 'categories', 'activeVariants.attributeValues.attribute', 'activeVariants.images'])
             ->active()
             ->published()
             ->where('slug', $slug)

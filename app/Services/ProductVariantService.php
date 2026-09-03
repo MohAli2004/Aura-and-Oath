@@ -105,6 +105,11 @@ class ProductVariantService
                 ->get();
 
             foreach ($removed as $old) {
+                $old->loadMissing('images');
+                foreach ($old->images as $image) {
+                    $this->images->delete($image->path);
+                    $image->delete();
+                }
                 if ($old->image_path) {
                     $this->images->delete($old->image_path);
                 }
@@ -118,19 +123,7 @@ class ProductVariantService
                 'stock_quantity' => $hasVariants ? 0 : $product->stock_quantity,
             ]);
 
-            if ($hasVariants) {
-                $this->clearProductImages($product);
-            }
-
             return $keepIds;
         });
-    }
-
-    protected function clearProductImages(Product $product): void
-    {
-        foreach ($product->images()->get() as $existing) {
-            $this->images->delete($existing->path);
-            $existing->delete();
-        }
     }
 }

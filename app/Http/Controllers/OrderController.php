@@ -27,7 +27,7 @@ class OrderController extends Controller
         $order->load([
             'items.product.images',
             'items.product.activeVariants',
-            'items.variant',
+            'items.variant.images',
             'addresses',
             'statusHistories' => fn ($q) => $q->where('is_customer_visible', true),
             'notes' => fn ($q) => $q->where('is_customer_visible', true),

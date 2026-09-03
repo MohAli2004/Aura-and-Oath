@@ -5,15 +5,17 @@
 @php
     $pendingFormKey = $product->exists ? (string) $product->id : 'new';
     $pendingImage = old('pending_image', session("product_form.{$pendingFormKey}.pending_image"));
+    $pendingImages = old('pending_images', session("product_form.{$pendingFormKey}.pending_images", []));
+    if (! is_array($pendingImages)) {
+        $pendingImages = filled($pendingImages) ? [$pendingImages] : [];
+    }
+    if ($pendingImages === [] && filled($pendingImage)) {
+        $pendingImages = [$pendingImage];
+    }
     $pendingVariantImages = old('pending_variant_images', session("product_form.{$pendingFormKey}.pending_variant_images", []));
     if (! is_array($pendingVariantImages)) {
         $pendingVariantImages = [];
     }
-
-    $currentImagePath = $pendingImage ?: ($product->exists ? $product->primaryImagePath() : null);
-    $currentImageUrl = $currentImagePath
-        ? (str_starts_with($currentImagePath, 'images/') ? asset($currentImagePath) : asset('storage/'.$currentImagePath))
-        : null;
 
     $variantImageUrl = function (?string $path): ?string {
         if (! $path) {
@@ -22,6 +24,71 @@
 
         return str_starts_with($path, 'images/') ? asset($path) : asset('storage/'.$path);
     };
+
+    $galleryItem = function (?int $id, ?string $path, ?string $url) use ($variantImageUrl): ?array {
+        if (! $url && $path) {
+            $url = $variantImageUrl($path);
+        }
+        if (! $id && ! $path && ! $url) {
+            return null;
+        }
+
+        return [
+            'key' => $id ? 'img-'.$id : ('pending-'.($path ?: uniqid())),
+            'id' => $id ?: null,
+            'url' => $url,
+            'path' => $id ? null : $path,
+        ];
+    };
+
+    $normalizeImageList = function ($images) use ($galleryItem): array {
+        if (! is_array($images)) {
+            return [];
+        }
+
+        $out = [];
+        foreach (array_values($images) as $image) {
+            if (! is_array($image)) {
+                continue;
+            }
+            $url = $image['url'] ?? null;
+            if (is_string($url) && str_starts_with($url, 'blob:')) {
+                $url = null;
+            }
+            $item = $galleryItem(
+                isset($image['id']) ? (int) $image['id'] : null,
+                is_string($image['path'] ?? null) ? $image['path'] : null,
+                is_string($url) ? $url : null,
+            );
+            if ($item) {
+                $out[] = $item;
+            }
+        }
+
+        return $out;
+    };
+
+    if (old('existing_image_ids') !== null || old('pending_images') !== null || old('pending_image') !== null) {
+        $initialProductImages = [];
+        $existingById = $product->exists ? $product->images->keyBy('id') : collect();
+        foreach ((array) old('existing_image_ids', []) as $id) {
+            $img = $existingById->get((int) $id);
+            if ($img) {
+                $initialProductImages[] = $galleryItem((int) $img->id, $img->path, $variantImageUrl($img->path));
+            }
+        }
+        foreach ($pendingImages as $path) {
+            if (! filled($path)) {
+                continue;
+            }
+            $initialProductImages[] = $galleryItem(null, $path, $variantImageUrl($path));
+        }
+        $initialProductImages = array_values(array_filter($initialProductImages));
+    } else {
+        $initialProductImages = $product->exists
+            ? $product->images->map(fn ($img) => $galleryItem((int) $img->id, $img->path, $variantImageUrl($img->path)))->filter()->values()->all()
+            : [];
+    }
 
     $measureUnits = $measureUnits ?? ['ml', 'g'];
     $measureUnits = array_values(array_unique(array_map(
@@ -84,15 +151,21 @@
         $initialOptionUnit = $computedOptionUnit;
     }
 
-    $normalizeVariantRow = function (array $variant) use ($variantImageUrl, $defaultMeasureUnit): array {
-        $preview = $variant['imagePreview'] ?? null;
-        if (is_string($preview) && str_starts_with($preview, 'blob:')) {
-            $preview = null;
-        }
-
-        $pendingPath = $variant['pendingImagePath'] ?? null;
-        if (! $preview && is_string($pendingPath) && $pendingPath !== '') {
-            $preview = $variantImageUrl($pendingPath);
+    $normalizeVariantRow = function (array $variant) use ($variantImageUrl, $defaultMeasureUnit, $normalizeImageList, $galleryItem): array {
+        $images = $normalizeImageList($variant['images'] ?? []);
+        if ($images === []) {
+            $pendingPath = $variant['pendingImagePath'] ?? null;
+            $preview = $variant['imagePreview'] ?? null;
+            if (is_string($preview) && str_starts_with($preview, 'blob:')) {
+                $preview = null;
+            }
+            if (! $preview && is_string($pendingPath) && $pendingPath !== '') {
+                $preview = $variantImageUrl($pendingPath);
+            }
+            $legacy = $galleryItem(null, is_string($pendingPath) ? $pendingPath : null, is_string($preview) ? $preview : null);
+            if ($legacy) {
+                $images[] = $legacy;
+            }
         }
 
         return [
@@ -105,8 +178,7 @@
             'stock_quantity' => $variant['stock_quantity'] ?? 0,
             'is_active' => array_key_exists('is_active', $variant) ? (bool) $variant['is_active'] : true,
             'is_default' => (bool) ($variant['is_default'] ?? false),
-            'imagePreview' => $preview,
-            'pendingImagePath' => is_string($pendingPath) ? $pendingPath : null,
+            'images' => $images,
             'optionValueId' => isset($variant['optionValueId']) ? (string) $variant['optionValueId'] : '',
             'sizeAmount' => $variant['sizeAmount'] ?? '',
             'sizeUnit' => $variant['sizeUnit'] ?? $defaultMeasureUnit,
@@ -119,21 +191,26 @@
         $decoded = json_decode(old('variants_json'), true) ?: [];
         $initialVariants = collect(is_array($decoded) ? $decoded : [])
             ->values()
-            ->map(function (array $row, int $index) use ($normalizeVariantRow, $pendingVariantImages, $variantImageUrl) {
-                $pendingPath = $pendingVariantImages[$index] ?? $pendingVariantImages[(string) $index] ?? ($row['pendingImagePath'] ?? null);
-                if ($pendingPath) {
-                    $row['pendingImagePath'] = $pendingPath;
-                    if (empty($row['imagePreview'])) {
-                        $row['imagePreview'] = $variantImageUrl($pendingPath);
-                    }
+            ->map(function (array $row, int $index) use ($normalizeVariantRow, $pendingVariantImages, $variantImageUrl, $galleryItem) {
+                $pendingForIndex = $pendingVariantImages[$index] ?? $pendingVariantImages[(string) $index] ?? [];
+                if (is_string($pendingForIndex) && $pendingForIndex !== '') {
+                    $pendingForIndex = [$pendingForIndex];
                 }
+                if (! is_array($pendingForIndex)) {
+                    $pendingForIndex = [];
+                }
+
+                $row['images'] = array_values(array_filter(array_merge(
+                    is_array($row['images'] ?? null) ? $row['images'] : [],
+                    array_map(fn ($path) => $galleryItem(null, $path, $variantImageUrl($path)), $pendingForIndex)
+                )));
 
                 return $normalizeVariantRow($row);
             })
             ->all();
     } else {
         $initialVariants = $product->exists
-            ? $product->variants->map(function ($variant) use ($variantImageUrl, $initialOptionUnit, $parseSizeLabel, $normalizeVariantRow) {
+            ? $product->variants->map(function ($variant) use ($variantImageUrl, $initialOptionUnit, $parseSizeLabel, $normalizeVariantRow, $galleryItem) {
                 $optionValueId = '';
                 $sizeLabel = $variant->name ?? '';
                 foreach ($variant->attributeValues as $attributeValue) {
@@ -145,6 +222,13 @@
                 }
 
                 $parsedSize = $parseSizeLabel($sizeLabel);
+                $images = $variant->images->map(fn ($img) => $galleryItem((int) $img->id, $img->path, $variantImageUrl($img->path)))->filter()->values()->all();
+                if ($images === [] && filled($variant->image_path)) {
+                    $legacy = $galleryItem(null, $variant->image_path, $variantImageUrl($variant->image_path));
+                    if ($legacy) {
+                        $images[] = $legacy;
+                    }
+                }
 
                 return $normalizeVariantRow([
                     'id' => $variant->id,
@@ -156,7 +240,7 @@
                     'stock_quantity' => $variant->stock_quantity ?? 0,
                     'is_active' => (bool) $variant->is_active,
                     'is_default' => (bool) $variant->is_default,
-                    'imagePreview' => $variantImageUrl($variant->image_path),
+                    'images' => $images,
                     'optionValueId' => $optionValueId,
                     'sizeAmount' => $parsedSize['amount'],
                     'sizeUnit' => $parsedSize['unit'],
@@ -170,325 +254,16 @@
     $oldInput = session()->hasOldInput();
 @endphp
 <div
-    x-data="{
-        tab: 'basics',
-        formError: '',
-        imagePreview: @js($currentImageUrl),
-        mainPrice: @js(old('price', $product->price)),
-        mainCost: @js(old('cost_price', $product->cost_price)),
-        hasVariants: @js(count($initialVariants) > 0),
-        optionUnit: @js($initialOptionUnit),
-        optionUnits: @js($optionUnits),
-        measureUnits: @js($measureUnits),
-        variants: @js($initialVariants),
-        get selectedAttribute() {
-            return this.optionUnits.find((unit) => unit.slug === this.optionUnit) || null;
-        },
-        get usesNamedOptions() {
-            return this.optionUnit === 'name';
-        },
-        get usesSizeOptions() {
-            return this.optionUnit === 'size';
-        },
-        get usesAttributeOptions() {
-            return !this.usesNamedOptions && !this.usesSizeOptions && !!this.selectedAttribute;
-        },
-        get defaultMeasureUnit() {
-            return this.measureUnits[0] || 'ml';
-        },
-        get optionUnitLabel() {
-            if (this.usesNamedOptions) {
-                return 'Option name';
-            }
-            if (this.usesSizeOptions) {
-                return 'Size';
-            }
-            return this.selectedAttribute?.name || '';
-        },
-        formatSizeLabel(amount, unit) {
-            const value = (amount ?? '').toString().trim();
-            const sizeUnit = this.measureUnits.includes(unit) ? unit : this.defaultMeasureUnit;
-            if (!value) {
-                return '';
-            }
-            return value + ' ' + sizeUnit;
-        },
-        syncSizeName(variant) {
-            variant.name = this.formatSizeLabel(variant.sizeAmount, variant.sizeUnit);
-        },
-        onImageFile(event) {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            if (this.imagePreview && String(this.imagePreview).startsWith('blob:')) {
-                URL.revokeObjectURL(this.imagePreview);
-            }
-            this.imagePreview = URL.createObjectURL(file);
-        },
-        onVariantImage(event, index) {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            const variant = this.variants[index];
-            if (variant.imagePreview && String(variant.imagePreview).startsWith('blob:')) {
-                URL.revokeObjectURL(variant.imagePreview);
-            }
-            variant.imagePreview = URL.createObjectURL(file);
-        },
-        enableVariants() {
-            this.hasVariants = true;
-            if (!this.optionUnit) {
-                this.optionUnit = 'name';
-            }
-            if (this.variants.length === 0) {
-                this.addVariant();
-            }
-        },
-        disableVariants() {
-            if (this.variants.length && !confirm('Remove all variants from this product?')) {
-                return;
-            }
-            this.hasVariants = false;
-            this.optionUnit = '';
-            this.variants = [];
-        },
-        setOptionUnit(slug) {
-            if (this.optionUnit && this.optionUnit !== slug && this.variants.length) {
-                if (!confirm('Switching option type may clear linked Size/Shade/Scent values. Continue?')) {
-                    return;
-                }
-            }
-            this.optionUnit = slug;
-            this.variants.forEach((variant) => {
-                variant.optionValueId = '';
-                if (slug === 'size') {
-                    if (variant.sizeAmount === undefined || variant.sizeAmount === null) {
-                        variant.sizeAmount = '';
-                    }
-                    if (!variant.sizeUnit) {
-                        variant.sizeUnit = this.defaultMeasureUnit;
-                    }
-                    this.syncSizeName(variant);
-                }
-            });
-            if (this.variants.length === 0) {
-                this.addVariant();
-            }
-        },
-        onOptionValueChange(variant) {
-            const attribute = this.selectedAttribute;
-            if (!attribute) return;
-            const value = attribute.values.find((item) => String(item.id) === String(variant.optionValueId));
-            if (value) {
-                variant.name = value.value;
-            }
-        },
-        addVariant() {
-            const isFirst = this.variants.length === 0;
-            this.variants.push({
-                id: null,
-                name: '',
-                sku: '',
-                barcode: '',
-                price: this.mainPrice === '' || this.mainPrice === null ? '' : this.mainPrice,
-                cost_price: this.mainCost === '' || this.mainCost === null ? '' : this.mainCost,
-                stock_quantity: 0,
-                is_active: true,
-                is_default: isFirst,
-                imagePreview: null,
-                pendingImagePath: null,
-                optionValueId: '',
-                sizeAmount: '',
-                sizeUnit: this.defaultMeasureUnit,
-                priceLocked: true,
-                costLocked: true,
-            });
-            if (this.usesSizeOptions) {
-                this.syncSizeName(this.variants[this.variants.length - 1]);
-            }
-            this.ensureDefaultVariant();
-        },
-        removeVariant(index) {
-            this.variants.splice(index, 1);
-            if (this.variants.length === 0) {
-                this.hasVariants = false;
-                this.optionUnit = '';
-            } else {
-                this.ensureDefaultVariant();
-            }
-        },
-        setDefaultVariant(index) {
-            this.variants.forEach((variant, i) => {
-                variant.is_default = i === index;
-            });
-        },
-        ensureDefaultVariant() {
-            if (!this.variants.length) {
-                return;
-            }
-            if (!this.variants.some((variant) => variant.is_default)) {
-                this.variants[0].is_default = true;
-            }
-        },
-        onMainPriceInput(event) {
-            this.mainPrice = event.target.value;
-            this.variants.forEach((variant) => {
-                if (variant.priceLocked) {
-                    variant.price = this.mainPrice;
-                }
-            });
-        },
-        onMainCostInput(event) {
-            this.mainCost = event.target.value;
-            this.variants.forEach((variant) => {
-                if (variant.costLocked) {
-                    variant.cost_price = this.mainCost;
-                }
-            });
-        },
-        variantsJson() {
-            if (!this.hasVariants) {
-                return '[]';
-            }
-
-            const attribute = this.selectedAttribute;
-
-            return JSON.stringify(this.variants.map((variant) => {
-                if (this.usesSizeOptions) {
-                    this.syncSizeName(variant);
-                }
-
-                const payload = {
-                    id: variant.id || undefined,
-                    name: variant.name || null,
-                    sku: variant.sku || undefined,
-                    barcode: variant.barcode || null,
-                    price: variant.price === '' || variant.price === null ? null : Number(variant.price),
-                    cost_price: variant.cost_price === '' || variant.cost_price === null ? null : Number(variant.cost_price),
-                    stock_quantity: Number(variant.stock_quantity || 0),
-                    is_active: !!variant.is_active,
-                    is_default: !!variant.is_default,
-                    sizeAmount: variant.sizeAmount ?? '',
-                    sizeUnit: this.measureUnits.includes(variant.sizeUnit) ? variant.sizeUnit : this.defaultMeasureUnit,
-                    attribute_value_ids: {},
-                };
-
-                if (this.usesAttributeOptions && attribute && variant.optionValueId) {
-                    payload.attribute_value_ids = {
-                        [attribute.id]: Number(variant.optionValueId),
-                    };
-                }
-
-                return payload;
-            }));
-        },
-        validateBeforeSubmit(event) {
-            this.formError = '';
-            const form = event.target;
-            this.ensureDefaultVariant();
-            document.getElementById('variants_json').value = this.variantsJson();
-
-            const fields = [...form.querySelectorAll('[data-required]')];
-            for (const field of fields) {
-                if (field.dataset.requiredWhen !== undefined) {
-                    if (field.dataset.requiredWhen === 'no-variants' && this.hasVariants) {
-                        continue;
-                    }
-                    if (field.dataset.requiredWhen === 'variants' && !this.hasVariants) {
-                        continue;
-                    }
-                }
-
-                let filled = false;
-                if (field.type === 'file') {
-                    filled = (field.files && field.files.length > 0) || !!this.imagePreview;
-                } else {
-                    filled = (field.value ?? '').toString().trim() !== '';
-                }
-                if (filled) continue;
-
-                event.preventDefault();
-                this.tab = field.dataset.requiredTab || 'basics';
-                this.formError = (field.dataset.requiredLabel || field.name || 'This field') + ' is required before saving.';
-                this.$nextTick(() => {
-                    field.focus?.();
-                    field.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-                });
-                return false;
-            }
-
-            if (this.hasVariants) {
-                if (!this.optionUnit) {
-                    event.preventDefault();
-                    this.tab = 'variants';
-                    this.formError = 'Choose the option type: Size, Shade, Scent, or Option name.';
-                    return false;
-                }
-
-                if (this.variants.length === 0) {
-                    event.preventDefault();
-                    this.tab = 'variants';
-                    this.formError = 'Add at least one variant, or turn variants off.';
-                    return false;
-                }
-
-                for (let i = 0; i < this.variants.length; i++) {
-                    const variant = this.variants[i];
-                    if (this.usesSizeOptions) {
-                        const amount = Number(variant.sizeAmount);
-                        const unit = (variant.sizeUnit ?? '').toString().trim();
-                        if (!(amount > 0) || !this.measureUnits.includes(unit)) {
-                            event.preventDefault();
-                            this.tab = 'variants';
-                            this.formError = 'Variant ' + (i + 1) + ': enter a size amount greater than 0 and choose a unit.';
-                            return false;
-                        }
-                        this.syncSizeName(variant);
-                    } else if (this.usesAttributeOptions && !(variant.optionValueId ?? '').toString().trim()) {
-                        event.preventDefault();
-                        this.tab = 'variants';
-                        this.formError = 'Variant ' + (i + 1) + ': choose a ' + (this.selectedAttribute?.name || 'option') + ' value.';
-                        return false;
-                    }
-                    if (!(variant.barcode ?? '').toString().trim()) {
-                        event.preventDefault();
-                        this.tab = 'variants';
-                        this.formError = 'Variant ' + (i + 1) + ': barcode is required.';
-                        return false;
-                    }
-                    if (!(variant.name ?? '').toString().trim()) {
-                        event.preventDefault();
-                        this.tab = 'variants';
-                        this.formError = 'Variant ' + (i + 1) + ': option name is required.';
-                        return false;
-                    }
-                    if (variant.stock_quantity === '' || variant.stock_quantity === null || Number(variant.stock_quantity) < 0) {
-                        event.preventDefault();
-                        this.tab = 'variants';
-                        this.formError = 'Variant ' + (i + 1) + ': stock is required (use 0 if none).';
-                        return false;
-                    }
-                    if (variant.price === '' || variant.price === null || Number.isNaN(Number(variant.price)) || Number(variant.price) < 0) {
-                        event.preventDefault();
-                        this.tab = 'variants';
-                        this.formError = 'Variant ' + (i + 1) + ': price is required (set the main price first, or enter one here).';
-                        return false;
-                    }
-                }
-
-                const defaultVariant = this.variants.find((variant) => variant.is_default) || this.variants[0];
-                const defaultIndex = this.variants.indexOf(defaultVariant);
-                const defaultFileInput = document.getElementsByName('variant_images[' + defaultIndex + ']')[0];
-                const hasNewDefaultImage = !!(defaultFileInput && defaultFileInput.files && defaultFileInput.files.length > 0);
-                if (!defaultVariant.imagePreview && !hasNewDefaultImage) {
-                    event.preventDefault();
-                    this.tab = 'variants';
-                    this.formError = 'Add an image for the variant marked Show first — it replaces the main product image.';
-                    return false;
-                }
-            }
-
-            return true;
-        }
-    }"
+    x-data="productForm(@js([
+        'productImages' => $initialProductImages,
+        'mainPrice' => old('price', $product->price),
+        'mainCost' => old('cost_price', $product->cost_price),
+        'hasVariants' => count($initialVariants) > 0,
+        'optionUnit' => $initialOptionUnit,
+        'optionUnits' => $optionUnits,
+        'measureUnits' => $measureUnits,
+        'variants' => $initialVariants,
+    ]))"
 >
     <div class="flex flex-wrap gap-2 mb-4 text-sm">
         @foreach(['basics'=>'Basics','pricing'=>'Pricing & stock','content'=>'Content','media'=>'Media','variants'=>'Variants'] as $k=>$v)
@@ -515,14 +290,12 @@
         @if($product->exists) @method('PUT') @endif
         <input type="hidden" name="variants_json" id="variants_json" value="{{ old('variants_json', '[]') }}">
         <input type="hidden" name="option_unit" x-model="optionUnit">
-        @if(filled($pendingImage))
-            <input type="hidden" name="pending_image" value="{{ $pendingImage }}">
-        @endif
-        @foreach($pendingVariantImages as $pendingIndex => $pendingVariantPath)
-            @if(filled($pendingVariantPath))
-                <input type="hidden" name="pending_variant_images[{{ $pendingIndex }}]" value="{{ $pendingVariantPath }}">
-            @endif
-        @endforeach
+        <template x-for="img in productImages" :key="'keep-'+img.key">
+            <span>
+                <input type="hidden" name="existing_image_ids[]" :value="img.id" :disabled="!img.id">
+                <input type="hidden" name="pending_images[]" :value="img.path" :disabled="!img.path">
+            </span>
+        </template>
 
         <div x-show="tab==='basics'" class="grid sm:grid-cols-2 gap-4">
             <x-input
@@ -793,31 +566,65 @@
         </div>
 
         <div x-show="tab==='media'" class="space-y-4">
-            <div x-show="hasVariants" x-cloak class="border border-beige bg-[#FFFCFA] p-4 text-sm text-taupe space-y-2">
-                <p class="font-medium text-[var(--ao-charcoal)]">Main product image is not used</p>
-                <p>When this product has variants, the storefront shows the image of the variant marked <strong>Show first</strong>. Upload option images in the Variants tab.</p>
-            </div>
-            <div x-show="!hasVariants" x-cloak>
+            <div>
                 <span class="label" id="product-image-label">
-                    Product image <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required</span>
+                    Product images
+                    <span
+                        class="normal-case tracking-wide text-[10px] font-normal"
+                        :class="hasVariants ? 'text-taupe' : 'text-blush'"
+                        x-text="hasVariants ? 'Optional fallback' : 'Required'"
+                    ></span>
                 </span>
-                <p class="mb-3 text-xs text-taupe leading-snug">Upload a clear photo of the product. A new upload replaces the previous image. Click the preview to choose a file.</p>
-                <x-admin.image-upload
-                    alpine="imagePreview"
-                    frame="square-md"
-                    fit="contain"
-                    alt="Product image preview"
-                    empty="Click to upload"
-                    name="image"
-                    id="image"
-                    accept="image/*"
-                    data-required="true"
-                    data-required-when="no-variants"
-                    data-required-tab="media"
-                    data-required-label="Product image"
-                    aria-labelledby="product-image-label"
-                    x-on:change="onImageFile($event)"
-                />
+                <p class="mb-3 text-xs text-taupe leading-snug">
+                    Add more than one photo. Drag order with the arrows — the first image is the listing thumbnail.
+                    <span x-show="hasVariants" x-cloak>If an option has its own photos, those replace this gallery on the product page.</span>
+                </p>
+                <div class="flex flex-wrap gap-3" role="list" aria-labelledby="product-image-label">
+                    <template x-for="(img, imgIndex) in productImages" :key="img.key">
+                        <div class="relative h-40 w-40 max-w-full overflow-hidden border border-beige bg-ivory/60" role="listitem">
+                            <img :src="img.url" alt="" class="h-full w-full object-contain">
+                            <span
+                                x-show="imgIndex === 0"
+                                class="absolute top-1 start-1 bg-charcoal/80 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-ivory"
+                            >Primary</span>
+                            <button
+                                type="button"
+                                class="absolute top-1 end-1 flex h-7 w-7 items-center justify-center bg-charcoal/80 text-ivory hover:bg-blush"
+                                aria-label="Remove image"
+                                @click="removeProductImage(imgIndex)"
+                            >&times;</button>
+                            <div class="absolute bottom-1 start-1 flex gap-1">
+                                <button
+                                    type="button"
+                                    class="flex h-7 w-7 items-center justify-center bg-charcoal/80 text-ivory disabled:opacity-30"
+                                    aria-label="Move image earlier"
+                                    :disabled="imgIndex === 0"
+                                    @click="moveProductImage(imgIndex, -1)"
+                                >‹</button>
+                                <button
+                                    type="button"
+                                    class="flex h-7 w-7 items-center justify-center bg-charcoal/80 text-ivory disabled:opacity-30"
+                                    aria-label="Move image later"
+                                    :disabled="imgIndex === productImages.length - 1"
+                                    @click="moveProductImage(imgIndex, 1)"
+                                >›</button>
+                            </div>
+                        </div>
+                    </template>
+                    <label class="relative flex h-40 w-40 max-w-full cursor-pointer overflow-hidden border border-dashed border-beige bg-ivory/60 transition hover:border-[color-mix(in_srgb,var(--color-taupe)_70%,transparent)] has-[:focus-visible]:border-[var(--color-gold)]">
+                        <input
+                            type="file"
+                            name="images[]"
+                            multiple
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            x-ref="productImagesInput"
+                            class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                            aria-labelledby="product-image-label"
+                            @change="onProductImagesSelected($event)"
+                        >
+                        <span class="m-auto px-2 text-center text-sm leading-snug text-taupe">Add images</span>
+                    </label>
+                </div>
             </div>
         </div>
 
@@ -826,8 +633,8 @@
                 <h2 class="font-display text-2xl">Variants</h2>
                 <p class="mt-1 text-sm text-taupe max-w-2xl">
                     Use variants when this product has options customers choose (size, shade, scent, etc.).
-                    Each option needs its own barcode, stock, and can have its own price and cost.
-                    Mark one option as <strong>Show first</strong> — that image is what shoppers see in listings.
+                    Each option needs its own barcode, stock, and can have its own price, cost, and photos.
+                    Mark one option as <strong>Show first</strong> — its first photo is the listing thumbnail when it has images.
                 </p>
             </div>
 
@@ -1010,31 +817,72 @@
                                             :checked="variant.is_default"
                                             @change="setDefaultVariant(index)"
                                         >
-                                        <span>Show first — this option’s image is the main storefront image</span>
+                                        <span>Show first — this option’s first photo is the listing thumbnail</span>
                                     </label>
                                 </div>
                             </div>
 
                             <div class="pt-1 border-t border-beige space-y-2">
                                 <span class="label">
-                                    Option image
+                                    Option images
                                     <span
                                         class="normal-case tracking-wide text-[10px] font-normal"
-                                        :class="variant.is_default ? 'text-blush' : 'text-taupe'"
-                                        x-text="variant.is_default ? 'Required for Show first' : 'Optional'"
+                                        :class="variant.is_default && productImages.length === 0 ? 'text-blush' : 'text-taupe'"
+                                        x-text="variant.is_default && productImages.length === 0 ? 'Required for Show first' : 'Optional'"
                                     ></span>
                                 </span>
-                                <p class="text-xs text-taupe">Photo for this option. The “Show first” option’s image replaces the main product image. Click the preview to upload.</p>
-                                <x-admin.image-upload
-                                    alpine="variant.imagePreview"
-                                    frame="square-sm"
-                                    fit="contain"
-                                    alt="Variant image preview"
-                                    empty="Click to upload"
-                                    accept="image/*"
-                                    x-bind:name="'variant_images[' + index + ']'"
-                                    x-on:change="onVariantImage($event, index)"
-                                />
+                                <p class="text-xs text-taupe">Add more than one photo for this option. If this option has no photos, the product gallery is shown instead.</p>
+                                <template x-for="img in (variant.images || [])" :key="'vkeep-'+index+'-'+img.key">
+                                    <span>
+                                        <input type="hidden" :name="'existing_variant_image_ids[' + index + '][]'" :value="img.id" :disabled="!img.id">
+                                        <input type="hidden" :name="'pending_variant_images[' + index + '][]'" :value="img.path" :disabled="!img.path">
+                                    </span>
+                                </template>
+                                <div class="flex flex-wrap gap-3">
+                                    <template x-for="(img, imgIndex) in (variant.images || [])" :key="img.key">
+                                        <div class="relative h-28 w-28 max-w-full overflow-hidden border border-beige bg-ivory/60">
+                                            <img :src="img.url" alt="" class="h-full w-full object-contain">
+                                            <span
+                                                x-show="imgIndex === 0"
+                                                class="absolute top-1 start-1 bg-charcoal/80 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-ivory"
+                                            >Primary</span>
+                                            <button
+                                                type="button"
+                                                class="absolute top-1 end-1 flex h-6 w-6 items-center justify-center bg-charcoal/80 text-ivory hover:bg-blush"
+                                                aria-label="Remove image"
+                                                @click="removeVariantImage(index, imgIndex)"
+                                            >&times;</button>
+                                            <div class="absolute bottom-1 start-1 flex gap-1">
+                                                <button
+                                                    type="button"
+                                                    class="flex h-6 w-6 items-center justify-center bg-charcoal/80 text-ivory disabled:opacity-30"
+                                                    aria-label="Move image earlier"
+                                                    :disabled="imgIndex === 0"
+                                                    @click="moveVariantImage(index, imgIndex, -1)"
+                                                >‹</button>
+                                                <button
+                                                    type="button"
+                                                    class="flex h-6 w-6 items-center justify-center bg-charcoal/80 text-ivory disabled:opacity-30"
+                                                    aria-label="Move image later"
+                                                    :disabled="imgIndex === variant.images.length - 1"
+                                                    @click="moveVariantImage(index, imgIndex, 1)"
+                                                >›</button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <label class="relative flex h-28 w-28 max-w-full cursor-pointer overflow-hidden border border-dashed border-beige bg-ivory/60 transition hover:border-[color-mix(in_srgb,var(--color-taupe)_70%,transparent)] has-[:focus-visible]:border-[var(--color-gold)]">
+                                        <input
+                                            type="file"
+                                            multiple
+                                            accept="image/jpeg,image/png,image/webp,image/gif"
+                                            :name="'variant_images[' + index + '][]'"
+                                            :data-variant-images-index="index"
+                                            class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                                            @change="onVariantImagesSelected($event, index)"
+                                        >
+                                        <span class="m-auto px-2 text-center text-xs leading-snug text-taupe">Add images</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </template>
@@ -1056,4 +904,391 @@
         <form id="delete-product" method="POST" action="{{ route('admin.products.destroy', $product) }}">@csrf @method('DELETE')</form>
     @endif
 </div>
+<script nonce="{{ csp_nonce() }}">
+document.addEventListener('alpine:init', () => {
+    Alpine.data('productForm', (config = {}) => ({
+        tab: 'basics',
+        formError: '',
+        productImages: Array.isArray(config.productImages) ? config.productImages : [],
+        mainPrice: config.mainPrice,
+        mainCost: config.mainCost,
+        hasVariants: Boolean(config.hasVariants),
+        optionUnit: config.optionUnit || '',
+        optionUnits: Array.isArray(config.optionUnits) ? config.optionUnits : [],
+        measureUnits: Array.isArray(config.measureUnits) && config.measureUnits.length
+            ? config.measureUnits
+            : ['ml', 'g'],
+        variants: Array.isArray(config.variants) ? config.variants : [],
+        get selectedAttribute() {
+            return this.optionUnits.find((unit) => unit.slug === this.optionUnit) || null;
+        },
+        get usesNamedOptions() {
+            return this.optionUnit === 'name';
+        },
+        get usesSizeOptions() {
+            return this.optionUnit === 'size';
+        },
+        get usesAttributeOptions() {
+            return !this.usesNamedOptions && !this.usesSizeOptions && !!this.selectedAttribute;
+        },
+        get defaultMeasureUnit() {
+            return this.measureUnits[0] || 'ml';
+        },
+        get optionUnitLabel() {
+            if (this.usesNamedOptions) {
+                return 'Option name';
+            }
+            if (this.usesSizeOptions) {
+                return 'Size';
+            }
+            return this.selectedAttribute?.name || '';
+        },
+        formatSizeLabel(amount, unit) {
+            const value = (amount ?? '').toString().trim();
+            const sizeUnit = this.measureUnits.includes(unit) ? unit : this.defaultMeasureUnit;
+            if (!value) {
+                return '';
+            }
+            return value + ' ' + sizeUnit;
+        },
+        syncSizeName(variant) {
+            variant.name = this.formatSizeLabel(variant.sizeAmount, variant.sizeUnit);
+        },
+        onProductImagesSelected(event) {
+            this.appendImageFiles(this.productImages, event.target.files);
+            event.target.value = '';
+        },
+        onVariantImagesSelected(event, index) {
+            this.appendImageFiles(this.variants[index].images, event.target.files);
+            event.target.value = '';
+        },
+        appendImageFiles(target, files) {
+            [...(files || [])].forEach((file) => {
+                const type = String(file?.type || '');
+                if (!file || !type.startsWith('image/') || type === 'image/svg+xml') {
+                    return;
+                }
+                target.push({
+                    key: 'new-' + Date.now() + '-' + Math.random().toString(36).slice(2),
+                    id: null,
+                    url: URL.createObjectURL(file),
+                    path: null,
+                    file,
+                });
+            });
+        },
+        revokeImage(img) {
+            if (img?.url && String(img.url).startsWith('blob:')) {
+                URL.revokeObjectURL(img.url);
+            }
+        },
+        removeProductImage(index) {
+            this.revokeImage(this.productImages[index]);
+            this.productImages.splice(index, 1);
+        },
+        removeVariantImage(variantIndex, imageIndex) {
+            this.revokeImage(this.variants[variantIndex].images[imageIndex]);
+            this.variants[variantIndex].images.splice(imageIndex, 1);
+        },
+        moveProductImage(index, dir) {
+            this.moveImage(this.productImages, index, dir);
+        },
+        moveVariantImage(variantIndex, imageIndex, dir) {
+            this.moveImage(this.variants[variantIndex].images, imageIndex, dir);
+        },
+        moveImage(list, index, dir) {
+            const next = index + dir;
+            if (next < 0 || next >= list.length) {
+                return;
+            }
+            const [item] = list.splice(index, 1);
+            list.splice(next, 0, item);
+        },
+        syncImageFileInputs() {
+            const productInput = this.$refs.productImagesInput;
+            if (productInput) {
+                const dt = new DataTransfer();
+                this.productImages.forEach((img) => {
+                    if (img.file) {
+                        dt.items.add(img.file);
+                    }
+                });
+                productInput.files = dt.files;
+            }
+            this.variants.forEach((variant, index) => {
+                const input = this.$el.querySelector('[data-variant-images-index="' + index + '"]');
+                if (!input) {
+                    return;
+                }
+                const dt = new DataTransfer();
+                (variant.images || []).forEach((img) => {
+                    if (img.file) {
+                        dt.items.add(img.file);
+                    }
+                });
+                input.files = dt.files;
+            });
+        },
+        enableVariants() {
+            this.hasVariants = true;
+            if (!this.optionUnit) {
+                this.optionUnit = 'name';
+            }
+            if (this.variants.length === 0) {
+                this.addVariant();
+            }
+        },
+        disableVariants() {
+            if (this.variants.length && !confirm('Remove all variants from this product?')) {
+                return;
+            }
+            this.hasVariants = false;
+            this.optionUnit = '';
+            this.variants = [];
+        },
+        setOptionUnit(slug) {
+            if (this.optionUnit && this.optionUnit !== slug && this.variants.length) {
+                if (!confirm('Switching option type may clear linked Size/Shade/Scent values. Continue?')) {
+                    return;
+                }
+            }
+            this.optionUnit = slug;
+            this.variants.forEach((variant) => {
+                variant.optionValueId = '';
+                if (slug === 'size') {
+                    if (variant.sizeAmount === undefined || variant.sizeAmount === null) {
+                        variant.sizeAmount = '';
+                    }
+                    if (!variant.sizeUnit) {
+                        variant.sizeUnit = this.defaultMeasureUnit;
+                    }
+                    this.syncSizeName(variant);
+                }
+            });
+            if (this.variants.length === 0) {
+                this.addVariant();
+            }
+        },
+        onOptionValueChange(variant) {
+            const attribute = this.selectedAttribute;
+            if (!attribute) return;
+            const value = attribute.values.find((item) => String(item.id) === String(variant.optionValueId));
+            if (value) {
+                variant.name = value.value;
+            }
+        },
+        addVariant() {
+            const isFirst = this.variants.length === 0;
+            this.variants.push({
+                id: null,
+                name: '',
+                sku: '',
+                barcode: '',
+                price: this.mainPrice === '' || this.mainPrice === null ? '' : this.mainPrice,
+                cost_price: this.mainCost === '' || this.mainCost === null ? '' : this.mainCost,
+                stock_quantity: 0,
+                is_active: true,
+                is_default: isFirst,
+                images: [],
+                optionValueId: '',
+                sizeAmount: '',
+                sizeUnit: this.defaultMeasureUnit,
+                priceLocked: true,
+                costLocked: true,
+            });
+            if (this.usesSizeOptions) {
+                this.syncSizeName(this.variants[this.variants.length - 1]);
+            }
+            this.ensureDefaultVariant();
+        },
+        removeVariant(index) {
+            this.variants.splice(index, 1);
+            if (this.variants.length === 0) {
+                this.hasVariants = false;
+                this.optionUnit = '';
+            } else {
+                this.ensureDefaultVariant();
+            }
+        },
+        setDefaultVariant(index) {
+            this.variants.forEach((variant, i) => {
+                variant.is_default = i === index;
+            });
+        },
+        ensureDefaultVariant() {
+            if (!this.variants.length) {
+                return;
+            }
+            if (!this.variants.some((variant) => variant.is_default)) {
+                this.variants[0].is_default = true;
+            }
+        },
+        onMainPriceInput(event) {
+            this.mainPrice = event.target.value;
+            this.variants.forEach((variant) => {
+                if (variant.priceLocked) {
+                    variant.price = this.mainPrice;
+                }
+            });
+        },
+        onMainCostInput(event) {
+            this.mainCost = event.target.value;
+            this.variants.forEach((variant) => {
+                if (variant.costLocked) {
+                    variant.cost_price = this.mainCost;
+                }
+            });
+        },
+        variantsJson() {
+            if (!this.hasVariants) {
+                return '[]';
+            }
+
+            const attribute = this.selectedAttribute;
+
+            return JSON.stringify(this.variants.map((variant) => {
+                if (this.usesSizeOptions) {
+                    this.syncSizeName(variant);
+                }
+
+                const payload = {
+                    id: variant.id || undefined,
+                    name: variant.name || null,
+                    sku: variant.sku || undefined,
+                    barcode: variant.barcode || null,
+                    price: variant.price === '' || variant.price === null ? null : Number(variant.price),
+                    cost_price: variant.cost_price === '' || variant.cost_price === null ? null : Number(variant.cost_price),
+                    stock_quantity: Number(variant.stock_quantity || 0),
+                    is_active: !!variant.is_active,
+                    is_default: !!variant.is_default,
+                    sizeAmount: variant.sizeAmount ?? '',
+                    sizeUnit: this.measureUnits.includes(variant.sizeUnit) ? variant.sizeUnit : this.defaultMeasureUnit,
+                    attribute_value_ids: {},
+                };
+
+                if (this.usesAttributeOptions && attribute && variant.optionValueId) {
+                    payload.attribute_value_ids = {
+                        [attribute.id]: Number(variant.optionValueId),
+                    };
+                }
+
+                return payload;
+            }));
+        },
+        validateBeforeSubmit(event) {
+            this.formError = '';
+            const form = event.target;
+            this.ensureDefaultVariant();
+            this.syncImageFileInputs();
+            document.getElementById('variants_json').value = this.variantsJson();
+
+            const fields = [...form.querySelectorAll('[data-required]')];
+            for (const field of fields) {
+                if (field.dataset.requiredWhen !== undefined) {
+                    if (field.dataset.requiredWhen === 'no-variants' && this.hasVariants) {
+                        continue;
+                    }
+                    if (field.dataset.requiredWhen === 'variants' && !this.hasVariants) {
+                        continue;
+                    }
+                }
+
+                let filled = false;
+                if (field.type === 'file') {
+                    filled = true;
+                } else {
+                    filled = (field.value ?? '').toString().trim() !== '';
+                }
+                if (filled) continue;
+
+                event.preventDefault();
+                this.tab = field.dataset.requiredTab || 'basics';
+                this.formError = (field.dataset.requiredLabel || field.name || 'This field') + ' is required before saving.';
+                this.$nextTick(() => {
+                    field.focus?.();
+                    field.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+                });
+                return false;
+            }
+
+            if (!this.hasVariants && this.productImages.length === 0) {
+                event.preventDefault();
+                this.tab = 'media';
+                this.formError = 'Add at least one product image.';
+                return false;
+            }
+
+            if (this.hasVariants) {
+                if (!this.optionUnit) {
+                    event.preventDefault();
+                    this.tab = 'variants';
+                    this.formError = 'Choose the option type: Size, Shade, Scent, or Option name.';
+                    return false;
+                }
+
+                if (this.variants.length === 0) {
+                    event.preventDefault();
+                    this.tab = 'variants';
+                    this.formError = 'Add at least one variant, or turn variants off.';
+                    return false;
+                }
+
+                for (let i = 0; i < this.variants.length; i++) {
+                    const variant = this.variants[i];
+                    if (this.usesSizeOptions) {
+                        const amount = Number(variant.sizeAmount);
+                        const unit = (variant.sizeUnit ?? '').toString().trim();
+                        if (!(amount > 0) || !this.measureUnits.includes(unit)) {
+                            event.preventDefault();
+                            this.tab = 'variants';
+                            this.formError = 'Variant ' + (i + 1) + ': enter a size amount greater than 0 and choose a unit.';
+                            return false;
+                        }
+                        this.syncSizeName(variant);
+                    } else if (this.usesAttributeOptions && !(variant.optionValueId ?? '').toString().trim()) {
+                        event.preventDefault();
+                        this.tab = 'variants';
+                        this.formError = 'Variant ' + (i + 1) + ': choose a ' + (this.selectedAttribute?.name || 'option') + ' value.';
+                        return false;
+                    }
+                    if (!(variant.barcode ?? '').toString().trim()) {
+                        event.preventDefault();
+                        this.tab = 'variants';
+                        this.formError = 'Variant ' + (i + 1) + ': barcode is required.';
+                        return false;
+                    }
+                    if (!(variant.name ?? '').toString().trim()) {
+                        event.preventDefault();
+                        this.tab = 'variants';
+                        this.formError = 'Variant ' + (i + 1) + ': option name is required.';
+                        return false;
+                    }
+                    if (variant.stock_quantity === '' || variant.stock_quantity === null || Number(variant.stock_quantity) < 0) {
+                        event.preventDefault();
+                        this.tab = 'variants';
+                        this.formError = 'Variant ' + (i + 1) + ': stock is required (use 0 if none).';
+                        return false;
+                    }
+                    if (variant.price === '' || variant.price === null || Number.isNaN(Number(variant.price)) || Number(variant.price) < 0) {
+                        event.preventDefault();
+                        this.tab = 'variants';
+                        this.formError = 'Variant ' + (i + 1) + ': price is required (set the main price first, or enter one here).';
+                        return false;
+                    }
+                }
+
+                const defaultVariant = this.variants.find((variant) => variant.is_default) || this.variants[0];
+                if ((defaultVariant.images || []).length === 0 && this.productImages.length === 0) {
+                    event.preventDefault();
+                    this.tab = 'variants';
+                    this.formError = 'Add at least one image for the product or the variant marked Show first.';
+                    return false;
+                }
+            }
+
+            return true;
+        },
+    }));
+});
+</script>
 @endsection

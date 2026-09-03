@@ -39,7 +39,7 @@
         @foreach($order->items as $item)
             @php
                 $images = app(\App\Services\ImageService::class);
-                $imagePath = $item->variant?->image_path ?: $item->product?->primaryImagePath();
+                $imagePath = $item->variant?->primaryImagePath() ?: $item->product?->primaryImagePath();
                 $imageUrl = $images->url($imagePath);
                 $productUrl = $item->product?->slug
                     ? route('products.show', $item->product->slug)

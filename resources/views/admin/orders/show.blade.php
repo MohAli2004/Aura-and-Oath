@@ -77,7 +77,7 @@
             @foreach($order->items as $index => $item)
                 @php
                     $images = app(\App\Services\ImageService::class);
-                    $imagePath = $item->variant?->image_path ?: $item->product?->primaryImagePath();
+                    $imagePath = $item->variant?->primaryImagePath() ?: $item->product?->primaryImagePath();
                     $imageUrl = $images->url($imagePath);
                     $rejected = $item->isRejected();
                     $returned = $item->isReturned();
