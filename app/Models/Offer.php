@@ -15,6 +15,7 @@ class Offer extends Model
         'title',
         'slug',
         'description',
+        'total_price',
         'image_path',
         'is_active',
         'sort_order',
@@ -26,6 +27,7 @@ class Offer extends Model
     {
         return [
             'is_active' => 'boolean',
+            'total_price' => 'decimal:2',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
         ];
@@ -43,7 +45,7 @@ class Offer extends Model
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'offer_products')
-            ->withPivot(['offer_price', 'sort_order'])
+            ->withPivot(['offer_price', 'quantity', 'sort_order'])
             ->withTimestamps()
             ->orderByPivot('sort_order')
             ->orderByPivot('id');
@@ -99,14 +101,37 @@ class Offer extends Model
         return 'Live';
     }
 
+    public function lineQuantity(Product $product): int
+    {
+        return max(1, (int) ($product->pivot->quantity ?? 1));
+    }
+
+    public function includedUnitCount(): int
+    {
+        return (int) $this->products->sum(fn (Product $product) => $this->lineQuantity($product));
+    }
+
     public function regularTotal(): float
     {
-        return round((float) $this->products->sum(fn (Product $product) => $product->regularPrice()), 2);
+        return round((float) $this->products->sum(
+            fn (Product $product) => $product->regularPrice() * $this->lineQuantity($product)
+        ), 2);
+    }
+
+    public function usesPackTotals(): bool
+    {
+        return $this->total_price !== null;
     }
 
     public function offerTotal(): float
     {
-        return round((float) $this->products->sum(fn (Product $product) => (float) ($product->pivot->offer_price ?? 0)), 2);
+        if ($this->usesPackTotals()) {
+            return round((float) $this->total_price, 2);
+        }
+
+        return round((float) $this->products->sum(
+            fn (Product $product) => (float) ($product->pivot->offer_price ?? 0) * $this->lineQuantity($product)
+        ), 2);
     }
 
     public function savingsAmount(): float
@@ -161,7 +186,7 @@ class Offer extends Model
 
     public function isPurchasable(): bool
     {
-        if (! $this->isLive() || $this->products->count() < 2) {
+        if (! $this->isLive() || $this->products->isEmpty()) {
             return false;
         }
 
@@ -183,7 +208,8 @@ class Offer extends Model
 
             $variant = $product->defaultVariantForCart();
             $available = $variant ? $variant->availableStock() : $product->availableStock();
-            $max = min($max, $available);
+            $perSet = $this->lineQuantity($product);
+            $max = min($max, intdiv($available, $perSet));
         }
 
         return max(0, $max);

@@ -36,7 +36,7 @@
             <a class="underline shrink-0" href="{{ route('admin.offers.edit', $offer) }}">Edit</a>
         </div>
     @empty
-        <p class="text-sm text-taupe">No offers yet. Create a group of products with special prices.</p>
+        <p class="text-sm text-taupe">No offers yet. Create a special price on one product or a group.</p>
     @endforelse
 </x-admin.bulk-form>
 <x-admin.pagination :paginator="$offers" noun="offer" />

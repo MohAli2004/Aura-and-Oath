@@ -96,7 +96,7 @@
         <div class="w-full min-w-0">
             <div class="text-xs uppercase tracking-[0.18em] text-blush mb-2">Hot offer</div>
             <h1 class="font-display text-4xl sm:text-5xl mb-3">{{ $offer->title }}</h1>
-            <p class="text-xs uppercase tracking-[0.16em] text-taupe mb-3">{{ $offer->products->count() }} {{ Str::plural('product', $offer->products->count()) }} together</p>
+            <p class="text-xs uppercase tracking-[0.16em] text-taupe mb-3">{{ $offer->includedUnitCount() }} {{ Str::plural('piece', $offer->includedUnitCount()) }} in this offer</p>
 
             <div class="mb-4 flex flex-wrap items-baseline gap-3">
                 <p class="text-xl">{{ money($offerTotal) }}</p>
@@ -108,7 +108,7 @@
             @if($offer->description)
                 <p class="text-taupe mb-6">{{ $offer->description }}</p>
             @else
-                <p class="text-taupe mb-6">Buy every product in this set together to get the offer price. Buying items separately uses the regular price.</p>
+                <p class="text-taupe mb-6">Add this offer to your bag to get the listed price. Buying the same items outside the offer uses the regular price.</p>
             @endif
 
             <p class="text-sm mb-6">
@@ -117,13 +117,12 @@
 
             <div class="space-y-5 max-w-lg">
                 <div>
-                    <div class="label mb-3">In this set</div>
+                    <div class="label mb-3">Included</div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         @foreach($offer->products as $product)
                             @php
                                 $productImage = app(\App\Services\ImageService::class)->url($product->primaryImagePath());
-                                $bundlePrice = (float) $product->pivot->offer_price;
-                                $regularPrice = $product->regularPrice();
+                                $qty = $offer->lineQuantity($product);
                             @endphp
                             <div class="text-start border border-beige bg-[#FFFCFA] p-3">
                                 <div class="flex gap-3">
@@ -132,18 +131,13 @@
                                     </div>
                                     <div class="min-w-0 flex-1">
                                         <a href="{{ route('products.show', $product->slug) }}" class="font-medium leading-snug block hover:text-gold transition">{{ $product->name }}</a>
-                                        <div class="mt-1 flex items-baseline gap-2 text-sm">
-                                            <span>{{ money($bundlePrice) }}</span>
-                                            @if($regularPrice > $bundlePrice)
-                                                <span class="text-xs text-taupe line-through">{{ money($regularPrice) }}</span>
-                                            @endif
-                                        </div>
+                                        <div class="text-xs text-taupe mt-0.5">{{ $qty }} × included</div>
                                     </div>
                                 </div>
                             </div>
                         @endforeach
                     </div>
-                    <p class="mt-2 text-xs text-taupe">Added to your bag as one offer. You cannot split this set.</p>
+                    <p class="mt-2 text-xs text-taupe">The price above is for everything listed — not a new price per item.</p>
                 </div>
 
                 <form method="POST" action="{{ route('offers.cart', $offer->slug) }}" class="space-y-5">
@@ -169,7 +163,7 @@
                     >
                         Add to bag
                     </button>
-                    <p class="text-xs text-taupe leading-snug max-w-sm">The full set is added as one item at the offer price.</p>
+                    <p class="text-xs text-taupe leading-snug max-w-sm">The bag uses the offer total, not a split per item.</p>
                 </form>
             </div>
         </div>

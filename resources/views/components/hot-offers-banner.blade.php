@@ -7,7 +7,7 @@
     $regularTotal = $campaign?->regularTotal() ?? 0;
     $savings = $campaign?->savingsAmount() ?? 0;
     $savingsPercent = $campaign?->savingsPercent() ?? 0;
-    $pieceCount = $campaign?->products->count() ?? 0;
+    $pieceCount = $campaign?->includedUnitCount() ?? 0;
     $endsAt = $campaign?->ends_at?->toIso8601String();
 @endphp
 @if($campaign)
@@ -41,10 +41,10 @@
 
         <div class="hot-offers-banner__copy">
             <h2 class="hot-offers-banner__eyebrow" id="hot-offers-heading">Hot offers</h2>
-            <p class="hot-offers-banner__kicker">This week's set</p>
+            <p class="hot-offers-banner__kicker">This week's offer</p>
             <h3 class="hot-offers-banner__title">{{ $campaign->title }}</h3>
             <p class="hot-offers-banner__lede">
-                {{ $pieceCount }} {{ \Illuminate\Support\Str::plural('piece', $pieceCount) }} together — one price, no extra checkout steps.
+                {{ $pieceCount }} {{ \Illuminate\Support\Str::plural('piece', $pieceCount) }} — one price, no extra checkout steps.
             </p>
 
             <div class="hot-offers-banner__price">

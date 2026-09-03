@@ -137,7 +137,10 @@ class CheckoutService
     {
         $product = $item->product;
         $variant = $item->variant;
-        $unitPrice = $item->unitPrice();
+        $lineTotal = $item->lineTotal();
+        $unitPrice = $item->quantity > 0
+            ? round($lineTotal / $item->quantity, 2)
+            : $item->unitPrice();
 
         OrderItem::query()->create([
             'order_id' => $order->id,
@@ -149,7 +152,7 @@ class CheckoutService
             'barcode' => $variant?->barcode ?? $product->barcode,
             'quantity' => $item->quantity,
             'unit_price' => $unitPrice,
-            'line_total' => round($unitPrice * $item->quantity, 2),
+            'line_total' => $lineTotal,
             'unit_cost' => $variant?->cost_price ?? $product->cost_price,
         ]);
 

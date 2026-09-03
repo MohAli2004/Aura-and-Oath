@@ -3,8 +3,10 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Offer;
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class OfferRequest extends FormRequest
 {
@@ -27,10 +29,44 @@ class OfferRequest extends FormRequest
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'image' => ['nullable', 'image', 'max:4096'],
-            'products' => ['required', 'array', 'min:2'],
+            'total_price' => ['required', 'numeric', 'min:0'],
+            'products' => ['required', 'array', 'min:1'],
             'products.*.id' => ['required', 'integer', 'exists:products,id', 'distinct'],
-            'products.*.offer_price' => ['required', 'numeric', 'min:0'],
+            'products.*.quantity' => ['nullable', 'integer', 'min:1', 'max:999'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $cap = $this->regularItemsTotal();
+            $offerTotal = round((float) $this->input('total_price'), 2);
+
+            if ($offerTotal > $cap) {
+                $validator->errors()->add(
+                    'total_price',
+                    'The offer total cannot be more than '.money($cap).' (the regular total of the items).'
+                );
+            }
+        });
+    }
+
+    protected function regularItemsTotal(): float
+    {
+        $rows = collect($this->input('products', []));
+        $ids = $rows->pluck('id')->map(fn ($id) => (int) $id)->filter()->unique()->all();
+        $prices = Product::query()->whereIn('id', $ids)->pluck('price', 'id');
+
+        return round((float) $rows->sum(function ($row) use ($prices) {
+            $id = (int) ($row['id'] ?? 0);
+            $qty = max(1, (int) ($row['quantity'] ?? 1));
+
+            return (float) ($prices[$id] ?? 0) * $qty;
+        }), 2);
     }
 
     protected function prepareForValidation(): void
@@ -45,7 +81,8 @@ class OfferRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'products.min' => 'Add at least two products. Customers must buy the full set to get the offer price.',
+            'products.min' => 'Add at least one product, and set how many of each are included.',
+            'total_price.required' => 'Enter the offer total. Customers see this price, not a per-item price.',
         ];
     }
 }

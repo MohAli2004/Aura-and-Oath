@@ -148,7 +148,7 @@ class Product extends Model
     public function offers(): BelongsToMany
     {
         return $this->belongsToMany(Offer::class, 'offer_products')
-            ->withPivot(['offer_price', 'sort_order'])
+            ->withPivot(['offer_price', 'quantity', 'sort_order'])
             ->withTimestamps();
     }
 

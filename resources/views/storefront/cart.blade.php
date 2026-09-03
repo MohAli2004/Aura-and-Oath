@@ -17,7 +17,7 @@
                         <div>
                             <div class="text-[11px] uppercase tracking-[0.16em] text-blush">Hot offer</div>
                             <div class="font-display text-3xl mt-1">{{ $group['offer']->title ?? 'Offer' }}</div>
-                            <p class="text-sm text-taupe mt-1">All products in this set are required to keep the offer price.</p>
+                            <p class="text-sm text-taupe mt-1">Priced as one total, with the amounts listed below.</p>
                             <div class="mt-2 flex items-baseline gap-2">
                                 <span class="text-lg">{{ money($group['offer_total']) }}</span>
                                 @if($group['regular_total'] > $group['offer_total'])
@@ -52,11 +52,11 @@
                                 @endif
                                 <div class="min-w-0 flex-1">
                                     <div class="font-medium leading-tight">{{ $item->product->name }}</div>
+                                    <div class="text-xs text-taupe mt-0.5">{{ $item->quantity }} included</div>
                                     @if($item->variant)
                                         <div class="text-xs text-taupe mt-0.5">{{ $item->variant->displayName() }}</div>
                                     @endif
                                 </div>
-                                <div class="text-sm">{{ money($item->unitPrice()) }}</div>
                             </div>
                         @endforeach
                     </div>

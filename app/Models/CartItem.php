@@ -38,17 +38,19 @@ class CartItem extends Model
     public function unitPrice(): float
     {
         if ($this->offer_id) {
-            $offer = $this->relationLoaded('offer') ? $this->offer : $this->offer()->with('products')->first();
+            $matched = $this->matchedOfferProduct();
 
-            if ($offer && $offer->isLive()) {
-                $products = $offer->relationLoaded('products')
-                    ? $offer->products
-                    : $offer->products()->get();
-                $matched = $products->firstWhere('id', $this->product_id);
+            if ($matched && $matched->pivot?->offer_price !== null) {
+                $offer = $this->loadedOffer();
+                $packTotal = (float) $matched->pivot->offer_price;
 
-                if ($matched && $matched->pivot?->offer_price !== null) {
-                    return (float) $matched->pivot->offer_price;
+                if ($offer?->usesPackTotals()) {
+                    $perSet = max(1, (int) ($matched->pivot->quantity ?? 1));
+
+                    return round($packTotal / $perSet, 4);
                 }
+
+                return $packTotal;
             }
         }
 
@@ -57,6 +59,44 @@ class CartItem extends Model
 
     public function lineTotal(): float
     {
-        return $this->unitPrice() * $this->quantity;
+        if ($this->offer_id) {
+            $matched = $this->matchedOfferProduct();
+            $offer = $this->loadedOffer();
+
+            if ($matched && $offer?->usesPackTotals()) {
+                $perSet = max(1, (int) ($matched->pivot->quantity ?? 1));
+                $packs = intdiv((int) $this->quantity, $perSet);
+
+                return round($packs * (float) $matched->pivot->offer_price, 2);
+            }
+        }
+
+        return round($this->unitPrice() * $this->quantity, 2);
+    }
+
+    protected function loadedOffer(): ?Offer
+    {
+        if (! $this->offer_id) {
+            return null;
+        }
+
+        return $this->relationLoaded('offer')
+            ? $this->offer
+            : $this->offer()->with('products')->first();
+    }
+
+    protected function matchedOfferProduct(): ?Product
+    {
+        $offer = $this->loadedOffer();
+
+        if (! $offer || ! $offer->isLive()) {
+            return null;
+        }
+
+        $products = $offer->relationLoaded('products')
+            ? $offer->products
+            : $offer->products()->get();
+
+        return $products->firstWhere('id', $this->product_id);
     }
 }

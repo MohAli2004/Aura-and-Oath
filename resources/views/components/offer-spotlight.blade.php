@@ -71,7 +71,7 @@
         </div>
 
         <p class="text-xs text-taupe mb-5">
-            {{ $offer->products->count() }} {{ \Illuminate\Support\Str::plural('product', $offer->products->count()) }} bundled together
+            {{ $offer->includedUnitCount() }} {{ \Illuminate\Support\Str::plural('piece', $offer->includedUnitCount()) }}
         </p>
 
         <a href="{{ route('offers.show', $offer->slug) }}" class="btn btn-gold">

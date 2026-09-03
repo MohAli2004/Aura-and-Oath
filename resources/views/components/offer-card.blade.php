@@ -17,6 +17,6 @@
                 <span class="text-taupe line-through text-xs">{{ money($regularTotal) }}</span>
             @endif
         </div>
-        <div class="text-xs text-taupe">{{ $offer->products->count() }} {{ \Illuminate\Support\Str::plural('product', $offer->products->count()) }} together</div>
+        <div class="text-xs text-taupe">{{ $offer->includedUnitCount() }} {{ \Illuminate\Support\Str::plural('piece', $offer->includedUnitCount()) }}</div>
     </div>
 </article>

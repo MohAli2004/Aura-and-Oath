@@ -4,7 +4,7 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
     <p class="text-xs uppercase tracking-[0.18em] text-taupe mb-2">Limited deals</p>
     <h1 class="font-display text-4xl sm:text-5xl mb-3">Hot offers</h1>
-    <p class="text-taupe max-w-2xl mb-10">Buy a full set of products together at a better price. The offer applies only when every item in the set is in your bag.</p>
+    <p class="text-taupe max-w-2xl mb-10">Special prices on a single product (with an amount) or on a group. The offer applies when you add it from this page.</p>
 
     @if($offers->isEmpty())
         <x-empty-state title="No hot offers right now" message="Check back soon for grouped product deals." :action="route('shop')" actionLabel="Browse shop" />

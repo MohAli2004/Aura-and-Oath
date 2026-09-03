@@ -27,7 +27,13 @@ class CartController extends Controller
             ->groupBy('offer_id')
             ->map(function ($items) {
                 $offer = $items->first()?->offer;
-                $quantity = (int) $items->first()?->quantity;
+                $first = $items->first();
+                $perSet = 1;
+                if ($offer && $first) {
+                    $matched = $offer->products->firstWhere('id', $first->product_id);
+                    $perSet = $matched ? $offer->lineQuantity($matched) : 1;
+                }
+                $quantity = $perSet > 0 ? intdiv((int) $first?->quantity, $perSet) : (int) $first?->quantity;
 
                 return [
                     'offer' => $offer,
@@ -154,7 +160,7 @@ class CartController extends Controller
 
         $this->cartService->addOffer($offer, $data['quantity'] ?? 1);
 
-        return redirect()->route('cart.index')->with('success', 'Offer added to bag. All products in the set are included.');
+        return redirect()->route('cart.index')->with('success', 'Offer added to bag.');
     }
 
     public function update(Request $request, CartItem $item): RedirectResponse

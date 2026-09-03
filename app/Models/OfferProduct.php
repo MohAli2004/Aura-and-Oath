@@ -11,6 +11,7 @@ class OfferProduct extends Model
         'offer_id',
         'product_id',
         'offer_price',
+        'quantity',
         'sort_order',
     ];
 
@@ -18,6 +19,7 @@ class OfferProduct extends Model
     {
         return [
             'offer_price' => 'decimal:2',
+            'quantity' => 'integer',
         ];
     }
 

@@ -410,15 +410,21 @@
 
             @if(($productOffers ?? collect())->isNotEmpty())
                 <div class="mb-6 border border-beige bg-[#FFFCFA] p-4">
-                    <div class="text-[11px] uppercase tracking-[0.16em] text-blush">Sold as a set</div>
+                    <div class="text-[11px] uppercase tracking-[0.16em] text-blush">
+                        {{ $productOffers->contains(fn ($offer) => $offer->products->count() > 1) ? 'Sold as a set' : 'Special offer' }}
+                    </div>
                     <p class="mt-1 text-sm">
-                        Buy this product together with the rest of
+                        @if($productOffers->contains(fn ($offer) => $offer->products->count() > 1))
+                            Buy this product together with the rest of
+                        @else
+                            This product is included in
+                        @endif
                         @foreach($productOffers as $offer)
                             <a class="underline" href="{{ route('offers.show', $offer->slug) }}">{{ $offer->title }}</a>@if(! $loop->last)<span class="text-taupe"> or </span>@endif
                         @endforeach
-                        to get the offer price. Buying it on its own uses the regular price.
+                        at the offer price. Buying it on its own uses the regular price.
                     </p>
-                    <a href="{{ route('offers.show', $productOffers->first()->slug) }}" class="mt-2 inline-block text-xs text-taupe">View the full offer</a>
+                    <a href="{{ route('offers.show', $productOffers->first()->slug) }}" class="mt-2 inline-block text-xs text-taupe">View the offer</a>
                 </div>
             @endif
 

@@ -434,10 +434,11 @@ class AuraCommerceTest extends TestCase
             ->post(route('admin.offers.store'), [
                 'title' => 'Weekend Deal',
                 'is_active' => 1,
+                'total_price' => 115,
                 'image' => UploadedFile::fake()->createWithContent('weekend-deal.jpg', $jpeg),
                 'products' => [
-                    ['id' => $cream->id, 'offer_price' => 75],
-                    ['id' => $mist->id, 'offer_price' => 40],
+                    ['id' => $cream->id, 'quantity' => 1],
+                    ['id' => $mist->id, 'quantity' => 1],
                 ],
             ])
             ->assertRedirect(route('admin.offers.index'));
@@ -451,7 +452,7 @@ class AuraCommerceTest extends TestCase
         $this->get(route('offers.index'))
             ->assertOk()
             ->assertSee('Weekend Deal')
-            ->assertSee('together');
+            ->assertSee('2 pieces');
 
         $offer = \App\Models\Offer::query()->where('title', 'Weekend Deal')->firstOrFail();
         $this->assertNotEmpty($offer->image_path);
@@ -462,8 +463,8 @@ class AuraCommerceTest extends TestCase
             ->assertSee($offer->imageUrl(), false)
             ->assertSee('Offer Cream')
             ->assertSee('Offer Mist')
-            ->assertSee('75.00')
-            ->assertSee('40.00')
+            ->assertSee('115.00')
+            ->assertDontSee('75.00')
             ->assertSee('Add to bag');
 
         $this->get('/')
@@ -494,8 +495,8 @@ class AuraCommerceTest extends TestCase
             ->assertSee('Weekend Deal')
             ->assertSee('Offer Cream')
             ->assertSee('Offer Mist')
-            ->assertSee('75.00')
-            ->assertSee('40.00')
+            ->assertSee('115.00')
+            ->assertDontSee('75.00')
             ->assertSee('Remove offer');
 
         $cart = app(\App\Services\CartService::class)->getOrCreateCart();
@@ -506,6 +507,80 @@ class AuraCommerceTest extends TestCase
 
         $cart->refresh();
         $this->assertEquals(0, $cart->items()->where('offer_id', $offer->id)->count());
+    }
+
+    public function test_admin_can_create_a_single_product_offer_with_an_amount(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $cream = $this->createProduct([
+            'name' => 'Trio Cream',
+            'price' => 20,
+            'sku' => 'SKU-TRIO',
+            'barcode' => 'BC-TRIO',
+            'slug' => 'trio-cream',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.offers.store'), [
+                'title' => 'Three for less',
+                'is_active' => 1,
+                'total_price' => 12,
+                'products' => [
+                    ['id' => $cream->id, 'quantity' => 3],
+                ],
+            ])
+            ->assertRedirect(route('admin.offers.index'));
+
+        $this->assertDatabaseHas('offer_products', [
+            'product_id' => $cream->id,
+            'offer_price' => 12.00,
+            'quantity' => 3,
+        ]);
+
+        $this->post('/logout');
+
+        $offer = \App\Models\Offer::query()->where('title', 'Three for less')->firstOrFail();
+
+        $this->get(route('offers.show', $offer->slug))
+            ->assertOk()
+            ->assertSee('Trio Cream')
+            ->assertSee('3 × included')
+            ->assertSee('12.00')
+            ->assertDontSee('36.00');
+
+        $this->post(route('offers.cart', $offer->slug))
+            ->assertRedirect(route('cart.index'));
+
+        $cart = app(\App\Services\CartService::class)->getOrCreateCart();
+        $this->assertEquals(3, (int) $cart->items()->where('offer_id', $offer->id)->value('quantity'));
+        $this->assertEquals(12.0, round(app(\App\Services\CartService::class)->subtotal($cart), 2));
+    }
+
+    public function test_offer_total_cannot_exceed_the_regular_item_total(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $cream = $this->createProduct([
+            'name' => 'Cap Cream',
+            'price' => 5,
+            'sku' => 'SKU-CAP',
+            'barcode' => 'BC-CAP',
+            'slug' => 'cap-cream',
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.offers.create'))
+            ->post(route('admin.offers.store'), [
+                'title' => 'Too high',
+                'is_active' => 1,
+                'total_price' => 16,
+                'products' => [
+                    ['id' => $cream->id, 'quantity' => 3],
+                ],
+            ])
+            ->assertRedirect(route('admin.offers.create'))
+            ->assertSessionHasErrors('total_price');
+
+        $this->assertDatabaseMissing('offers', ['title' => 'Too high']);
     }
 
     public function test_future_start_date_schedules_offer_instead_of_marking_it_inactive(): void
@@ -530,10 +605,11 @@ class AuraCommerceTest extends TestCase
             ->post(route('admin.offers.store'), [
                 'title' => 'Tomorrow Deal',
                 'is_active' => 1,
+                'total_price' => 80,
                 'starts_at' => now()->addDay()->format('Y-m-d\TH:i'),
                 'products' => [
-                    ['id' => $product->id, 'offer_price' => 50],
-                    ['id' => $second->id, 'offer_price' => 30],
+                    ['id' => $product->id, 'quantity' => 1],
+                    ['id' => $second->id, 'quantity' => 1],
                 ],
             ])
             ->assertRedirect(route('admin.offers.index'));

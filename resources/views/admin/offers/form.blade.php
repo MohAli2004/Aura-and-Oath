@@ -13,7 +13,7 @@
         'id' => (int) $product->id,
         'name' => $product->name,
         'price' => (float) $product->price,
-        'offer_price' => (float) ($product->pivot->offer_price ?? $product->price),
+        'quantity' => max(1, (int) ($product->pivot->quantity ?? 1)),
     ])->values();
 
     if (old('products')) {
@@ -25,10 +25,12 @@
                 'id' => $id,
                 'name' => $match['name'] ?? ('Product #'.$id),
                 'price' => (float) ($match['price'] ?? 0),
-                'offer_price' => (float) ($row['offer_price'] ?? 0),
+                'quantity' => max(1, (int) ($row['quantity'] ?? 1)),
             ];
         })->values();
     }
+
+    $totalPriceValue = old('total_price', $offer->total_price ?? ($offer->exists ? $offer->offerTotal() : ''));
 @endphp
 
 <form
@@ -39,8 +41,12 @@
     x-data="{
         catalog: {{ \Illuminate\Support\Js::from($catalogPayload) }},
         selected: {{ \Illuminate\Support\Js::from($selectedPayload) }},
+        totalPrice: {{ \Illuminate\Support\Js::from($totalPriceValue === '' || $totalPriceValue === null ? '' : (float) $totalPriceValue) }},
         query: '',
         pickId: '',
+        get regularTotal() {
+            return this.selected.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0);
+        },
         get filtered() {
             const q = this.query.trim().toLowerCase();
             const taken = this.selected.map((item) => Number(item.id));
@@ -55,7 +61,7 @@
                 id: product.id,
                 name: product.name,
                 price: product.price,
-                offer_price: product.price,
+                quantity: 1,
             });
             this.pickId = '';
             this.query = '';
@@ -103,8 +109,8 @@
 
     <div class="border border-beige bg-[#FFFCFA] p-4 space-y-3">
         <div>
-            <h2 class="font-display text-2xl">Products in this set</h2>
-            <p class="text-sm text-taupe">Customers must buy every product here together to get the offer prices. Add at least two products.</p>
+            <h2 class="font-display text-2xl">Products in this offer</h2>
+            <p class="text-sm text-taupe">Add one product or several and set how many of each are included. Set the new total below — customers see that total, not a per-item price.</p>
         </div>
 
         <div class="flex flex-wrap gap-2">
@@ -126,8 +132,8 @@
                 <thead class="text-left text-taupe">
                     <tr>
                         <th class="py-2">Product</th>
-                        <th class="py-2">Regular</th>
-                        <th class="py-2">Offer price</th>
+                        <th class="py-2">Amount</th>
+                        <th class="py-2">Separately</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -138,10 +144,10 @@
                                 <input type="hidden" :name="'products['+index+'][id]'" :value="item.id">
                                 <span x-text="item.name"></span>
                             </td>
-                            <td class="py-2 text-taupe" x-text="item.price.toFixed(2)"></td>
                             <td class="py-2">
-                                <input class="input w-28" type="number" min="0" step="0.01" :name="'products['+index+'][offer_price]'" x-model="item.offer_price">
+                                <input class="input w-20" type="number" min="1" max="999" step="1" :name="'products['+index+'][quantity]'" x-model.number="item.quantity">
                             </td>
+                            <td class="py-2 text-taupe" x-text="(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)"></td>
                             <td class="py-2 text-right">
                                 <button type="button" class="underline" @click="remove(item.id)">Remove</button>
                             </td>
@@ -149,13 +155,28 @@
                     </template>
                 </tbody>
             </table>
-            <p class="text-sm text-taupe mt-3" x-show="selected.length === 0">Add at least two products.</p>
-            <p class="text-sm text-taupe mt-3" x-show="selected.length === 1">Add one more product to make a set.</p>
-            <p class="text-sm mt-3" x-show="selected.length > 1">
-                Set total
-                <span x-text="selected.reduce((sum, item) => sum + Number(item.offer_price || 0), 0).toFixed(2)"></span>
-                <span class="text-taupe line-through ms-2" x-text="selected.reduce((sum, item) => sum + Number(item.price || 0), 0).toFixed(2)"></span>
-            </p>
+            <p class="text-sm text-taupe mt-3" x-show="selected.length === 0">Add at least one product.</p>
+            <div class="mt-4 max-w-sm space-y-1">
+                <x-input
+                    label="Offer total"
+                    name="total_price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    hint="Must be the regular total or less. If three items are 15 separately, enter 12 — not 4 per item, and not more than 15."
+                    x-model="totalPrice"
+                    x-bind:max="regularTotal || null"
+                    required
+                    requiredMark
+                />
+                <p class="text-sm text-taupe" x-show="selected.length > 0">
+                    Separately
+                    <span x-text="regularTotal.toFixed(2)"></span>
+                </p>
+                <p class="text-sm text-red-700" x-show="selected.length > 0 && Number(totalPrice) > regularTotal" x-cloak>
+                    Offer total cannot be more than the regular total.
+                </p>
+            </div>
         </div>
     </div>
 

@@ -252,7 +252,7 @@
 
     @if(! empty($hasLiveOffers) && ! request()->routeIs('home', 'offers.*'))
         <a href="{{ route('offers.index') }}" class="block bg-blush text-[#FFFCFA] text-center text-xs sm:text-sm tracking-wide py-2.5 px-4 hover:opacity-90">
-            Hot offers are on now — buy a full set together at a better price
+            Hot offers are on now — special prices on selected items and sets
         </a>
     @endif
 

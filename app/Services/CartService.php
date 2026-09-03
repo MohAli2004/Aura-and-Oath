@@ -103,7 +103,7 @@ class CartService
 
         $offer->loadMissing(['products.activeVariants']);
 
-        if (! $offer->isLive() || $offer->products->count() < 2) {
+        if (! $offer->isLive() || $offer->products->isEmpty()) {
             throw ValidationException::withMessages(['offer' => 'This offer is not available.']);
         }
 
@@ -124,19 +124,25 @@ class CartService
                 ]);
             }
 
+            $units = $quantity * $offer->lineQuantity($product);
             $available = $variant ? $variant->availableStock() : $product->availableStock();
-            if ($product->track_inventory && $available < $quantity) {
+            if ($product->track_inventory && $available < $units) {
                 throw ValidationException::withMessages([
                     'quantity' => 'Not enough stock for '.$product->name.' to add this offer.',
                 ]);
             }
 
-            $lines[] = ['product' => $product, 'variant' => $variant, 'available' => $available];
+            $lines[] = [
+                'product' => $product,
+                'variant' => $variant,
+                'available' => $available,
+                'units' => $units,
+            ];
         }
 
         $cart = $this->getOrCreateCart();
 
-        DB::transaction(function () use ($cart, $offer, $lines, $quantity) {
+        DB::transaction(function () use ($cart, $offer, $lines) {
             foreach ($lines as $line) {
                 /** @var Product $product */
                 $product = $line['product'];
@@ -149,7 +155,7 @@ class CartService
                     'offer_id' => $offer->id,
                 ]);
 
-                $newQty = ($item->exists ? $item->quantity : 0) + $quantity;
+                $newQty = ($item->exists ? $item->quantity : 0) + $line['units'];
 
                 if ($product->track_inventory && $line['available'] < $newQty) {
                     throw ValidationException::withMessages([
@@ -285,6 +291,7 @@ class CartService
     protected function updateOfferQuantity(CartItem $item, int $quantity): void
     {
         $cart = $item->cart;
+        $offer = $item->offer()->with('products')->first();
         $siblings = CartItem::query()
             ->where('cart_id', $cart->id)
             ->where('offer_id', $item->offer_id)
@@ -301,16 +308,23 @@ class CartService
         foreach ($siblings as $sibling) {
             $product = $sibling->product;
             $variant = $sibling->variant;
+            $perSet = 1;
+            if ($offer) {
+                $matched = $offer->products->firstWhere('id', $sibling->product_id);
+                $perSet = $matched ? $offer->lineQuantity($matched) : 1;
+            }
+            $units = $quantity * $perSet;
             $available = $variant ? $variant->availableStock() : $product->availableStock();
 
-            if ($product->track_inventory && $available < $quantity) {
+            if ($product->track_inventory && $available < $units) {
                 throw ValidationException::withMessages([
                     'quantity' => 'Not enough stock for '.$product->name.'.',
                 ]);
             }
+
+            $sibling->update(['quantity' => $units]);
         }
 
-        CartItem::query()->whereIn('id', $siblings->pluck('id'))->update(['quantity' => $quantity]);
         $this->refreshCartCount($cart);
     }
 
