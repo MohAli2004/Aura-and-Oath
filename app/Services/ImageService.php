@@ -5,17 +5,41 @@ namespace App\Services;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class ImageService
 {
     public function store(UploadedFile $file, string $directory = 'products'): string
     {
-        $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
+        $filename = Str::uuid().'.'.$this->safeExtension($file);
         $path = $file->storeAs($directory, $filename, 'public');
 
         $this->maybeCreateThumbnail($path, $directory);
 
         return $path;
+    }
+
+    /**
+     * Never trust the client filename for the stored extension: it decides
+     * what the web server will do with the file. The extension is derived from
+     * the detected image type, and anything we do not recognise is rejected.
+     */
+    protected function safeExtension(UploadedFile $file): string
+    {
+        $allowed = (array) config('security.uploads.allowed_mimes', []);
+
+        $detected = @getimagesize($file->getRealPath() ?: '');
+        $mime = $detected['mime'] ?? null;
+
+        if (! $mime || ! isset($allowed[$mime])) {
+            $mime = $file->getMimeType();
+        }
+
+        if (! $mime || ! isset($allowed[$mime])) {
+            throw new InvalidArgumentException('Unsupported image type.');
+        }
+
+        return $allowed[$mime];
     }
 
     /**

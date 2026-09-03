@@ -281,7 +281,7 @@
         </aside>
     </div>
 </div>
-<script>
+<script nonce="{{ csp_nonce() }}">
     // After placing an order, browser Back can restore checkout from cache.
     // Force a fresh load so empty-cart / completed-order redirects run.
     window.addEventListener('pageshow', (event) => {

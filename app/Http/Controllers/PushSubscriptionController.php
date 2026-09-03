@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PushSubscription;
+use App\Rules\PushEndpoint;
 use App\Services\WebPushService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,16 +31,26 @@ class PushSubscriptionController extends Controller
         abort_unless($this->webPush->isConfigured(), 503, 'Push notifications are not configured.');
 
         $data = $request->validate([
-            'endpoint' => ['required', 'string', 'max:500'],
+            'endpoint' => ['required', 'string', 'max:500', new PushEndpoint],
             'keys.p256dh' => ['required', 'string', 'max:255'],
             'keys.auth' => ['required', 'string', 'max:255'],
             'contentEncoding' => ['nullable', 'string', 'max:32'],
         ]);
 
+        // An endpoint belongs to one browser profile. If it is re-registered by
+        // a different account, take it over rather than letting someone attach
+        // themselves to a stranger's device.
+        PushSubscription::query()
+            ->where('endpoint', $data['endpoint'])
+            ->where('user_id', '!=', Auth::id())
+            ->delete();
+
         $subscription = PushSubscription::query()->updateOrCreate(
-            ['endpoint' => $data['endpoint']],
             [
+                'endpoint' => $data['endpoint'],
                 'user_id' => Auth::id(),
+            ],
+            [
                 'public_key' => $data['keys']['p256dh'],
                 'auth_token' => $data['keys']['auth'],
                 'content_encoding' => $data['contentEncoding'] ?? 'aesgcm',

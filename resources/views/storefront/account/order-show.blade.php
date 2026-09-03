@@ -139,7 +139,7 @@
     @endcan
 </div>
 @if(session('order_just_placed'))
-<script>
+<script nonce="{{ csp_nonce() }}">
     // Keep Back from returning to the completed checkout form.
     history.replaceState({ orderPlaced: true }, '', location.href);
     history.pushState({ orderPlaced: true }, '', location.href);

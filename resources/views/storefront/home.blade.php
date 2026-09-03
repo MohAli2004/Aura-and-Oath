@@ -11,7 +11,7 @@
     <div
         class="pointer-events-none absolute inset-0 z-0"
         aria-hidden="true"
-        style="background: url('{{ $heroBackground }}') center / cover no-repeat;"
+        style="background: url('{{ css_url($heroBackground) }}') center / cover no-repeat;"
     ></div>
     <div
         class="pointer-events-none absolute inset-0 z-[1]"
@@ -21,7 +21,7 @@
     <div class="relative z-[2] max-w-7xl mx-auto w-full px-4 sm:px-6 pb-20 pt-40 text-[#FFFCFA]">
         <p class="font-display text-5xl sm:text-7xl max-w-3xl leading-[0.95] mb-4">{{ $hero->title ?? config('aura.name') }}</p>
         <p class="text-lg sm:text-xl max-w-xl opacity-90 mb-8">{{ $hero->subtitle ?? config('aura.tagline') }}</p>
-        <a href="{{ $hero->link_url ?? route('shop') }}" class="btn btn-gold">{{ $hero->button_text ?? 'Shop now' }}</a>
+        <a href="{{ safe_href($hero->link_url ?? null, route('shop')) }}" class="btn btn-gold">{{ $hero->button_text ?? 'Shop now' }}</a>
     </div>
 </section>
 

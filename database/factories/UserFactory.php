@@ -45,4 +45,13 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * `role` and `is_active` are guarded on the model, so build the instance
+     * without mass assignment.
+     */
+    public function newModel(array $attributes = []): User
+    {
+        return (new User)->forceFill($attributes);
+    }
 }

@@ -95,9 +95,12 @@ class WhishPaymentController extends Controller
         $currency = strtoupper((string) ($request->query('currency') ?: $request->input('currency') ?: ''));
 
         if (! $externalId || $currency === '') {
+            // The callback is unauthenticated, so keep the payload out of the
+            // logs and record only what is needed to debug.
             Log::warning('Whish callback missing params', [
-                'query' => $request->query(),
-                'input' => $request->all(),
+                'has_external_id' => (bool) $externalId,
+                'has_currency' => $currency !== '',
+                'ip' => $request->ip(),
             ]);
 
             return;

@@ -222,6 +222,84 @@ if (! function_exists('print_page_size')) {
     }
 }
 
+if (! function_exists('csp_nonce')) {
+    function csp_nonce(): string
+    {
+        return (string) (\App\Http\Middleware\SecurityHeaders::$nonce ?? '');
+    }
+}
+
+if (! function_exists('safe_url')) {
+    /**
+     * Keep a stored URL usable as an href/redirect target: relative paths, or
+     * absolute URLs pointing back at this site. Anything else (javascript:,
+     * data:, another host) becomes the fallback.
+     */
+    function safe_url(?string $url, string $fallback = '/'): string
+    {
+        $url = trim((string) $url);
+
+        if ($url === '') {
+            return $fallback;
+        }
+
+        if (str_starts_with($url, '//')) {
+            return $fallback;
+        }
+
+        if (str_starts_with($url, '/')) {
+            return $url;
+        }
+
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        if (! in_array($scheme, ['http', 'https'], true)) {
+            return $fallback;
+        }
+
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $appHost = strtolower((string) parse_url((string) config('app.url'), PHP_URL_HOST));
+        $requestHost = strtolower((string) request()?->getHost());
+
+        return in_array($host, array_filter([$appHost, $requestHost]), true)
+            ? $url
+            : $fallback;
+    }
+}
+
+if (! function_exists('safe_href')) {
+    /**
+     * Like safe_url() but external http(s) links are allowed. Only the scheme
+     * is policed, so javascript:/data:/vbscript: can never reach an href.
+     */
+    function safe_href(?string $url, string $fallback = '/'): string
+    {
+        $url = trim((string) $url);
+
+        if ($url === '') {
+            return $fallback;
+        }
+
+        if (str_starts_with($url, '/') && ! str_starts_with($url, '//')) {
+            return $url;
+        }
+
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+        return in_array($scheme, ['http', 'https', 'mailto', 'tel'], true) ? $url : $fallback;
+    }
+}
+
+if (! function_exists('css_url')) {
+    /**
+     * Strip the characters that would let a stored URL break out of a
+     * url('...') value in an inline style attribute.
+     */
+    function css_url(?string $url): string
+    {
+        return preg_replace('/[^A-Za-z0-9\-._~:\/?#\[\]@!$&*+,;=%]/', '', (string) $url) ?? '';
+    }
+}
+
 if (! function_exists('print_page_dims')) {
     /**
      * @return array{name:string,width:string,height:string,margin:string,compact:bool}

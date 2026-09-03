@@ -186,7 +186,8 @@ return [
     */
     'admin' => [
         'email' => env('AURA_ADMIN_EMAIL', 'admin@auraandoath.com'),
-        'password' => env('AURA_ADMIN_PASSWORD', 'password'),
+        // No fallback on purpose: seeding in production requires a real value.
+        'password' => env('AURA_ADMIN_PASSWORD', ''),
         'name' => env('AURA_ADMIN_NAME', 'Aura Admin'),
     ],
 

@@ -33,7 +33,8 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Nothing on this disk is meant to be reachable over HTTP.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

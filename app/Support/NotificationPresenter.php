@@ -27,8 +27,10 @@ class NotificationPresenter
             'id' => (string) $notification->id,
             'title' => (string) ($data['title'] ?? self::fallbackTitle($notification)),
             'message' => (string) ($data['message'] ?? self::fallbackMessage($notification)),
+            // Notification payloads are rendered as links and used as redirect
+            // targets, so only same-site URLs are allowed through.
             'url' => isset($data['url']) && is_string($data['url']) && $data['url'] !== ''
-                ? $data['url']
+                ? safe_url($data['url'], self::fallbackUrl($notification) ?? '/')
                 : self::fallbackUrl($notification),
             'unread' => $notification->read_at === null,
             'created_at' => $notification->created_at?->diffForHumans() ?? '',

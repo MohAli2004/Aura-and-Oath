@@ -34,22 +34,24 @@ Route::post('/cart/batch', [CartController::class, 'storeBatch'])->name('cart.ba
 Route::patch('/cart/{item}', [CartController::class, 'update'])->name('cart.update');
 Route::delete('/cart/{item}', [CartController::class, 'destroy'])->name('cart.destroy');
 
-Route::get('/track-order', [OrderController::class, 'track'])->name('orders.track');
+Route::get('/track-order', [OrderController::class, 'track'])->middleware('throttle:order-lookup')->name('orders.track');
 Route::get('/returns', [ReturnController::class, 'index'])->name('returns.index');
-Route::post('/returns', [ReturnController::class, 'store'])->name('returns.store');
-Route::post('/orders/cancel', [OrderController::class, 'cancelLookup'])->name('orders.cancel');
+Route::post('/returns', [ReturnController::class, 'store'])->middleware('throttle:order-lookup')->name('returns.store');
+Route::post('/orders/cancel', [OrderController::class, 'cancelLookup'])->middleware('throttle:order-lookup')->name('orders.cancel');
 
 Route::get('/about', [PageController::class, 'about'])->name('pages.about');
 Route::get('/contact', [PageController::class, 'contact'])->name('pages.contact');
-Route::post('/contact', [PageController::class, 'contactSubmit'])->name('pages.contact.submit');
+Route::post('/contact', [PageController::class, 'contactSubmit'])->middleware('throttle:contact')->name('pages.contact.submit');
 Route::get('/faq', [PageController::class, 'faq'])->name('pages.faq');
 Route::get('/pages/{slug}', [PageController::class, 'show'])->name('pages.show');
 
-Route::post('/newsletter', [NewsletterController::class, 'store'])->name('newsletter.store');
+Route::post('/newsletter', [NewsletterController::class, 'store'])->middleware('throttle:newsletter')->name('newsletter.store');
 
 Route::match(['get', 'post'], '/payments/whish/callback/success', [WhishPaymentController::class, 'callbackSuccess'])
+    ->middleware('throttle:payment-callback')
     ->name('payments.whish.callback.success');
 Route::match(['get', 'post'], '/payments/whish/callback/failure', [WhishPaymentController::class, 'callbackFailure'])
+    ->middleware('throttle:payment-callback')
     ->name('payments.whish.callback.failure');
 
 Route::middleware('auth')->group(function () {

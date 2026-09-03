@@ -179,7 +179,12 @@
             const preview = this.$refs.variantPreview;
             if (! preview) return;
             const active = preview.querySelector('[aria-selected=true]');
-            active?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            if (! active) return;
+            /* scrollIntoView() also scrolls the page, which jumps away from the tapped option on narrow screens where the strip sits above the option list. */
+            const previewBox = preview.getBoundingClientRect();
+            const activeBox = active.getBoundingClientRect();
+            const offset = (activeBox.left + activeBox.width / 2) - (previewBox.left + previewBox.width / 2);
+            preview.scrollBy({ left: offset, behavior: 'smooth' });
         },
         stagedKey(variantId) {
             return variantId ? String(variantId) : 'product';
@@ -456,7 +461,7 @@
                                 <button
                                     type="button"
                                     role="option"
-                                    class="text-start border p-3 transition"
+                                    class="text-start border p-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
                                     :class="variantId === variant.id
                                         ? 'border-charcoal bg-ivory'
                                         : 'border-beige bg-[#FFFCFA] hover:border-gold'"

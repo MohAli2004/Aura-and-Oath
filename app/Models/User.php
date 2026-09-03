@@ -16,15 +16,17 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, SoftDeletes;
 
+    /**
+     * `role` and `is_active` are deliberately absent: they decide admin access
+     * and must never be settable from request data. Set them with forceFill().
+     */
     protected $fillable = [
         'name',
         'email',
         'google_id',
         'avatar',
         'password',
-        'role',
         'phone',
-        'is_active',
         'last_login_at',
         'email_verified_at',
     ];

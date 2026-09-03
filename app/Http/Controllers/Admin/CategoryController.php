@@ -101,9 +101,10 @@ class CategoryController extends Controller
             'icon' => [
                 'nullable',
                 'file',
+                'image',
                 'max:2048',
-                'mimes:png,jpg,jpeg,webp,svg,gif',
-                'mimetypes:image/png,image/jpeg,image/webp,image/svg+xml,image/gif',
+                'mimes:png,jpg,jpeg,webp,gif',
+                'mimetypes:image/png,image/jpeg,image/webp,image/gif',
             ],
         ]);
         $data['is_active'] = $request->boolean('is_active');

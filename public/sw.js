@@ -1,4 +1,17 @@
 /* global self, clients */
+
+// A push payload is attacker-influencable if the push service or a stored
+// notification is ever tampered with. Only navigate within this origin.
+function sameOriginUrl(value) {
+    try {
+        const url = new URL(String(value || '/'), self.location.origin);
+
+        return url.origin === self.location.origin ? url.href : '/';
+    } catch (e) {
+        return '/';
+    }
+}
+
 self.addEventListener('push', (event) => {
     let data = {
         title: 'Aura & Oath',
@@ -23,7 +36,7 @@ self.addEventListener('push', (event) => {
             icon: '/images/placeholders/product.svg',
             badge: '/images/placeholders/product.svg',
             tag: data.tag || 'aura-notification',
-            data: { url: data.url || '/' },
+            data: { url: sameOriginUrl(data.url) },
             renotify: true,
         })
     );
@@ -31,7 +44,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const target = (event.notification.data && event.notification.data.url) || '/';
+    const target = sameOriginUrl(event.notification.data && event.notification.data.url);
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {

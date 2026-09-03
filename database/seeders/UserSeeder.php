@@ -4,24 +4,24 @@ namespace Database\Seeders;
 
 use App\Enums\UserRole;
 use App\Models\CustomerAddress;
-use App\Models\User;
+use Database\Seeders\Concerns\SeedsUsers;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
+    use SeedsUsers;
+
     public function run(): void
     {
-        User::query()->updateOrCreate(
-            ['email' => config('aura.admin.email')],
+        $this->upsertUser(
+            (string) config('aura.admin.email'),
             [
                 'name' => config('aura.admin.name'),
-                'password' => Hash::make(config('aura.admin.password')),
-                'role' => UserRole::Admin,
+                'password' => $this->hashed($this->adminSeedPassword()),
                 'phone' => '+96171000001',
-                'is_active' => true,
                 'email_verified_at' => now(),
-            ]
+            ],
+            UserRole::Admin
         );
 
         $customers = [
@@ -32,17 +32,18 @@ class UserSeeder extends Seeder
             ['name' => 'Yasmine Haddad', 'email' => 'yasmine@example.com', 'phone' => '+96171555555'],
         ];
 
+        $demoPassword = $this->hashed($this->demoUserPassword());
+
         foreach ($customers as $c) {
-            $user = User::query()->updateOrCreate(
-                ['email' => $c['email']],
+            $user = $this->upsertUser(
+                $c['email'],
                 [
                     'name' => $c['name'],
                     'phone' => $c['phone'],
-                    'password' => Hash::make('password'),
-                    'role' => UserRole::Customer,
-                    'is_active' => true,
+                    'password' => $demoPassword,
                     'email_verified_at' => now(),
-                ]
+                ],
+                UserRole::Customer
             );
 
             CustomerAddress::query()->updateOrCreate(

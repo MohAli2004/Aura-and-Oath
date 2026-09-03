@@ -32,18 +32,21 @@ class RegisterController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        $user = User::query()->create([
+        $user = new User([
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
             'password' => Hash::make($data['password']),
+        ]);
+        $user->forceFill([
             'role' => UserRole::Customer,
             'is_active' => true,
-        ]);
+        ])->save();
 
         event(new Registered($user));
         $this->notifications->notifyAdminsNewUser($user, 'email');
         Auth::login($user);
+        $request->session()->regenerate();
 
         return redirect()->route('home');
     }

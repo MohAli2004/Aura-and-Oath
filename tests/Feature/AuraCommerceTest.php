@@ -8,6 +8,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\ProductStatus;
 use App\Enums\ProductVisibility;
+use App\Enums\UserRole;
 use App\Models\DeliveryRegion;
 use App\Models\Order;
 use App\Models\Product;
@@ -216,19 +217,21 @@ class AuraCommerceTest extends TestCase
         $this->post('/register', [
             'name' => 'Test User',
             'email' => 'testuser@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
+            'password' => 'Str0ngPassphrase1',
+            'password_confirmation' => 'Str0ngPassphrase1',
         ])->assertRedirect('/');
 
         $this->assertAuthenticated();
         Notification::assertSentTo($admin, NewUserRegisteredNotification::class);
+
+        $this->assertSame(UserRole::Customer, User::query()->where('email', 'testuser@example.com')->sole()->role);
 
         $this->post('/logout')->assertRedirect('/');
         $this->assertGuest();
 
         $this->post('/login', [
             'email' => 'testuser@example.com',
-            'password' => 'password',
+            'password' => 'Str0ngPassphrase1',
         ])->assertRedirect('/');
         $this->assertAuthenticated();
     }
@@ -803,7 +806,7 @@ class AuraCommerceTest extends TestCase
         ]);
 
         $this->assertEquals(150.0, (float) $order->items()->first()->unit_price);
-        $this->assertEquals(200.0, (float) $order->total); // 150 + 50 delivery
+        $this->assertEquals(153.0, (float) $order->total); // 150 + 3 delivery
     }
 
     public function test_approve_converts_reservation_and_reject_releases(): void
@@ -1004,6 +1007,8 @@ class AuraCommerceTest extends TestCase
             'payment_status' => PaymentStatus::Pending,
             'subtotal' => 100,
             'total' => 100,
+            'customer_name' => $owner->name,
+            'customer_email' => $owner->email,
             'customer_phone' => '010',
         ]);
 
@@ -1031,6 +1036,8 @@ class AuraCommerceTest extends TestCase
             'payment_status' => PaymentStatus::Pending,
             'subtotal' => 100,
             'total' => 100,
+            'customer_name' => $owner->name,
+            'customer_email' => $owner->email,
             'customer_phone' => '010',
         ]);
         $order->items()->create([

@@ -416,7 +416,7 @@
 </div>
 
 @if($isPending)
-<script>
+<script nonce="{{ csp_nonce() }}">
     document.querySelectorAll('.reject-item-check').forEach((checkbox) => {
         checkbox.addEventListener('change', () => {
             const reason = document.querySelector(`[data-reason-for="${checkbox.value}"]`);
@@ -436,7 +436,7 @@
 </script>
 @endif
 @if(session('refresh_orders_list'))
-<script>
+<script nonce="{{ csp_nonce() }}">
     history.replaceState({ orderChanged: true }, '', location.href);
     history.pushState({ orderChanged: true }, '', location.href);
     window.addEventListener('popstate', () => {

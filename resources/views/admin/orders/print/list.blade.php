@@ -176,7 +176,7 @@
         @endif
     </div>
 
-    <script>
+    <script nonce="{{ csp_nonce() }}">
         window.addEventListener('load', function () {
             if (new URLSearchParams(window.location.search).get('autoprint') === '1') {
                 window.print();

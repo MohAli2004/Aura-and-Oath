@@ -15,14 +15,19 @@ use App\Services\AdminNavBadgeService;
 use App\Services\CartService;
 use App\Services\OfferService;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,6 +39,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureApplicationUrl();
+        $this->configureHttps();
+        $this->configurePasswordRules();
+        $this->configureRateLimiting();
 
         Gate::policy(Order::class, OrderPolicy::class);
         Gate::policy(Product::class, ProductPolicy::class);
@@ -135,6 +143,66 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('adminNavBadges', $badges);
         });
+    }
+
+    protected function configureHttps(): void
+    {
+        $force = config('security.force_https');
+
+        if ($force === null) {
+            $force = str_starts_with((string) config('app.url'), 'https://');
+        }
+
+        if (filter_var($force, FILTER_VALIDATE_BOOLEAN)) {
+            URL::forceScheme('https');
+        }
+    }
+
+    protected function configurePasswordRules(): void
+    {
+        Password::defaults(function () {
+            $rule = Password::min(10)->letters()->numbers();
+
+            return $this->app->isProduction()
+                ? $rule->uncompromised()
+                : $rule;
+        });
+    }
+
+    /**
+     * Named throttles for the endpoints an attacker would hammer: credential
+     * guessing, account/reset spam, and guest order lookups keyed only by an
+     * order number and email.
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('login', fn (Request $request) => [
+            Limit::perMinute(5)->by(Str::lower((string) $request->input('email')).'|'.$request->ip()),
+            Limit::perMinute(20)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('register', fn (Request $request) => [
+            Limit::perMinute(5)->by($request->ip()),
+            Limit::perHour(15)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('password-reset', fn (Request $request) => [
+            Limit::perMinute(3)->by(Str::lower((string) $request->input('email')).'|'.$request->ip()),
+            Limit::perHour(10)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('oauth', fn (Request $request) => Limit::perMinute(20)->by($request->ip()));
+
+        RateLimiter::for('order-lookup', fn (Request $request) => [
+            Limit::perMinute(6)->by($request->ip()),
+            Limit::perHour(40)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('contact', fn (Request $request) => Limit::perHour(10)->by($request->ip()));
+
+        RateLimiter::for('newsletter', fn (Request $request) => Limit::perHour(15)->by($request->ip()));
+
+        RateLimiter::for('payment-callback', fn (Request $request) => Limit::perMinute(60)->by($request->ip()));
     }
 
     /**

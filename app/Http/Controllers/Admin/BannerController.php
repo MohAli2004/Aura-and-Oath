@@ -79,7 +79,8 @@ class BannerController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'subtitle' => ['nullable', 'string', 'max:255'],
-            'link_url' => ['nullable', 'string', 'max:255'],
+            // Rendered straight into an href, so keep javascript:/data: out.
+            'link_url' => ['nullable', 'string', 'max:255', 'regex:/^(\/[^\/\\\\]|https?:\/\/)/i'],
             'button_text' => ['nullable', 'string', 'max:100'],
             'placement' => ['required', 'string', 'max:50'],
             'sort_order' => ['nullable', 'integer', 'min:0'],

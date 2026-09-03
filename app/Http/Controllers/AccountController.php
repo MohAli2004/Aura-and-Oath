@@ -8,6 +8,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class AccountController extends Controller
@@ -36,12 +38,21 @@ class AccountController extends Controller
     {
         $data = $request->validate([
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'confirmed', 'min:8'],
+            'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        Auth::user()->update(['password' => Hash::make($data['password'])]);
+        // Save the new hash first: logoutOtherDevices() verifies the password
+        // against the stored one before it rebinds the sessions.
+        Auth::user()->forceFill([
+            'password' => Hash::make($data['password']),
+            'remember_token' => Str::random(60),
+        ])->save();
 
-        return back()->with('success', 'Password updated.');
+        // Keeps this browser signed in and drops every other session.
+        Auth::logoutOtherDevices($data['password']);
+        $request->session()->regenerate();
+
+        return back()->with('success', 'Password updated. Other devices were signed out.');
     }
 
     public function addresses(): View

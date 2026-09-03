@@ -80,9 +80,11 @@ class SettingController extends Controller
             'packing_slip_fields.*' => ['string', 'in:'.implode(',', $packingKeys)],
             'invoice_size' => ['required', 'string', 'in:'.implode(',', $sizeKeys)],
             'packing_slip_size' => ['required', 'string', 'in:'.implode(',', $sizeKeys)],
-            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,svg', 'max:10240'],
-            'favicon' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,ico,svg', 'max:2048'],
-            'home_background' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            // SVG is excluded everywhere: it is a script-capable document and
+            // these files are served from the public disk.
+            'logo' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'mimetypes:image/jpeg,image/png,image/webp', 'max:10240'],
+            'favicon' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp,ico', 'mimetypes:image/jpeg,image/png,image/webp,image/vnd.microsoft.icon,image/x-icon', 'max:2048'],
+            'home_background' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'mimetypes:image/jpeg,image/png,image/webp', 'max:10240'],
             'remove_logo' => ['nullable', 'boolean'],
             'remove_favicon' => ['nullable', 'boolean'],
             'remove_home_background' => ['nullable', 'boolean'],

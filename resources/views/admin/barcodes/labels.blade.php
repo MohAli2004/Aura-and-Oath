@@ -73,7 +73,7 @@
         @endforelse
     </div>
     @if($barcodes->isNotEmpty())
-        <script>window.addEventListener('load', () => setTimeout(() => window.print(), 250));</script>
+        <script nonce="{{ csp_nonce() }}">window.addEventListener('load', () => setTimeout(() => window.print(), 250));</script>
     @endif
 </body>
 </html>

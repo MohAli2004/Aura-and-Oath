@@ -30,6 +30,8 @@ class LoginController extends Controller
         $user = Auth::user();
         if (! $user->is_active) {
             Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
 
             return back()->withErrors(['email' => 'Your account is inactive.']);
         }

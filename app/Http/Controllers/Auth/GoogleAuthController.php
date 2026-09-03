@@ -99,17 +99,21 @@ class GoogleAuthController extends Controller
 
                 $isNewUser = true;
 
-                return User::query()->create([
+                $created = new User([
                     'name' => $googleUser->getName() ?: Str::before($email, '@'),
                     'email' => $email,
                     'google_id' => $googleId,
                     'avatar' => $googleUser->getAvatar(),
                     // Cast hashes this; Google never provides the Gmail password.
                     'password' => Str::password(64),
-                    'role' => UserRole::Customer,
-                    'is_active' => true,
                     'email_verified_at' => now(),
                 ]);
+                $created->forceFill([
+                    'role' => UserRole::Customer,
+                    'is_active' => true,
+                ])->save();
+
+                return $created;
             });
         } catch (Throwable $e) {
             Log::error('Google OAuth user persistence failed', [
@@ -141,7 +145,7 @@ class GoogleAuthController extends Controller
             $this->notifications->notifyAdminsNewUser($user, 'google');
         }
 
-        Auth::login($user, remember: true);
+        Auth::login($user);
         $cartService->mergeGuestCartIntoUser($user);
         $user->forceFill(['last_login_at' => now()])->save();
         request()->session()->regenerate();
