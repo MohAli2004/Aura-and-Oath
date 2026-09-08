@@ -67,7 +67,7 @@ class NotificationController extends Controller
 
         return $url
             ? redirect()->to($url)
-            : back()->with('success', 'Notification marked as read.');
+            : back()->with('success', __('storefront.flash_notification_read'));
     }
 
     public function markAllRead(): JsonResponse|RedirectResponse
@@ -81,6 +81,6 @@ class NotificationController extends Controller
             ]);
         }
 
-        return back()->with('success', 'All notifications marked as read.');
+        return back()->with('success', __('storefront.flash_notifications_read_all'));
     }
 }

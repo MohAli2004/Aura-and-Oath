@@ -10,6 +10,12 @@ class SetStorefrontLocale
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if ($request->is('admin', 'admin/*')) {
+            app()->setLocale(config('aura.default_locale', 'en'));
+
+            return $next($request);
+        }
+
         $allowed = config('aura.locales', ['en', 'ar']);
         $default = config('aura.default_locale', 'en');
 

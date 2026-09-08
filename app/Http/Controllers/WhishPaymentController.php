@@ -47,7 +47,7 @@ class WhishPaymentController extends Controller
 
         return redirect()
             ->route('account.orders.show', $order)
-            ->with('success', 'Payment received. Thank you.');
+            ->with('success', __('storefront.flash_payment_received'));
     }
 
     public function returnFailure(Order $order): RedirectResponse
@@ -56,7 +56,7 @@ class WhishPaymentController extends Controller
 
         return redirect()
             ->route('account.orders.show', $order)
-            ->with('error', 'Wish payment was not completed. You can try again from this order page.');
+            ->with('error', __('storefront.flash_wish_payment_incomplete'));
     }
 
     public function continue(Order $order): RedirectResponse
@@ -68,12 +68,12 @@ class WhishPaymentController extends Controller
         }
 
         if ($order->payment_status === PaymentStatus::Paid) {
-            return redirect()->route('account.orders.show', $order)->with('success', 'This order is already paid.');
+            return redirect()->route('account.orders.show', $order)->with('success', __('storefront.flash_order_already_paid'));
         }
 
         if (! $this->whish->isConfigured()) {
             return redirect()->route('account.orders.show', $order)
-                ->with('error', 'Online Wish Pay is not enabled. Please transfer manually using the details on this page.');
+                ->with('error', __('storefront.flash_wish_pay_disabled'));
         }
 
         try {

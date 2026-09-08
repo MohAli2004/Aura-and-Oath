@@ -63,7 +63,7 @@ class OrderController extends Controller
         if ($order->status === \App\Enums\OrderStatus::Cancelled) {
             return redirect()
                 ->route('account.orders.index')
-                ->with('error', 'This order is already cancelled.');
+                ->with('error', __('storefront.flash_order_already_cancelled'));
         }
 
         $this->authorize('cancel', $order);
@@ -71,7 +71,7 @@ class OrderController extends Controller
 
         return redirect()
             ->route('account.orders.index')
-            ->with('success', 'Order cancelled.');
+            ->with('success', __('storefront.flash_order_cancelled'));
     }
 
     public function cancelLookup(Request $request, OrderService $orderService): RedirectResponse
@@ -89,19 +89,19 @@ class OrderController extends Controller
         if (! $order) {
             return back()
                 ->withInput()
-                ->with('error', 'Order not found. Check the number and email.');
+                ->with('error', __('storefront.flash_order_not_found'));
         }
 
         if ($order->status === \App\Enums\OrderStatus::Cancelled) {
             return redirect()
                 ->route('account.orders.index')
-                ->with('error', 'This order is already cancelled.');
+                ->with('error', __('storefront.flash_order_already_cancelled'));
         }
 
         if (! $order->canCustomerCancel()) {
             return back()->with(
                 'error',
-                'This order can no longer be cancelled. Once we start preparing it, you can request a return after delivery.'
+                __('storefront.flash_cannot_cancel_order')
             );
         }
 
@@ -110,13 +110,13 @@ class OrderController extends Controller
             : $order->user;
 
         if (! $actor) {
-            return back()->with('error', 'We could not match this order to a customer account.');
+            return back()->with('error', __('storefront.flash_order_account_mismatch'));
         }
 
         $orderService->cancel($order, $actor, 'Cancelled by customer');
 
         return redirect()
             ->route('account.orders.index')
-            ->with('success', 'Order cancelled.');
+            ->with('success', __('storefront.flash_order_cancelled'));
     }
 }

@@ -41,10 +41,10 @@ class CheckoutController extends Controller
             if ($completedOrderId) {
                 return redirect()
                     ->route('account.orders.show', $completedOrderId)
-                    ->with('info', 'Your order was already placed.');
+                    ->with('info', __('storefront.flash_order_already_placed'));
             }
 
-            return redirect()->route('cart.index')->with('error', 'Your bag is empty.');
+            return redirect()->route('cart.index')->with('error', __('storefront.flash_bag_empty'));
         }
 
         $token = $request->session()->get('checkout_idempotency') ?? $this->checkoutService->newIdempotencyToken();
@@ -82,7 +82,7 @@ class CheckoutController extends Controller
 
             $request->session()->flash(
                 'error',
-                collect($errors)->flatten()->first() ?: 'Checkout details could not be applied.'
+                collect($errors)->flatten()->first() ?: __('storefront.flash_checkout_details_error')
             );
         }
 
@@ -131,7 +131,7 @@ class CheckoutController extends Controller
         $request->session()->put('checkout_coupon', $code);
 
         return back()
-            ->with('success', 'Coupon applied.')
+            ->with('success', __('storefront.flash_coupon_applied'))
             ->withInput($request->except(['_token', 'coupon_code']));
     }
 
@@ -170,14 +170,14 @@ class CheckoutController extends Controller
             } catch (RuntimeException $e) {
                 return redirect()
                     ->route('account.orders.show', $order)
-                    ->with('error', 'Order placed, but Wish Pay could not start: '.$e->getMessage())
+                    ->with('error', __('storefront.flash_order_placed_wish_error', ['message' => $e->getMessage()]))
                     ->with('order_just_placed', true);
             }
         }
 
         return redirect()
             ->route('account.orders.show', $order)
-            ->with('success', 'Order placed successfully. Awaiting approval.')
+            ->with('success', __('storefront.flash_order_placed'))
             ->with('order_just_placed', true);
     }
 

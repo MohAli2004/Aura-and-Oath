@@ -1,10 +1,10 @@
 @extends('layouts.storefront')
-@section('title', 'Bag — '.config('aura.name'))
+@section('title', __('storefront.page_title_bag', ['name' => config('aura.name')]))
 @section('content')
 <div class="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-    <h1 class="font-display text-5xl mb-8">Your bag</h1>
+    <h1 class="font-display text-5xl mb-8">{{ __('storefront.your_bag') }}</h1>
     @if($cart->items->isEmpty())
-        <x-empty-state title="Your bag is empty" message="Discover something you’ll love." :action="route('shop')" actionLabel="Shop now" />
+        <x-empty-state :title="__('storefront.bag_empty_title')" :message="__('storefront.bag_empty_message')" :action="route('shop')" :actionLabel="__('storefront.shop_now')" />
     @else
         <div class="space-y-8">
             @foreach($offerGroups as $group)
@@ -15,9 +15,9 @@
                 <div class="border border-beige bg-[#FFFCFA] p-4 sm:p-5">
                     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
                         <div>
-                            <div class="text-[11px] uppercase tracking-[0.16em] text-blush">Hot offer</div>
+                            <div class="text-[11px] uppercase tracking-[0.16em] text-blush">{{ __('storefront.hot_offer_badge') }}</div>
                             <div class="font-display text-3xl mt-1">{{ $group['offer']->localized('title') ?? __('storefront.offer') }}</div>
-                            <p class="text-sm text-taupe mt-1">Priced as one total, with the amounts listed below.</p>
+                            <p class="text-sm text-taupe mt-1">{{ __('storefront.offer_priced_total') }}</p>
                             <div class="mt-2 flex items-baseline gap-2">
                                 <span class="text-lg">{{ money($group['offer_total']) }}</span>
                                 @if($group['regular_total'] > $group['offer_total'])
@@ -28,12 +28,12 @@
                         <div class="flex items-center gap-3">
                             <form method="POST" action="{{ route('cart.update', $representative) }}" class="flex items-center gap-2">
                                 @csrf @method('PATCH')
-                                <input type="number" name="quantity" value="{{ $group['quantity'] }}" min="0" class="input w-20" aria-label="Offer quantity">
-                                <button class="btn btn-secondary" type="submit">Update</button>
+                                <input type="number" name="quantity" value="{{ $group['quantity'] }}" min="0" class="input w-20" aria-label="{{ __('storefront.offer_quantity_aria') }}">
+                                <button class="btn btn-secondary" type="submit">{{ __('storefront.update') }}</button>
                             </form>
                             <form method="POST" action="{{ route('cart.destroy', $representative) }}">
                                 @csrf @method('DELETE')
-                                <button class="btn btn-secondary" type="submit">Remove offer</button>
+                                <button class="btn btn-secondary" type="submit">{{ __('storefront.remove_offer') }}</button>
                             </form>
                         </div>
                     </div>
@@ -52,7 +52,7 @@
                                 @endif
                                 <div class="min-w-0 flex-1">
                                     <div class="font-medium leading-tight">{{ $item->product->localized('name') }}</div>
-                                    <div class="text-xs text-taupe mt-0.5">{{ $item->quantity }} included</div>
+                                    <div class="text-xs text-taupe mt-0.5">{{ __('storefront.included_count', ['count' => $item->quantity]) }}</div>
                                     @if($item->variant)
                                         <div class="text-xs text-taupe mt-0.5">{{ $item->variant->displayName() }}</div>
                                     @endif
@@ -100,11 +100,11 @@
                     <div class="flex items-center gap-3">
                         <form method="POST" action="{{ route('cart.update', $item) }}" class="flex items-center gap-2">
                             @csrf @method('PATCH')
-                            <input type="number" name="quantity" value="{{ $item->quantity }}" min="0" class="input w-20">
-                            <button class="btn btn-secondary" type="submit">Update</button>
+                            <input type="number" name="quantity" value="{{ $item->quantity }}" min="0" class="input w-20" aria-label="{{ __('storefront.quantity') }}">
+                            <button class="btn btn-secondary" type="submit">{{ __('storefront.update') }}</button>
                         </form>
                         <form method="POST" action="{{ route('cart.destroy', $item) }}">@csrf @method('DELETE')
-                            <button class="btn btn-secondary" type="submit">Remove</button>
+                            <button class="btn btn-secondary" type="submit">{{ __('storefront.remove') }}</button>
                         </form>
                     </div>
                 </div>
@@ -112,27 +112,27 @@
         </div>
         <div class="mt-8 space-y-6">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div class="text-xl">Subtotal: <strong>{{ money($subtotal) }}</strong></div>
+                <div class="text-xl">{{ __('storefront.subtotal') }}: <strong>{{ money($subtotal) }}</strong></div>
                 @auth
-                    <a href="{{ route('checkout.create') }}" class="btn btn-primary">Checkout</a>
+                    <a href="{{ route('checkout.create') }}" class="btn btn-primary">{{ __('storefront.checkout') }}</a>
                 @else
-                    <a href="{{ route('checkout.create') }}" class="btn btn-primary">Sign in to checkout</a>
+                    <a href="{{ route('checkout.create') }}" class="btn btn-primary">{{ __('storefront.sign_in_to_checkout') }}</a>
                 @endauth
             </div>
 
             <div class="max-w-2xl space-y-3 text-sm text-taupe leading-relaxed">
                 <x-trust-reassurance />
-                <p>Delivery fee is chosen at checkout based on your area. The total you confirm includes delivery.</p>
+                <p>{{ __('storefront.cart_delivery_note') }}</p>
                 @guest
-                    <p>Sign in to checkout so we can save your order, send updates, and help with returns from your account.</p>
+                    <p>{{ __('storefront.cart_sign_in_note') }}</p>
                 @endguest
                 <p>
-                    After you place an order, we review it and email status updates. Track progress on
-                    <a href="{{ route('orders.track') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">Track order</a>
+                    {{ __('storefront.cart_track_after_order') }}
+                    <a href="{{ route('orders.track') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">{{ __('storefront.track_order') }}</a>
                     @auth
-                        or from <a href="{{ route('account.orders.index') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">your orders</a>.
+                        {{ __('storefront.cart_track_or_orders') }} <a href="{{ route('account.orders.index') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">{{ __('storefront.your_orders') }}</a>.
                     @else
-                        with your order number and email.
+                        {{ __('storefront.cart_track_guest_suffix') }}
                     @endauth
                 </p>
             </div>

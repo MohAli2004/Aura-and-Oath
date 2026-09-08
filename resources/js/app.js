@@ -163,13 +163,13 @@ Alpine.data('productCard', (config = {}) => ({
             }
 
             const data = await window.auraHttp(this.cartUrl, { method: 'POST', body });
-            window.auraFlash(data.message || 'Added to bag.');
+            window.auraFlash(data.message || window.auraI18n?.addedToBag || 'Added to bag.');
 
             if (typeof data.count === 'number') {
                 window.dispatchEvent(new CustomEvent('aura:cart-count', { detail: { count: data.count } }));
             }
         } catch (error) {
-            window.auraFlash(error?.message || 'Could not add to bag.', 'error');
+            window.auraFlash(error?.message || window.auraI18n?.couldNotAddToBag || 'Could not add to bag.', 'error');
         } finally {
             this.adding = false;
         }
@@ -197,7 +197,7 @@ Alpine.data('productCard', (config = {}) => ({
 
             const data = await window.auraHttp(this.wishlistUrl, { method: 'POST', body });
             this.wished = Boolean(data.wished);
-            window.auraFlash(data.message || (this.wished ? 'Saved to wishlist.' : 'Removed from wishlist.'));
+            window.auraFlash(data.message || (this.wished ? (window.auraI18n?.savedToWishlist || 'Saved to wishlist.') : (window.auraI18n?.removedFromWishlist || 'Removed from wishlist.')));
 
             if (! this.wished) {
                 const wrap = this.$el.closest('[data-wishlist-item]');
@@ -206,7 +206,7 @@ Alpine.data('productCard', (config = {}) => ({
             }
         } catch (error) {
             this.wished = ! next;
-            window.auraFlash(error?.message || 'Could not update wishlist.', 'error');
+            window.auraFlash(error?.message || window.auraI18n?.couldNotUpdateWishlist || 'Could not update wishlist.', 'error');
         } finally {
             this.wishing = false;
         }

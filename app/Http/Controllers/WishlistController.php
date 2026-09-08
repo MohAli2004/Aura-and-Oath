@@ -44,8 +44,8 @@ class WishlistController extends Controller
         ]);
 
         $message = $item->wasRecentlyCreated
-            ? 'Saved to wishlist.'
-            : 'Already in your wishlist.';
+            ? __('storefront.flash_saved_wishlist')
+            : __('storefront.flash_already_in_wishlist');
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
@@ -86,7 +86,7 @@ class WishlistController extends Controller
             return response()->json([
                 'ok' => true,
                 'wished' => false,
-                'message' => 'Removed from wishlist.',
+                'message' => __('storefront.flash_removed_wishlist'),
                 'count' => $wishlist->items()->count(),
             ]);
         }
@@ -101,7 +101,7 @@ class WishlistController extends Controller
             'ok' => true,
             'wished' => true,
             'created' => true,
-            'message' => 'Saved to wishlist.',
+            'message' => __('storefront.flash_saved_wishlist'),
             'item_id' => $item->id,
             'count' => $wishlist->items()->count(),
         ]);
@@ -115,11 +115,11 @@ class WishlistController extends Controller
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'ok' => true,
-                'message' => 'Removed from wishlist.',
+                'message' => __('storefront.flash_removed_wishlist'),
             ]);
         }
 
-        return back()->with('success', 'Removed from wishlist.');
+        return back()->with('success', __('storefront.flash_removed_wishlist'));
     }
 
     protected function wishlist(): Wishlist

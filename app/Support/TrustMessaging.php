@@ -81,7 +81,7 @@ class TrustMessaging
         if ($payments !== []) {
             $facts[] = [
                 'title' => __('storefront.trust_payment_title'),
-                'body' => implode(' and ', $payments).'.',
+                'body' => implode(' '.__('storefront.and').' ', $payments).'.',
             ];
         }
 

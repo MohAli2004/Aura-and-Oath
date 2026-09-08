@@ -63,7 +63,7 @@
                     x-ref="variantPreview"
                     class="product-gallery-scroll flex w-full gap-2 overflow-x-auto overscroll-x-contain touch-pan-x snap-x snap-mandatory pb-1"
                     role="listbox"
-                    aria-label="Offer images"
+                    aria-label="{{ __('storefront.offer_images') }}"
                 >
                     <template x-for="item in gallery" :key="item.id">
                         <button
@@ -94,9 +94,9 @@
         </div>
 
         <div class="w-full min-w-0">
-            <div class="text-xs uppercase tracking-[0.18em] text-blush mb-2">Hot offer</div>
+            <div class="text-xs uppercase tracking-[0.18em] text-blush mb-2">{{ __('storefront.hot_offer_badge') }}</div>
             <h1 class="font-display text-4xl sm:text-5xl mb-3">{{ $offer->localized('title') }}</h1>
-            <p class="text-xs uppercase tracking-[0.16em] text-taupe mb-3">{{ $offer->includedUnitCount() }} {{ Str::plural('piece', $offer->includedUnitCount()) }} in this offer</p>
+            <p class="text-xs uppercase tracking-[0.16em] text-taupe mb-3">{{ __('storefront.offer_pieces_in', ['count' => $offer->includedUnitCount(), 'pieces' => trans_choice('storefront.piece', $offer->includedUnitCount())]) }}</p>
 
             <div class="mb-4 flex flex-wrap items-baseline gap-3">
                 <p class="text-xl">{{ money($offerTotal) }}</p>
@@ -108,16 +108,16 @@
             @if($offer->description)
                 <p class="text-taupe mb-6">{{ $offer->description }}</p>
             @else
-                <p class="text-taupe mb-6">Add this offer to your bag to get the listed price. Buying the same items outside the offer uses the regular price.</p>
+                <p class="text-taupe mb-6">{{ __('storefront.offer_add_desc') }}</p>
             @endif
 
             <p class="text-sm mb-6">
-                <x-badge>{{ $canBuy ? 'In stock' : 'Out of stock' }}</x-badge>
+                <x-badge>{{ $canBuy ? __('storefront.in_stock') : __('storefront.out_of_stock') }}</x-badge>
             </p>
 
             <div class="space-y-5 max-w-lg">
                 <div>
-                    <div class="label mb-3">Included</div>
+                    <div class="label mb-3">{{ __('storefront.included') }}</div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         @foreach($offer->products as $product)
                             @php
@@ -131,19 +131,19 @@
                                     </div>
                                     <div class="min-w-0 flex-1">
                                         <a href="{{ route('products.show', $product->slug) }}" class="font-medium leading-snug block hover:text-gold transition">{{ $product->localized('name') }}</a>
-                                        <div class="text-xs text-taupe mt-0.5">{{ $qty }} × included</div>
+                                        <div class="text-xs text-taupe mt-0.5">{{ __('storefront.offer_qty_included', ['qty' => $qty]) }}</div>
                                     </div>
                                 </div>
                             </div>
                         @endforeach
                     </div>
-                    <p class="mt-2 text-xs text-taupe">The price above is for everything listed — not a new price per item.</p>
+                    <p class="mt-2 text-xs text-taupe">{{ __('storefront.offer_price_note') }}</p>
                 </div>
 
                 <form method="POST" action="{{ route('offers.cart', $offer->slug) }}" class="space-y-5">
                     @csrf
                     <div class="max-w-sm">
-                        <label class="label" for="quantity">Quantity</label>
+                        <label class="label" for="quantity">{{ __('storefront.quantity') }}</label>
                         <input
                             id="quantity"
                             type="number"
@@ -161,9 +161,9 @@
                         type="submit"
                         @disabled(! $canBuy)
                     >
-                        Add to bag
+                        {{ __('storefront.add_to_bag') }}
                     </button>
-                    <p class="text-xs text-taupe leading-snug max-w-sm">The bag uses the offer total, not a split per item.</p>
+                    <p class="text-xs text-taupe leading-snug max-w-sm">{{ __('storefront.offer_bag_note') }}</p>
                 </form>
             </div>
         </div>

@@ -45,6 +45,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @php
+        $auraI18n = [
+            'addedToBag' => __('storefront.flash_added_to_bag'),
+            'couldNotAddToBag' => __('storefront.js_could_not_add_to_bag'),
+            'savedToWishlist' => __('storefront.flash_saved_wishlist'),
+            'removedFromWishlist' => __('storefront.flash_removed_wishlist'),
+            'couldNotUpdateWishlist' => __('storefront.js_could_not_update_wishlist'),
+            'newsletterSubscribed' => __('storefront.flash_newsletter_subscribed'),
+            'newsletterError' => __('storefront.flash_newsletter_error'),
+        ];
+    @endphp
+    <script>
+        window.auraI18n = @json($auraI18n);
+    </script>
 </head>
 <body class="min-h-screen flex flex-col bg-ivory text-charcoal overflow-x-hidden" x-data="{ open: false, nav: '' }" @keydown.escape.window="open = false; nav = ''">
     <header class="border-b border-beige/80 bg-[#FFFCFA]/95 backdrop-blur sticky top-0 z-40">
@@ -518,19 +532,19 @@
                                 done = true;
                                 form.reset();
                                 window.dispatchEvent(new CustomEvent('aura:toast', {
-                                    detail: { message: data.message || 'Subscribed.', type: 'success' },
+                                    detail: { message: data.message || window.auraI18n?.newsletterSubscribed || @js(__('storefront.flash_newsletter_subscribed')), type: 'success' },
                                 }));
                             })
                             .catch((error) => {
                                 window.dispatchEvent(new CustomEvent('aura:toast', {
-                                    detail: { message: error.message || 'Could not subscribe.', type: 'error' },
+                                    detail: { message: error.message || window.auraI18n?.newsletterError || @js(__('storefront.flash_newsletter_error')), type: 'error' },
                                 }));
                             })
                             .finally(() => { submitting = false; });
                     "
                 >
                     @csrf
-                    <input type="email" name="email" required placeholder="Email" class="input" aria-label="Newsletter email" :disabled="submitting || done">
+                    <input type="email" name="email" required placeholder="{{ __('storefront.newsletter_email_placeholder') }}" class="input" aria-label="{{ __('storefront.newsletter_email') }}" :disabled="submitting || done">
                     <button class="btn btn-primary w-full" type="submit" :disabled="submitting || done">
                         <span x-show="!submitting && !done">{{ __('storefront.subscribe') }}</span>
                         <span x-show="submitting" x-cloak>{{ __('storefront.saving') }}</span>

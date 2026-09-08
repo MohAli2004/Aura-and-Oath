@@ -1,5 +1,5 @@
 @extends('layouts.storefront')
-@section('title', 'Checkout — '.config('aura.name'))
+@section('title', __('storefront.page_title_checkout', ['name' => config('aura.name')]))
 @section('content')
 @php
     $draft = $draft ?? [];
@@ -34,7 +34,7 @@
         hasServerDraft: @js((bool) ($hasServerDraft ?? false)),
         addresses: @js(($addresses ?? collect())->map(fn ($address) => [
             'id' => (string) $address->id,
-            'label' => $address->label ?: ($address->is_default ? 'Default' : 'Saved address'),
+            'label' => $address->label ?: ($address->is_default ? __('storefront.default') : __('storefront.saved_address')),
             'full_name' => $address->full_name,
             'phone' => $address->phone,
             'line1' => $address->line1,
@@ -42,9 +42,14 @@
             'city' => $address->city,
             'governorate' => $address->governorate,
         ])->values()),
+        i18n: @js([
+            'thisField' => __('storefront.this_field'),
+            'fieldRequiredOrder' => __('storefront.field_required_order'),
+            'fieldRequired' => __('storefront.field_required'),
+        ]),
     })"
 >
-    <h1 class="font-display text-5xl mb-8">Checkout</h1>
+    <h1 class="font-display text-5xl mb-8">{{ __('storefront.checkout') }}</h1>
     <div class="grid lg:grid-cols-[1.2fr_0.8fr] gap-10">
         <form
             id="checkout-form"
@@ -57,14 +62,14 @@
             @csrf
             <input type="hidden" name="idempotency_token" value="{{ $idempotencyToken }}">
             <div class="text-sm text-taupe">
-                Ordering as <span class="text-[var(--ao-charcoal)]">{{ auth()->user()->name }}</span>
+                {{ __('storefront.ordering_as') }} <span class="text-[var(--ao-charcoal)]">{{ auth()->user()->name }}</span>
                 · {{ auth()->user()->email }}
             </div>
 
             <div x-show="formError" x-cloak class="alert alert-error" x-text="formError"></div>
 
             <div x-show="addresses.length" x-cloak>
-                <h2 class="font-display text-2xl mb-3">Saved addresses</h2>
+                <h2 class="font-display text-2xl mb-3">{{ __('storefront.saved_addresses') }}</h2>
                 <div class="space-y-2">
                     <template x-for="address in addresses" :key="address.id">
                         <button
@@ -81,59 +86,59 @@
             </div>
 
             <div>
-                <h2 class="font-display text-2xl mb-3">Shipping address</h2>
+                <h2 class="font-display text-2xl mb-3">{{ __('storefront.shipping_address') }}</h2>
                 <div class="grid sm:grid-cols-2 gap-4">
                     <div data-field-wrap>
                         <x-input
-                            label="Full name"
+                            :label="__('storefront.full_name')"
                             name="shipping[full_name]"
                             value="{{ $shipping['full_name'] }}"
                             required
                             data-required
-                            data-required-label="Full name"
+                            :data-required-label="__('storefront.full_name')"
                             @input="clearFieldError($event.target)"
                         />
                     </div>
                     <div data-field-wrap>
                         <x-input
-                            label="Phone"
+                            :label="__('storefront.phone')"
                             name="shipping[phone]"
                             value="{{ $shipping['phone'] }}"
                             required
                             data-required
-                            data-required-label="Phone"
+                            :data-required-label="__('storefront.phone')"
                             @input="clearFieldError($event.target)"
                         />
                     </div>
                     <div class="sm:col-span-2" data-field-wrap>
                         <x-input
-                            label="Address line 1"
+                            :label="__('storefront.address_line_1')"
                             name="shipping[line1]"
                             value="{{ $shipping['line1'] }}"
                             required
                             data-required
-                            data-required-label="Address line 1"
+                            :data-required-label="__('storefront.address_line_1')"
                             @input="clearFieldError($event.target)"
                         />
                     </div>
-                    <div class="sm:col-span-2"><x-input label="Address line 2" name="shipping[line2]" value="{{ $shipping['line2'] }}" /></div>
+                    <div class="sm:col-span-2"><x-input :label="__('storefront.address_line_2')" name="shipping[line2]" value="{{ $shipping['line2'] }}" /></div>
                     <div data-field-wrap>
                         <x-input
-                            label="City"
+                            :label="__('storefront.city')"
                             name="shipping[city]"
                             value="{{ $shipping['city'] }}"
                             required
                             data-required
-                            data-required-label="City"
+                            :data-required-label="__('storefront.city')"
                             @input="clearFieldError($event.target)"
                         />
                     </div>
-                    <x-input label="District" name="shipping[governorate]" value="{{ $shipping['governorate'] }}" />
+                    <x-input :label="__('storefront.district')" name="shipping[governorate]" value="{{ $shipping['governorate'] }}" />
                 </div>
             </div>
 
             <div data-field-wrap>
-                <label class="label" for="payment_method">Payment method <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required</span></label>
+                <label class="label" for="payment_method">{{ __('storefront.payment_method') }} <span class="normal-case tracking-wide text-[10px] font-normal text-blush">{{ __('storefront.required') }}</span></label>
                 @if (count($paymentMethods))
                     <select
                         id="payment_method"
@@ -142,7 +147,7 @@
                         x-model="method"
                         required
                         data-required
-                        data-required-label="Payment method"
+                        data-required-label="{{ __('storefront.payment_method') }}"
                         @change="clearFieldError($event.target)"
                     >
                         @foreach($paymentMethods as $method)
@@ -155,44 +160,44 @@
                         x-show="method === '{{ \App\Enums\PaymentMethod::WishAccount->value }}'"
                         x-cloak
                     >
-                        <p class="font-medium">Pay with Wish Account</p>
+                        <p class="font-medium">{{ __('storefront.pay_with_wish') }}</p>
                         @if ($whishPayEnabled)
-                            <p class="text-taupe">After you place the order, you will confirm payment in the Whish app (phone + OTP). The order total will be charged from your Wish balance.</p>
-                            <div><span class="text-taupe">Amount:</span> <span x-text="format(total)">{{ money($quote['total']) }}</span></div>
+                            <p class="text-taupe">{{ __('storefront.pay_wish_whish_app') }}</p>
+                            <div><span class="text-taupe">{{ __('storefront.amount') }}:</span> <span x-text="format(total)">{{ money($quote['total']) }}</span></div>
                         @else
                             <p class="text-taupe">{{ store_wish('instructions') }}</p>
                             <div class="space-y-1">
-                                <div><span class="text-taupe">Account name:</span> {{ store_wish('account_name') }}</div>
-                                <div><span class="text-taupe">Wish number:</span> {{ store_wish('account_number') }}</div>
-                                <div><span class="text-taupe">Amount:</span> <span x-text="format(total)">{{ money($quote['total']) }}</span></div>
+                                <div><span class="text-taupe">{{ __('storefront.account_name') }}:</span> {{ store_wish('account_name') }}</div>
+                                <div><span class="text-taupe">{{ __('storefront.wish_number') }}:</span> {{ store_wish('account_number') }}</div>
+                                <div><span class="text-taupe">{{ __('storefront.amount') }}:</span> <span x-text="format(total)">{{ money($quote['total']) }}</span></div>
                             </div>
                         @endif
                     </div>
                     @endif
                 @else
-                    <p class="text-sm text-taupe">Payments are temporarily unavailable. Please check back shortly.</p>
+                    <p class="text-sm text-taupe">{{ __('storefront.payments_unavailable') }}</p>
                 @endif
             </div>
 
             <div>
-                <label class="label">Order note</label>
+                <label class="label">{{ __('storefront.order_note') }}</label>
                 <textarea name="customer_note" class="input" rows="3">{{ $customerNote }}</textarea>
             </div>
 
             <div class="border border-beige p-5 bg-[#FFFCFA] space-y-3" data-field-wrap>
-                <h2 class="font-display text-2xl">Order agreement</h2>
+                <h2 class="font-display text-2xl">{{ __('storefront.order_agreement') }}</h2>
                 <div class="text-sm text-taupe space-y-2">
-                    <p>By placing this order you agree that:</p>
+                    <p>{{ __('storefront.agreement_intro') }}</p>
                     <ul class="list-disc ps-5 space-y-1">
-                        <li>You can cancel only before we start preparing the order.</li>
-                        <li>Returns are accepted only for a real problem — a defective or damaged item, a missing item, or a different item than the one you ordered.</li>
-                        <li>Used items, or items broken after delivery, cannot be returned.</li>
+                        <li>{{ __('storefront.agreement_cancel') }}</li>
+                        <li>{{ __('storefront.agreement_returns') }}</li>
+                        <li>{{ __('storefront.agreement_used') }}</li>
                     </ul>
                     <p>
-                        Read our
-                        <a href="{{ route('pages.show', 'terms-of-service') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">Terms</a>
-                        and
-                        <a href="{{ route('pages.show', 'privacy-policy') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">Privacy policy</a>.
+                        {{ __('storefront.read_our') }}
+                        <a href="{{ route('pages.show', 'terms-of-service') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">{{ __('storefront.terms') }}</a>
+                        {{ __('storefront.and') }}
+                        <a href="{{ route('pages.show', 'privacy-policy') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">{{ __('storefront.privacy_policy') }}</a>.
                     </p>
                 </div>
                 <label class="flex items-start gap-3 text-sm">
@@ -203,11 +208,11 @@
                         class="mt-1 h-4 w-4"
                         required
                         data-required
-                        data-required-label="Order agreement"
+                        data-required-label="{{ __('storefront.order_agreement') }}"
                         @checked(old('terms_agreed'))
                         @change="clearFieldError($event.target)"
                     >
-                    <span>I have read and agree to these terms before placing my order.</span>
+                    <span>{{ __('storefront.agree_terms') }}</span>
                 </label>
                 @error('terms_agreed')
                     <p class="text-sm text-red-700">{{ $message }}</p>
@@ -216,16 +221,16 @@
 
             <div class="space-y-3 text-sm text-taupe leading-relaxed">
                 <x-trust-reassurance />
-                <p>Prices shown in your summary include the delivery fee for the region you select.</p>
-                <p>After you place the order, we review it and send email updates. You can track status from your account or the Track order page.</p>
+                <p>{{ __('storefront.prices_include_delivery') }}</p>
+                <p>{{ __('storefront.after_order_updates') }}</p>
             </div>
 
-            <button class="btn btn-primary" type="submit">Place order</button>
+            <button class="btn btn-primary" type="submit">{{ __('storefront.place_order') }}</button>
         </form>
 
         <aside class="space-y-6 lg:sticky lg:top-6 self-start">
             <div>
-                <h2 class="font-display text-2xl mb-3">Delivery region</h2>
+                <h2 class="font-display text-2xl mb-3">{{ __('storefront.delivery_region') }}</h2>
                 <div class="space-y-3" data-field-wrap>
                     @foreach($regions as $region)
                         <label class="block border border-beige p-4 bg-[#FFFCFA] cursor-pointer transition"
@@ -241,7 +246,7 @@
                                     @checked($defaultRegionId == (string) $region->id)
                                     required
                                     data-required
-                                    data-required-label="Delivery region"
+                                    data-required-label="{{ __('storefront.delivery_region') }}"
                                     @change="clearFieldError($event.target)"
                                 >
                                 <div class="min-w-0 flex-1">
@@ -250,7 +255,7 @@
                                         <span class="text-sm text-taupe">{{ money($region->fee) }}</span>
                                     </div>
                                     @if ($region->description)
-                                        <p class="mt-1 text-sm text-taupe leading-relaxed">Includes: {{ $region->description }}</p>
+                                        <p class="mt-1 text-sm text-taupe leading-relaxed">{{ __('storefront.region_includes', ['description' => $region->description]) }}</p>
                                     @endif
                                 </div>
                             </div>
@@ -263,7 +268,7 @@
             </div>
 
             <div class="border border-beige p-5 bg-[#FFFCFA]">
-                <h2 class="font-display text-2xl mb-4">Summary</h2>
+                <h2 class="font-display text-2xl mb-4">{{ __('storefront.summary') }}</h2>
                 @foreach($cart->items as $item)
                     <div class="flex justify-between text-sm py-2 border-b border-beige/70">
                         <span>{{ $item->product->localized('name') }} × {{ $item->quantity }}</span>
@@ -271,16 +276,16 @@
                     </div>
                 @endforeach
                 <div class="mt-4 space-y-1 text-sm">
-                    <div class="flex justify-between"><span>Subtotal</span><span>{{ money($quote['subtotal']) }}</span></div>
-                    <div class="flex justify-between"><span>Discount</span><span>− {{ money($quote['discount_amount']) }}</span></div>
-                    <div class="flex justify-between"><span>Delivery</span><span x-text="format(fee)">{{ money($quote['delivery_fee']) }}</span></div>
-                    <div class="flex justify-between font-medium text-base pt-2"><span>Total</span><span x-text="format(total)">{{ money($quote['total']) }}</span></div>
+                    <div class="flex justify-between"><span>{{ __('storefront.subtotal') }}</span><span>{{ money($quote['subtotal']) }}</span></div>
+                    <div class="flex justify-between"><span>{{ __('storefront.discount') }}</span><span>− {{ money($quote['discount_amount']) }}</span></div>
+                    <div class="flex justify-between"><span>{{ __('storefront.delivery') }}</span><span x-text="format(fee)">{{ money($quote['delivery_fee']) }}</span></div>
+                    <div class="flex justify-between font-medium text-base pt-2"><span>{{ __('storefront.total') }}</span><span x-text="format(total)">{{ money($quote['total']) }}</span></div>
                 </div>
             </div>
 
             <form id="checkout-coupon-form" method="POST" action="{{ route('checkout.coupon') }}" class="border border-beige p-5 bg-[#FFFCFA] space-y-3">
                 @csrf
-                <label class="label">Coupon</label>
+                <label class="label">{{ __('storefront.coupon') }}</label>
                 <input class="input" name="coupon_code" placeholder="AURA10" value="{{ old('coupon_code', session('checkout_coupon')) }}">
                 @error('coupon')
                     <p class="text-sm text-blush">{{ $message }}</p>
@@ -288,14 +293,12 @@
                 @error('coupon_code')
                     <p class="text-sm text-blush">{{ $message }}</p>
                 @enderror
-                <button class="btn btn-secondary w-full" type="submit">Apply coupon</button>
+                <button class="btn btn-secondary w-full" type="submit">{{ __('storefront.apply_coupon') }}</button>
             </form>
         </aside>
     </div>
 </div>
 <script nonce="{{ csp_nonce() }}">
-    // After placing an order, browser Back can restore checkout from cache.
-    // Force a fresh load so empty-cart / completed-order redirects run.
     window.addEventListener('pageshow', (event) => {
         if (event.persisted) {
             window.location.reload();

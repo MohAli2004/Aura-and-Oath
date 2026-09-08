@@ -64,7 +64,7 @@ class PageController extends Controller
                 ->with('error', $fallback);
         }
 
-        return back()->with('success', 'Thank you. We will get back to you soon.');
+        return back()->with('success', __('storefront.flash_contact_thanks'));
     }
 
     public function faq(): View

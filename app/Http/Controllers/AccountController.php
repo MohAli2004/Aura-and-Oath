@@ -31,7 +31,7 @@ class AccountController extends Controller
         ]);
         $user->update($data);
 
-        return back()->with('success', 'Profile updated.');
+        return back()->with('success', __('storefront.flash_profile_updated'));
     }
 
     public function updatePassword(Request $request): RedirectResponse
@@ -52,7 +52,7 @@ class AccountController extends Controller
         Auth::logoutOtherDevices($data['password']);
         $request->session()->regenerate();
 
-        return back()->with('success', 'Password updated. Other devices were signed out.');
+        return back()->with('success', __('storefront.flash_password_updated'));
     }
 
     public function addresses(): View
@@ -87,7 +87,7 @@ class AccountController extends Controller
 
         CustomerAddress::query()->create($data);
 
-        return back()->with('success', 'Address saved.');
+        return back()->with('success', __('storefront.flash_address_saved'));
     }
 
     public function destroyAddress(CustomerAddress $address): RedirectResponse
@@ -95,6 +95,6 @@ class AccountController extends Controller
         abort_unless($address->user_id === Auth::id(), 403);
         $address->delete();
 
-        return back()->with('success', 'Address removed.');
+        return back()->with('success', __('storefront.flash_address_removed'));
     }
 }

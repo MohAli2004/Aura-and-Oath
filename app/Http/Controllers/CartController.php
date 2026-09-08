@@ -73,7 +73,7 @@ class CartController extends Controller
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'ok' => false,
-                    'message' => collect($e->errors())->flatten()->first() ?: 'Could not add to bag.',
+                    'message' => collect($e->errors())->flatten()->first() ?: __('storefront.flash_could_not_add_to_bag'),
                     'errors' => $e->errors(),
                 ], 422);
             }
@@ -84,13 +84,13 @@ class CartController extends Controller
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'ok' => true,
-                'message' => 'Added to bag.',
+                'message' => __('storefront.flash_added_to_bag'),
                 'count' => $this->cartService->count(),
                 'redirect' => route('cart.index'),
             ]);
         }
 
-        return back()->with('success', 'Added to bag.');
+        return back()->with('success', __('storefront.flash_added_to_bag'));
     }
 
     public function storeBatch(Request $request): RedirectResponse|JsonResponse
@@ -116,7 +116,7 @@ class CartController extends Controller
 
                     if ($product->has_variants && ! $variant) {
                         throw ValidationException::withMessages([
-                            'items' => 'Please select a valid option for each item.',
+                            'items' => __('storefront.flash_select_valid_option'),
                         ]);
                     }
 
@@ -127,7 +127,7 @@ class CartController extends Controller
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json([
                     'ok' => false,
-                    'message' => collect($e->errors())->flatten()->first() ?: 'Could not add to bag.',
+                    'message' => collect($e->errors())->flatten()->first() ?: __('storefront.flash_could_not_add_to_bag'),
                     'errors' => $e->errors(),
                 ], 422);
             }
@@ -138,12 +138,12 @@ class CartController extends Controller
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'ok' => true,
-                'message' => 'Added to bag.',
+                'message' => __('storefront.flash_added_to_bag'),
                 'redirect' => route('cart.index'),
             ]);
         }
 
-        return redirect()->route('cart.index')->with('success', 'Added to bag.');
+        return redirect()->route('cart.index')->with('success', __('storefront.flash_added_to_bag'));
     }
 
     public function storeOffer(Request $request, string $slug): RedirectResponse
@@ -160,7 +160,7 @@ class CartController extends Controller
 
         $this->cartService->addOffer($offer, $data['quantity'] ?? 1);
 
-        return redirect()->route('cart.index')->with('success', 'Offer added to bag.');
+        return redirect()->route('cart.index')->with('success', __('storefront.flash_offer_added_to_bag'));
     }
 
     public function update(Request $request, CartItem $item): RedirectResponse
@@ -169,7 +169,7 @@ class CartController extends Controller
         $data = $request->validate(['quantity' => ['required', 'integer', 'min:0']]);
         $this->cartService->updateQuantity($item, $data['quantity']);
 
-        return back()->with('success', 'Bag updated.');
+        return back()->with('success', __('storefront.flash_bag_updated'));
     }
 
     public function destroy(CartItem $item): RedirectResponse
@@ -177,7 +177,7 @@ class CartController extends Controller
         $this->authorizeCartItem($item);
         $this->cartService->remove($item);
 
-        return back()->with('success', 'Item removed.');
+        return back()->with('success', __('storefront.flash_item_removed'));
     }
 
     protected function authorizeCartItem(CartItem $item): void

@@ -6,7 +6,7 @@
         return [
             'id' => 'image-'.$image->id,
             'image' => $images->url($image->path),
-            'label' => $image->alt ?: ($product->localized('name').' photo '.($index + 1)),
+            'label' => $image->alt ?: __('storefront.product_photo', ['name' => $product->localized('name'), 'number' => $index + 1]),
         ];
     })->values();
 
@@ -106,6 +106,22 @@
         cartBatchUrl: @js(route('cart.batch')),
         cartIndexUrl: @js(route('cart.index')),
         csrf: @js(csrf_token()),
+        i18n: @js([
+            'outOfStock' => __('storefront.js_out_of_stock'),
+            'qtyMinOne' => __('storefront.js_qty_min_one'),
+            'noMoreStock' => __('storefront.js_no_more_stock'),
+            'couldNotAdd' => __('storefront.js_could_not_add_to_bag'),
+            'option' => __('storefront.option'),
+            'onlyLeft' => __('storefront.only_left', ['count' => ':count']),
+            'itemOne' => __('storefront.item_one'),
+            'itemMany' => __('storefront.item_many'),
+            'soldOut' => __('storefront.sold_out'),
+            'inStock' => __('storefront.in_stock'),
+            'lowStock' => __('storefront.low_stock'),
+            'outOfStockLabel' => __('storefront.out_of_stock'),
+            'savedWishlist' => __('storefront.flash_saved_wishlist'),
+            'couldNotWishlist' => __('storefront.js_could_not_wishlist'),
+        ]),
         variants: @js($variantsPayload),
         productGallery: @js($productGalleryPayload),
         variantId: @js($initialVariantId),
@@ -207,19 +223,19 @@
         addToStaged() {
             this.stageError = '';
             if (! this.canBuy) {
-                this.stageError = 'This item is out of stock.';
+                this.stageError = this.i18n.outOfStock;
                 return;
             }
 
             let qty = Math.floor(Number(this.quantity) || 0);
             if (qty < 1) {
-                this.stageError = 'Quantity must be at least 1.';
+                this.stageError = this.i18n.qtyMinOne;
                 return;
             }
 
             const stock = this.maxStock;
             if (stock < 1) {
-                this.stageError = 'This item is out of stock.';
+                this.stageError = this.i18n.outOfStock;
                 return;
             }
 
@@ -230,12 +246,12 @@
             const nextQty = Math.min(stock, already + qty);
 
             if (nextQty <= already) {
-                this.stageError = 'No more stock available for this option.';
+                this.stageError = this.i18n.noMoreStock;
                 return;
             }
 
             const name = this.hasVariants
-                ? (this.selected?.name || 'Option')
+                ? (this.selected?.name || this.i18n.option)
                 : this.productName;
             const unitPrice = this.hasVariants
                 ? Number(this.selected?.price || 0)
@@ -308,14 +324,14 @@
                     const message = payload?.message
                         || payload?.errors?.items?.[0]
                         || payload?.errors?.quantity?.[0]
-                        || 'Could not add to bag. Please try again.';
+                        || this.i18n.couldNotAdd;
                     throw new Error(message);
                 }
 
                 this.staged = [];
                 window.location.href = payload?.redirect || this.cartIndexUrl;
             } catch (error) {
-                this.confirmError = error?.message || 'Could not add to bag. Please try again.';
+                this.confirmError = error?.message || this.i18n.couldNotAdd;
                 this.confirming = false;
             }
         },
@@ -336,11 +352,11 @@
                 });
                 this.wishlistSaved = true;
                 window.dispatchEvent(new CustomEvent('aura:toast', {
-                    detail: { message: data.message || 'Saved to wishlist.', type: 'success' },
+                    detail: { message: data.message || this.i18n.savedWishlist, type: 'success' },
                 }));
             } catch (error) {
                 window.dispatchEvent(new CustomEvent('aura:toast', {
-                    detail: { message: error?.message || 'Could not save to wishlist.', type: 'error' },
+                    detail: { message: error?.message || this.i18n.couldNotWishlist, type: 'error' },
                 }));
             } finally {
                 this.wishlistSaving = false;
@@ -368,7 +384,7 @@
                     x-ref="variantPreview"
                     class="product-gallery-scroll flex w-full gap-2 overflow-x-auto overscroll-x-contain touch-pan-x snap-x snap-mandatory pb-1"
                     role="listbox"
-                    aria-label="Image preview"
+                    aria-label="{{ __('storefront.image_preview') }}"
                 >
                     <template x-for="item in gallery" :key="item.id">
                         <button
@@ -397,7 +413,7 @@
                                 x-show="item.purchasable === false"
                                 x-cloak
                                 class="absolute inset-x-0 bottom-0 bg-charcoal/70 px-1 py-0.5 text-center text-[10px] leading-tight text-ivory"
-                            >Sold out</span>
+                            >{{ __('storefront.sold_out') }}</span>
                         </button>
                     </template>
                 </div>
@@ -412,7 +428,7 @@
                 <p class="text-xs uppercase tracking-[0.16em] text-taupe mb-3">{{ $product->gender->label() }}</p>
             @endif
             @if($product->sizeLabel() && ! $product->has_variants)
-                <p class="text-sm text-taupe mb-3">Size: {{ $product->sizeLabel() }}</p>
+                <p class="text-sm text-taupe mb-3">{{ __('storefront.size') }}: {{ $product->sizeLabel() }}</p>
             @endif
 
             @if($product->has_variants && $product->activeVariants->count() >= 2)
@@ -421,11 +437,11 @@
                     x-cloak
                     class="lg:hidden mb-4"
                 >
-                    <p class="text-[11px] uppercase tracking-[0.16em] text-taupe mb-2">Also available in</p>
+                    <p class="text-[11px] uppercase tracking-[0.16em] text-taupe mb-2">{{ __('storefront.also_available_in') }}</p>
                     <div
                         class="flex gap-2 overflow-x-auto overscroll-x-contain touch-pan-x pb-1 -mx-1 px-1"
                         role="listbox"
-                        aria-label="Quick option picker"
+                        aria-label="{{ __('storefront.quick_option_picker') }}"
                     >
                         <template x-for="variant in variants" :key="'mobile-chip-' + variant.id">
                             <button
@@ -455,27 +471,27 @@
                     x-text="selected?.compareAt || productCompareAt"
                 ></p>
                 @if($product->hasActiveOffer())
-                    <a href="{{ route('offers.index') }}" class="text-[11px] uppercase tracking-[0.14em] text-blush">In a hot offer</a>
+                    <a href="{{ route('offers.index') }}" class="text-[11px] uppercase tracking-[0.14em] text-blush">{{ __('storefront.in_hot_offer') }}</a>
                 @endif
             </div>
 
             @if(($productOffers ?? collect())->isNotEmpty())
                 <div class="mb-6 border border-beige bg-[#FFFCFA] p-4">
                     <div class="text-[11px] uppercase tracking-[0.16em] text-blush">
-                        {{ $productOffers->contains(fn ($offer) => $offer->products->count() > 1) ? 'Sold as a set' : 'Special offer' }}
+                        {{ $productOffers->contains(fn ($offer) => $offer->products->count() > 1) ? __('storefront.sold_as_set') : __('storefront.special_offer') }}
                     </div>
                     <p class="mt-1 text-sm">
                         @if($productOffers->contains(fn ($offer) => $offer->products->count() > 1))
-                            Buy this product together with the rest of
+                            {{ __('storefront.offer_buy_together') }}
                         @else
-                            This product is included in
+                            {{ __('storefront.offer_included_in') }}
                         @endif
                         @foreach($productOffers as $offer)
-                            <a class="underline" href="{{ route('offers.show', $offer->slug) }}">{{ $offer->localized('title') }}</a>@if(! $loop->last)<span class="text-taupe"> or </span>@endif
+                            <a class="underline" href="{{ route('offers.show', $offer->slug) }}">{{ $offer->localized('title') }}</a>@if(! $loop->last)<span class="text-taupe"> {{ __('storefront.or') }} </span>@endif
                         @endforeach
-                        at the offer price. Buying it on its own uses the regular price.
+                        {{ __('storefront.offer_regular_price') }}
                     </p>
-                    <a href="{{ route('offers.show', $productOffers->first()->slug) }}" class="mt-2 inline-block text-xs text-taupe">View the offer</a>
+                    <a href="{{ route('offers.show', $productOffers->first()->slug) }}" class="mt-2 inline-block text-xs text-taupe">{{ __('storefront.view_the_offer') }}</a>
                 </div>
             @endif
 
@@ -483,26 +499,22 @@
 
             <p class="text-sm mb-6">
                 <x-badge>
-                    <span x-text="!canBuy ? 'Out of stock' : (showStockAmount ? 'Low stock' : 'In stock')"></span>
+                    <span x-text="!canBuy ? i18n.outOfStockLabel : (showStockAmount ? i18n.lowStock : i18n.inStock)"></span>
                 </x-badge>
-                <span class="text-taupe" x-show="showStockAmount" x-cloak>
-                    · Only
-                    <span x-text="maxStock"></span>
-                    left
-                </span>
+                <span class="text-taupe" x-show="showStockAmount" x-cloak x-text="i18n.onlyLeft.replace(':count', String(maxStock))"></span>
             </p>
 
             <div class="space-y-5 max-w-lg">
                 @if($product->has_variants && $product->activeVariants->isNotEmpty())
                     <div>
                         <div class="flex items-end justify-between gap-3 mb-3">
-                            <label class="label mb-0">Choose an option</label>
+                            <label class="label mb-0">{{ __('storefront.choose_option') }}</label>
                             <p class="text-xs text-taupe" x-show="selected" x-cloak>
-                                Selected: <span class="text-charcoal" x-text="selected?.name"></span>
+                                {{ __('storefront.selected') }}: <span class="text-charcoal" x-text="selected?.name"></span>
                             </p>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="listbox" aria-label="Product options">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="listbox" aria-label="{{ __('storefront.product_options') }}">
                             <template x-for="variant in variants" :key="variant.id">
                                 <button
                                     type="button"
@@ -526,9 +538,9 @@
                                                 <span
                                                     x-show="variant.purchasable && stockIsLow(variant.stock, variant.threshold)"
                                                     x-cloak
-                                                    x-text="'Only ' + variant.stock + ' left'"
+                                                    x-text="i18n.onlyLeft.replace(':count', String(variant.stock))"
                                                 ></span>
-                                                <span x-show="!variant.purchasable" x-cloak>Out of stock</span>
+                                                <span x-show="!variant.purchasable" x-cloak x-text="i18n.soldOut"></span>
                                             </div>
                                         </div>
                                     </div>
@@ -539,7 +551,7 @@
                 @endif
 
                 <div class="max-w-sm">
-                    <label class="label" for="quantity">Quantity</label>
+                    <label class="label" for="quantity">{{ __('storefront.quantity') }}</label>
                     <input
                         id="quantity"
                         type="number"
@@ -558,7 +570,7 @@
                     :disabled="!canBuy"
                     @click="addToStaged()"
                 >
-                    Add to bag
+                    {{ __('storefront.add_to_bag') }}
                 </button>
 
                 <x-trust-product-notes class="max-w-sm" />
@@ -570,8 +582,8 @@
                     class="max-w-sm border border-beige bg-[#FFFCFA] p-4 space-y-4"
                 >
                     <div class="flex items-center justify-between gap-3">
-                        <h2 class="font-display text-xl">Your selection</h2>
-                        <span class="text-xs uppercase tracking-widest text-taupe" x-text="stagedCount + ' item' + (stagedCount === 1 ? '' : 's')"></span>
+                        <h2 class="font-display text-xl">{{ __('storefront.your_selection') }}</h2>
+                        <span class="text-xs uppercase tracking-widest text-taupe" x-text="stagedCount + ' ' + (stagedCount === 1 ? i18n.itemOne : i18n.itemMany)"></span>
                     </div>
 
                     <ul class="space-y-3">
@@ -583,14 +595,14 @@
                                 <div class="min-w-0 flex-1">
                                     <div class="font-medium leading-snug" x-text="item.name"></div>
                                     <div class="mt-1 text-sm text-taupe">
-                                        Qty <span x-text="item.quantity"></span>
+                                        {{ __('storefront.qty') }} <span x-text="item.quantity"></span>
                                         · <span x-text="formatMoney(lineTotal(item))"></span>
                                     </div>
                                 </div>
                                 <button
                                     type="button"
                                     class="shrink-0 h-8 w-8 flex items-center justify-center text-taupe hover:text-charcoal transition"
-                                    aria-label="Remove from selection"
+                                    aria-label="{{ __('storefront.remove_from_selection') }}"
                                     @click="removeStaged(index)"
                                 >
                                     <span aria-hidden="true" class="text-xl leading-none">&times;</span>
@@ -607,11 +619,11 @@
                         :disabled="confirming || staged.length === 0"
                         @click="confirmToBag()"
                     >
-                        <span x-show="!confirming">Confirm to bag</span>
-                        <span x-show="confirming" x-cloak>Adding…</span>
+                        <span x-show="!confirming">{{ __('storefront.confirm_to_bag') }}</span>
+                        <span x-show="confirming" x-cloak>{{ __('storefront.adding') }}</span>
                     </button>
                     <p class="text-xs text-taupe leading-snug">
-                        Items stay on this page until you confirm. Confirm sends them to your real bag.
+                        {{ __('storefront.selection_staging_note') }}
                     </p>
                 </div>
             </div>
@@ -624,22 +636,22 @@
                         :disabled="wishlistSaving || wishlistSaved"
                         @click="saveWishlist()"
                     >
-                        <span x-show="!wishlistSaving && !wishlistSaved">Save to wishlist</span>
-                        <span x-show="wishlistSaving" x-cloak>Saving…</span>
-                        <span x-show="wishlistSaved && !wishlistSaving" x-cloak>Saved to wishlist</span>
+                        <span x-show="!wishlistSaving && !wishlistSaved">{{ __('storefront.save_to_wishlist') }}</span>
+                        <span x-show="wishlistSaving" x-cloak>{{ __('storefront.saving') }}</span>
+                        <span x-show="wishlistSaved && !wishlistSaving" x-cloak>{{ __('storefront.saved_to_wishlist') }}</span>
                     </button>
                 </div>
             @endauth
 
             <div class="mt-10 space-y-6 text-sm leading-relaxed">
                 @if($product->localized('description'))
-                    <div><h2 class="font-display text-2xl mb-2">Details</h2><div class="text-taupe whitespace-pre-line">{{ $product->localized('description') }}</div></div>
+                    <div><h2 class="font-display text-2xl mb-2">{{ __('storefront.details') }}</h2><div class="text-taupe whitespace-pre-line">{{ $product->localized('description') }}</div></div>
                 @endif
                 @if($product->localized('ingredients'))
-                    <div><h2 class="font-display text-2xl mb-2">Ingredients</h2><div class="text-taupe whitespace-pre-line">{{ $product->localized('ingredients') }}</div></div>
+                    <div><h2 class="font-display text-2xl mb-2">{{ __('storefront.ingredients') }}</h2><div class="text-taupe whitespace-pre-line">{{ $product->localized('ingredients') }}</div></div>
                 @endif
                 @if($product->localized('how_to_use'))
-                    <div><h2 class="font-display text-2xl mb-2">How to use</h2><div class="text-taupe whitespace-pre-line">{{ $product->localized('how_to_use') }}</div></div>
+                    <div><h2 class="font-display text-2xl mb-2">{{ __('storefront.how_to_use') }}</h2><div class="text-taupe whitespace-pre-line">{{ $product->localized('how_to_use') }}</div></div>
                 @endif
             </div>
         </div>
@@ -648,9 +660,9 @@
     @if(($offerProducts ?? collect())->isNotEmpty())
         <section class="mt-20">
             <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
-                <h2 class="font-display text-3xl">Also in this set</h2>
+                <h2 class="font-display text-3xl">{{ __('storefront.also_in_set') }}</h2>
                 @if(($productOffers ?? collect())->isNotEmpty())
-                    <a href="{{ route('offers.show', $productOffers->first()->slug) }}" class="text-sm text-taupe">View offer</a>
+                    <a href="{{ route('offers.show', $productOffers->first()->slug) }}" class="text-sm text-taupe">{{ __('storefront.view_offer') }}</a>
                 @endif
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -664,8 +676,8 @@
     @if($related->isNotEmpty())
         <section class="mt-20">
             <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
-                <h2 class="font-display text-3xl">You may also like</h2>
-                <p class="text-sm text-taupe">Ranked by how closely each product matches this one</p>
+                <h2 class="font-display text-3xl">{{ __('storefront.you_may_also_like') }}</h2>
+                <p class="text-sm text-taupe">{{ __('storefront.related_rank_note') }}</p>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
                 @foreach($related as $item)

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}" dir="{{ is_rtl() ? 'rtl' : 'ltr' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Auth') — {{ setting('store_name', config('aura.name')) }}</title>
+    <title>@yield('title', __('storefront.sign_in')) — {{ setting('store_name', config('aura.name')) }}</title>
     @if(store_favicon_url())
         <link rel="icon" href="{{ store_favicon_url() }}">
     @endif
@@ -17,6 +17,9 @@
     <div class="auth-shell w-full max-w-md">
         <div class="flex justify-center mb-6 sm:mb-8">
             <x-brand-logo size="lg" href="/" class="justify-center max-w-full" />
+        </div>
+        <div class="flex justify-center mb-4 sm:mb-6">
+            <x-locale-switcher class="justify-center" />
         </div>
         <div class="auth-card bg-[#FFFCFA] border border-beige p-5 sm:p-8 shadow-sm">
             @if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif

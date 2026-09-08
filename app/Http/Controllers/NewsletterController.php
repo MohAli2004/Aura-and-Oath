@@ -26,7 +26,7 @@ class NewsletterController extends Controller
             ]
         );
 
-        $message = 'You are subscribed to our newsletter.';
+        $message = __('storefront.flash_newsletter_subscribed_full');
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([

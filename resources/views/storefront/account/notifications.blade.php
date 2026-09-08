@@ -1,5 +1,5 @@
 @extends('layouts.storefront')
-@section('title', 'Notifications')
+@section('title', __('storefront.page_title_notifications'))
 @section('content')
 <div
     class="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10"
@@ -20,7 +20,7 @@
                 }));
             } catch (error) {
                 window.dispatchEvent(new CustomEvent('aura:toast', {
-                    detail: { message: error.message || 'Could not mark as read.', type: 'error' },
+                    detail: { message: error.message || @js(__('storefront.js_could_not_mark_read')), type: 'error' },
                 }));
             }
         },
@@ -38,11 +38,11 @@
                     detail: { unread_count: 0 },
                 }));
                 window.dispatchEvent(new CustomEvent('aura:toast', {
-                    detail: { message: 'All notifications marked as read.', type: 'success' },
+                    detail: { message: @js(__('storefront.flash_notifications_read_all')), type: 'success' },
                 }));
             } catch (error) {
                 window.dispatchEvent(new CustomEvent('aura:toast', {
-                    detail: { message: error.message || 'Could not mark all as read.', type: 'error' },
+                    detail: { message: error.message || @js(__('storefront.js_could_not_mark_all_read')), type: 'error' },
                 }));
             } finally {
                 this.markingAll = false;
@@ -56,8 +56,8 @@
 >
     <div class="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div class="min-w-0">
-            <h1 class="font-display text-4xl sm:text-5xl">Notifications</h1>
-            <p class="mt-2 text-sm text-taupe">Updates about your orders and account.</p>
+            <h1 class="font-display text-4xl sm:text-5xl">{{ __('storefront.notifications') }}</h1>
+            <p class="mt-2 text-sm text-taupe">{{ __('storefront.notifications_subtitle') }}</p>
         </div>
         <button
             type="button"
@@ -67,7 +67,7 @@
             :disabled="markingAll"
             @click="markAll()"
         >
-            <span x-text="markingAll ? 'Marking…' : 'Mark all as read'"></span>
+            <span x-text="markingAll ? @js(__('storefront.marking')) : @js(__('storefront.mark_all_as_read'))"></span>
         </button>
     </div>
 
@@ -82,7 +82,7 @@
                     <div class="flex items-start gap-2">
                         <h2 class="min-w-0 break-words font-display text-lg sm:text-xl">{{ $item['title'] }}</h2>
                         @if($item['unread'])
-                            <span data-unread-only class="mt-2 inline-block h-2 w-2 shrink-0 rounded-full bg-[#B85C5C]" title="Unread"></span>
+                            <span data-unread-only class="mt-2 inline-block h-2 w-2 shrink-0 rounded-full bg-[#B85C5C]" title="{{ __('storefront.unread') }}"></span>
                         @endif
                     </div>
                     <p class="mt-1 break-words text-sm text-taupe">{{ $item['message'] }}</p>
@@ -94,27 +94,27 @@
                                 data-unread-only
                                 class="btn btn-secondary min-h-11 w-full sm:min-h-8 sm:w-auto sm:px-3 sm:py-1.5"
                                 @click="markRead(@js($item['id']), $event.currentTarget.closest('[data-notification-row]'))"
-                            >Mark as read</button>
+                            >{{ __('storefront.mark_as_read') }}</button>
                         @endif
                         @if($item['url'])
                             <button
                                 type="button"
                                 class="btn btn-primary min-h-11 w-full sm:min-h-8 sm:w-auto sm:px-3 sm:py-1.5"
                                 @click="openItem(@js($item['id']), @js($item['url']), $event.currentTarget.closest('[data-notification-row]'))"
-                            >Open</button>
+                            >{{ __('storefront.open') }}</button>
                         @endif
                     </div>
                 </div>
             </div>
         @empty
-            <div class="px-4 py-12 text-center text-sm text-taupe">No notifications</div>
+            <div class="px-4 py-12 text-center text-sm text-taupe">{{ __('storefront.no_notifications') }}</div>
         @endforelse
     </div>
 
     <div class="mt-6 overflow-x-auto">{{ $notifications->links() }}</div>
 
     <div class="mt-8">
-        <a href="{{ route('account.index') }}" class="text-sm text-taupe underline hover:text-charcoal">Back to account</a>
+        <a href="{{ route('account.index') }}" class="text-sm text-taupe underline hover:text-charcoal">{{ __('storefront.back_to_account') }}</a>
     </div>
 </div>
 @endsection

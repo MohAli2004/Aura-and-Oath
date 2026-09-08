@@ -6,6 +6,7 @@ export default function checkoutPage(config) {
         discount: Number(config.discount ?? 0),
         method: String(config.method ?? ''),
         currency: String(config.currency ?? 'USD'),
+        i18n: config.i18n ?? {},
         formError: '',
         addresses: Array.isArray(config.addresses) ? config.addresses : [],
         storageKey: 'aura.checkoutDraft',
@@ -238,9 +239,11 @@ export default function checkoutPage(config) {
                 }
 
                 event.preventDefault();
-                const label = field.dataset.requiredLabel || field.name || 'This field';
-                this.formError = `${label} is required before placing your order.`;
-                this.showFieldError(field, `${label} is required.`);
+                const label = field.dataset.requiredLabel || field.name || (this.i18n.thisField ?? 'This field');
+                const requiredOrder = this.i18n.fieldRequiredOrder ?? ':field is required before placing your order.';
+                const required = this.i18n.fieldRequired ?? ':field is required.';
+                this.formError = requiredOrder.replace(':field', label);
+                this.showFieldError(field, required.replace(':field', label));
                 this.$nextTick(() => {
                     field.focus?.();
                     field.scrollIntoView?.({ behavior: 'smooth', block: 'center' });

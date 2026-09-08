@@ -82,4 +82,36 @@ class LocaleStorefrontTest extends TestCase
             ->assertSee('اسم عربي للبحث', false)
             ->assertSee(route('products.show', $product->slug), false);
     }
+
+    public function test_arabic_home_shows_translated_nav_strings(): void
+    {
+        $this->post(route('locale.update'), ['locale' => 'ar'])
+            ->assertRedirect();
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('السلة', false)
+            ->assertSee('المتجر', false);
+    }
+
+    public function test_arabic_shop_shows_add_to_bag_on_product_card(): void
+    {
+        $this->createProduct(['slug' => 'arabic-shop-serum']);
+
+        $this->post(route('locale.update'), ['locale' => 'ar']);
+
+        $this->get(route('shop'))
+            ->assertOk()
+            ->assertSee('أضف إلى السلة', false);
+    }
+
+    public function test_arabic_cart_page_shows_translated_ui(): void
+    {
+        $this->post(route('locale.update'), ['locale' => 'ar']);
+
+        $this->get(route('cart.index'))
+            ->assertOk()
+            ->assertSee('سلتك', false)
+            ->assertSee('تسوّقي الآن', false);
+    }
 }

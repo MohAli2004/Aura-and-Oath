@@ -18,16 +18,16 @@ enum OrderStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::PendingApproval => 'Pending Approval',
-            self::Approved => 'Approved',
-            self::Rejected => 'Rejected',
-            self::Preparing => 'Preparing',
-            self::OnTheWay => 'On the way',
-            self::Delivered => 'Delivered',
-            self::ReturnRequested => 'Return requested',
-            self::Cancelled => 'Cancelled',
-            self::Returned => 'Returned',
-            self::Refunded => 'Refunded',
+            self::PendingApproval => __('storefront.order_status_pending_approval'),
+            self::Approved => __('storefront.order_status_approved'),
+            self::Rejected => __('storefront.order_status_rejected'),
+            self::Preparing => __('storefront.order_status_preparing'),
+            self::OnTheWay => __('storefront.order_status_on_the_way'),
+            self::Delivered => __('storefront.order_status_delivered'),
+            self::ReturnRequested => __('storefront.order_status_return_requested'),
+            self::Cancelled => __('storefront.order_status_cancelled'),
+            self::Returned => __('storefront.order_status_returned'),
+            self::Refunded => __('storefront.order_status_refunded'),
         };
     }
 

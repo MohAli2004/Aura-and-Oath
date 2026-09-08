@@ -1,13 +1,13 @@
 @extends('layouts.storefront')
-@section('title', 'Hot offers — '.config('aura.name'))
+@section('title', __('storefront.page_title_offers', ['name' => config('aura.name')]))
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-    <p class="text-xs uppercase tracking-[0.18em] text-taupe mb-2">Limited deals</p>
-    <h1 class="font-display text-4xl sm:text-5xl mb-3">Hot offers</h1>
-    <p class="text-taupe max-w-2xl mb-10">Special prices on a single product (with an amount) or on a group. The offer applies when you add it from this page.</p>
+    <p class="text-xs uppercase tracking-[0.18em] text-taupe mb-2">{{ __('storefront.offers_limited_deals') }}</p>
+    <h1 class="font-display text-4xl sm:text-5xl mb-3">{{ __('storefront.hot_offers') }}</h1>
+    <p class="text-taupe max-w-2xl mb-10">{{ __('storefront.offers_intro') }}</p>
 
     @if($offers->isEmpty())
-        <x-empty-state title="No hot offers right now" message="Check back soon for grouped product deals." :action="route('shop')" actionLabel="Browse shop" />
+        <x-empty-state :title="__('storefront.offers_empty_title')" :message="__('storefront.offers_empty_message')" :action="route('shop')" :actionLabel="__('storefront.browse_shop')" />
     @else
         <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
             @foreach($offers as $offer)

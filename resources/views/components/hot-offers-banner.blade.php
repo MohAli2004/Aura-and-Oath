@@ -40,34 +40,34 @@
         </div>
 
         <div class="hot-offers-banner__copy">
-            <h2 class="hot-offers-banner__eyebrow" id="hot-offers-heading">Hot offers</h2>
-            <p class="hot-offers-banner__kicker">This week's offer</p>
-            <h3 class="hot-offers-banner__title">{{ $campaign->title }}</h3>
+            <h2 class="hot-offers-banner__eyebrow" id="hot-offers-heading">{{ __('storefront.hot_offers') }}</h2>
+            <p class="hot-offers-banner__kicker">{{ __('storefront.hot_offers_week') }}</p>
+            <h3 class="hot-offers-banner__title">{{ $campaign->localized('title') }}</h3>
             <p class="hot-offers-banner__lede">
-                {{ $pieceCount }} {{ \Illuminate\Support\Str::plural('piece', $pieceCount) }} — one price, no extra checkout steps.
+                {{ __('storefront.hot_offers_one_price', ['count' => $pieceCount, 'pieces' => trans_choice('storefront.piece', $pieceCount)]) }}
             </p>
 
             <div class="hot-offers-banner__price">
                 <span class="hot-offers-banner__now">{{ money($offerTotal) }}</span>
                 @if($regularTotal > $offerTotal)
-                    <span class="hot-offers-banner__was">{{ money($regularTotal) }} separately</span>
+                    <span class="hot-offers-banner__was">{{ money($regularTotal) }} {{ __('storefront.hot_offers_separately') }}</span>
                 @endif
             </div>
 
             <div class="hot-offers-banner__meta">
                 @if($savingsPercent > 0)
-                    <span class="hot-offers-banner__chip">Save {{ $savingsPercent }}% · {{ money($savings) }}</span>
+                    <span class="hot-offers-banner__chip">{{ __('storefront.hot_offers_save', ['percent' => $savingsPercent, 'amount' => money($savings)]) }}</span>
                 @endif
                 @if($endsAt)
                     <span x-show="remaining" x-cloak class="hot-offers-banner__chip hot-offers-banner__chip--time">
-                        Ends in <span x-text="remaining"></span>
+                        {{ __('storefront.hot_offers_ends_in') }} <span x-text="remaining"></span>
                     </span>
                 @endif
             </div>
 
             <div class="hot-offers-banner__actions">
-                <a href="{{ route('offers.show', $campaign->slug) }}" class="btn btn-gold">Shop this set</a>
-                <a href="{{ route('offers.index') }}" class="hot-offers-banner__ghost">All offers</a>
+                <a href="{{ route('offers.show', $campaign->slug) }}" class="btn btn-gold">{{ __('storefront.hot_offers_shop_set') }}</a>
+                <a href="{{ route('offers.index') }}" class="hot-offers-banner__ghost">{{ __('storefront.hot_offers_all') }}</a>
             </div>
         </div>
     </article>
@@ -75,7 +75,7 @@
     @if($more->isNotEmpty())
         <details class="hot-offers-more">
             <summary class="hot-offers-more__summary">
-                <span>More sets this week</span>
+                <span>{{ __('storefront.hot_offers_more_sets') }}</span>
                 <span class="hot-offers-more__count">{{ $more->count() }}</span>
             </summary>
             <div class="hot-offers-more__grid">

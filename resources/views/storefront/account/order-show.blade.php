@@ -1,5 +1,5 @@
 @extends('layouts.storefront')
-@section('title', 'Order '.$order->order_number)
+@section('title', __('storefront.page_title_order', ['number' => $order->order_number]))
 @section('content')
 <div class="max-w-4xl mx-auto px-4 sm:px-6 py-10">
     <h1 class="font-display text-4xl mb-2">{{ $order->order_number }}</h1>
@@ -12,24 +12,24 @@
 
     @if ($order->payment_method === \App\Enums\PaymentMethod::WishAccount && $order->payment_status !== \App\Enums\PaymentStatus::Paid)
         <div class="border border-beige bg-[#FFFCFA] p-5 mb-8 text-sm space-y-3">
-            <h2 class="font-display text-2xl">Wish Account payment</h2>
+            <h2 class="font-display text-2xl">{{ __('storefront.order_wish_payment') }}</h2>
             @if (app(\App\Services\WhishPayService::class)->isConfigured())
-                <p class="text-taupe">Complete payment in the Whish app to confirm this order. Use Continue payment if you left before finishing.</p>
+                <p class="text-taupe">{{ __('storefront.order_wish_complete') }}</p>
                 <div class="space-y-1">
-                    <div><span class="text-taupe">Amount:</span> {{ money($order->total) }}</div>
-                    <div><span class="text-taupe">Order:</span> {{ $order->order_number }}</div>
+                    <div><span class="text-taupe">{{ __('storefront.amount') }}:</span> {{ money($order->total) }}</div>
+                    <div><span class="text-taupe">{{ __('storefront.order_label') }}:</span> {{ $order->order_number }}</div>
                 </div>
                 <form method="POST" action="{{ route('payments.whish.continue', $order) }}">
                     @csrf
-                    <button class="btn btn-primary" type="submit">Continue payment</button>
+                    <button class="btn btn-primary" type="submit">{{ __('storefront.continue_payment') }}</button>
                 </form>
             @else
                 <p class="text-taupe">{{ config('aura.payments.wish.instructions') }}</p>
                 <div class="space-y-1">
-                    <div><span class="text-taupe">Account name:</span> {{ config('aura.payments.wish.account_name') }}</div>
-                    <div><span class="text-taupe">Wish number:</span> {{ config('aura.payments.wish.account_number') }}</div>
-                    <div><span class="text-taupe">Amount:</span> {{ money($order->total) }}</div>
-                    <div><span class="text-taupe">Transfer note:</span> {{ $order->order_number }}</div>
+                    <div><span class="text-taupe">{{ __('storefront.account_name') }}:</span> {{ config('aura.payments.wish.account_name') }}</div>
+                    <div><span class="text-taupe">{{ __('storefront.wish_number') }}:</span> {{ config('aura.payments.wish.account_number') }}</div>
+                    <div><span class="text-taupe">{{ __('storefront.amount') }}:</span> {{ money($order->total) }}</div>
+                    <div><span class="text-taupe">{{ __('storefront.transfer_note') }}:</span> {{ $order->order_number }}</div>
                 </div>
             @endif
         </div>
@@ -64,14 +64,14 @@
                                 <div class="{{ $item->isRejected() ? 'line-through' : '' }}">{{ $item->product_name }}</div>
                             @endif
                             @if($item->isRejected())
-                                <x-badge>Rejected</x-badge>
+                                <x-badge>{{ __('storefront.rejected') }}</x-badge>
                             @endif
                             @if($item->isReturned())
-                                <x-badge>Returned</x-badge>
+                                <x-badge>{{ __('storefront.returned') }}</x-badge>
                             @endif
                         </div>
                         @if($item->variant_name)<div class="text-taupe">{{ $item->variant_name }}</div>@endif
-                        <div class="text-taupe">Qty {{ $item->quantity }}</div>
+                        <div class="text-taupe">{{ __('storefront.qty') }} {{ $item->quantity }}</div>
                         @if($item->isRejected() && $item->rejection_reason)
                             <div class="mt-1 text-xs text-[#B85C5C]">{{ $item->rejection_reason }}</div>
                         @endif
@@ -84,16 +84,16 @@
 
     <div class="grid sm:grid-cols-2 gap-6 mb-8 text-sm">
         <div>
-            <h2 class="font-display text-2xl mb-2">Totals</h2>
+            <h2 class="font-display text-2xl mb-2">{{ __('storefront.totals') }}</h2>
             <div class="space-y-1">
-                <div class="flex justify-between"><span>Subtotal</span><span>{{ money($order->subtotal) }}</span></div>
-                <div class="flex justify-between"><span>Discount</span><span>{{ money($order->discount_amount) }}</span></div>
-                <div class="flex justify-between"><span>Delivery</span><span>{{ money($order->delivery_fee) }}</span></div>
-                <div class="flex justify-between font-medium"><span>Total</span><span>{{ money($order->total) }}</span></div>
+                <div class="flex justify-between"><span>{{ __('storefront.subtotal') }}</span><span>{{ money($order->subtotal) }}</span></div>
+                <div class="flex justify-between"><span>{{ __('storefront.discount') }}</span><span>{{ money($order->discount_amount) }}</span></div>
+                <div class="flex justify-between"><span>{{ __('storefront.delivery') }}</span><span>{{ money($order->delivery_fee) }}</span></div>
+                <div class="flex justify-between font-medium"><span>{{ __('storefront.total') }}</span><span>{{ money($order->total) }}</span></div>
             </div>
         </div>
         <div>
-            <h2 class="font-display text-2xl mb-2">Status history</h2>
+            <h2 class="font-display text-2xl mb-2">{{ __('storefront.status_history') }}</h2>
             @foreach($order->statusHistories as $history)
                 <div class="py-1">{{ $history->to_status->label() }} · {{ $history->created_at->format('M j, H:i') }}</div>
             @endforeach
@@ -102,45 +102,44 @@
 
     @if($order->status === \App\Enums\OrderStatus::Cancelled)
         <div class="mb-8 border border-beige bg-[#FFFCFA] p-5">
-            <h2 class="font-display text-2xl mb-2">Cancelled</h2>
-            <p class="text-sm text-taupe">This order has been cancelled and cannot be cancelled again.</p>
+            <h2 class="font-display text-2xl mb-2">{{ __('storefront.cancelled_heading') }}</h2>
+            <p class="text-sm text-taupe">{{ __('storefront.cancelled_note') }}</p>
         </div>
     @endif
 
     @can('cancel', $order)
         <div class="mb-8 border border-beige bg-[#FFFCFA] p-5 space-y-3">
-            <h2 class="font-display text-2xl">Cancel order</h2>
-            <p class="text-sm text-taupe">You can cancel this order until we start preparing it.</p>
-            <form method="POST" action="{{ route('account.orders.cancel', $order) }}" onsubmit="return confirm('Cancel this order?')">
+            <h2 class="font-display text-2xl">{{ __('storefront.cancel_order_heading') }}</h2>
+            <p class="text-sm text-taupe">{{ __('storefront.cancel_order_note') }}</p>
+            <form method="POST" action="{{ route('account.orders.cancel', $order) }}" onsubmit="return confirm(@js(__('storefront.cancel_order_confirm')))">
                 @csrf
-                <button class="btn btn-danger" type="submit">Cancel order</button>
+                <button class="btn btn-danger" type="submit">{{ __('storefront.cancel_order') }}</button>
             </form>
         </div>
     @endcan
 
     @can('requestReturn', $order)
         <div class="mt-8 border border-beige bg-[#FFFCFA] p-5 space-y-4">
-            <h2 class="font-display text-2xl">Return items</h2>
-            <p class="text-sm text-taupe">Eligible items can be returned within {{ $order->returnWindowHours() }} hours of delivery.</p>
+            <h2 class="font-display text-2xl">{{ __('storefront.return_items_heading_order') }}</h2>
+            <p class="text-sm text-taupe">{{ __('storefront.return_eligible_note', ['hours' => $order->returnWindowHours()]) }}</p>
             <form method="POST" action="{{ route('returns.store') }}" class="space-y-4" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="order_id" value="{{ $order->id }}">
                 @include('storefront.partials.return-request-fields', ['order' => $order])
-                <button class="btn btn-primary" type="submit">Request return</button>
+                <button class="btn btn-primary" type="submit">{{ __('storefront.request_return') }}</button>
             </form>
         </div>
     @else
         @if($order->status === \App\Enums\OrderStatus::ReturnRequested)
             <div class="mt-8 border border-beige bg-[#FFFCFA] p-5 text-sm">
-                <h2 class="font-display text-2xl mb-2">Return requested</h2>
-                <p class="text-taupe">We are reviewing your return request and will update you shortly.</p>
+                <h2 class="font-display text-2xl mb-2">{{ __('storefront.return_requested_heading') }}</h2>
+                <p class="text-taupe">{{ __('storefront.return_requested_note') }}</p>
             </div>
         @endif
     @endcan
 </div>
 @if(session('order_just_placed'))
 <script nonce="{{ csp_nonce() }}">
-    // Keep Back from returning to the completed checkout form.
     history.replaceState({ orderPlaced: true }, '', location.href);
     history.pushState({ orderPlaced: true }, '', location.href);
     window.addEventListener('popstate', () => {

@@ -66,14 +66,14 @@ class ReturnController extends Controller
         if (! $order) {
             return back()
                 ->withInput()
-                ->with('error', 'Order not found. Check the number and email.');
+                ->with('error', __('storefront.flash_order_not_found'));
         }
 
         $actor = $request->user() ?: $order->user;
         if (! $actor) {
             return back()
                 ->withInput()
-                ->with('error', 'We could not match this order to a customer account.');
+                ->with('error', __('storefront.flash_order_account_mismatch'));
         }
 
         $owned = $request->user() && $order->isOwnedBy($request->user());
@@ -85,13 +85,13 @@ class ReturnController extends Controller
         if (! $owned && ! $verifiedLookup) {
             return back()
                 ->withInput()
-                ->with('error', 'Order not found. Check the number and email.');
+                ->with('error', __('storefront.flash_order_not_found'));
         }
 
         if (! $order->canRequestReturn()) {
             return back()
                 ->withInput()
-                ->with('error', $order->returnIneligibilityReason() ?: 'This order cannot be returned.');
+                ->with('error', $order->returnIneligibilityReason() ?: __('storefront.flash_return_ineligible'));
         }
 
         $photoPath = $this->images->store($request->file('photo'), 'returns');
@@ -111,7 +111,7 @@ class ReturnController extends Controller
                 'email' => $order->customer_email,
             ]);
 
-        return $redirect->with('success', 'Return requested. We will review it and get back to you.');
+        return $redirect->with('success', __('storefront.flash_return_requested'));
     }
 
     protected function findOrderFromLookup(Request $request): ?Order

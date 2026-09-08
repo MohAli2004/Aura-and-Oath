@@ -18,5 +18,5 @@
         <path fill="#4A90E2" d="M12 21c2.5 0 4.6-.8 6.1-2.2l-2.9-2.3c-.8.6-1.9 1-3.2 1-3.5 0-6.4-2.3-7.4-5.5l-3 2.3C3.4 18.9 7.3 21 12 21z"/>
         <path fill="#FBBC05" d="M4.6 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2l-3-2.3C1.2 9.1 1 10.5 1 12s.2 2.9.6 4.3l3-2.3z"/>
     </svg>
-    <span>Continue with Google</span>
+    <span>{{ __('storefront.continue_with_google') }}</span>
 </a>

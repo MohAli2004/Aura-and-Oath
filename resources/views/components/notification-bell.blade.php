@@ -128,8 +128,8 @@
         }"
         @click="toggle()"
         :aria-expanded="open.toString()"
-        :aria-label="unread > 0 ? (unread + ' unread notification' + (unread === 1 ? '' : 's')) : 'Notifications'"
-        title="Notifications"
+        :aria-label="unread > 0 ? (unread + ' ' + (@js(__('storefront.unread_notifications', ['count' => ':count']))).replace(':count', unread)) : @js(__('storefront.notifications'))"
+        title="{{ __('storefront.notifications') }}"
     >
         <x-icon name="bell" class="w-5 h-5" />
         <span
@@ -164,12 +164,12 @@
         class="fixed inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] flex max-h-[min(32rem,calc(100dvh-1.5rem))] flex-col overflow-hidden border border-beige bg-[#FFFCFA] shadow-lg sm:absolute sm:inset-x-auto sm:top-full sm:mt-2 sm:max-h-[min(28rem,70vh)] sm:w-[min(22rem,calc(100vw-1.5rem))] sm:shadow-md {{ $panelAlign }}"
         style="z-index: 100001;"
         role="menu"
-        aria-label="Notifications list"
+        aria-label="{{ __('storefront.notifications_list') }}"
         @click.stop
     >
         <div class="flex shrink-0 items-center justify-between gap-2 border-b border-beige px-3 py-2.5">
             <span class="min-w-0 font-display text-base text-charcoal sm:text-lg">
-                Notifications
+                {{ __('storefront.notifications') }}
                 <span
                     x-show="unread > 0"
                     x-cloak
@@ -184,13 +184,13 @@
                     @click="markAll()"
                     :disabled="unread === 0"
                 >
-                    Mark all read
+                    {{ __('storefront.mark_all_read') }}
                 </button>
                 <button
                     type="button"
                     class="inline-flex h-8 w-8 items-center justify-center text-taupe hover:text-charcoal sm:hidden"
                     @click="open = false"
-                    aria-label="Close notifications"
+                    aria-label="{{ __('storefront.close_notifications') }}"
                 >
                     <x-icon name="close" class="w-4 h-4" />
                 </button>
@@ -199,10 +199,10 @@
 
         <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <template x-if="loading">
-                <p class="px-3 py-6 text-center text-sm text-taupe">Loading…</p>
+                <p class="px-3 py-6 text-center text-sm text-taupe">{{ __('storefront.loading') }}</p>
             </template>
             <template x-if="!loading && items.length === 0">
-                <p class="px-3 py-8 text-center text-sm text-taupe">No notifications</p>
+                <p class="px-3 py-8 text-center text-sm text-taupe">{{ __('storefront.no_notifications') }}</p>
             </template>
             <template x-for="item in items" :key="item.id">
                 <div
@@ -228,7 +228,7 @@
                             :disabled="!item.unread"
                             @click="markRead(item)"
                         >
-                            Mark as read
+                            {{ __('storefront.mark_as_read') }}
                         </button>
                         <button
                             type="button"
@@ -237,7 +237,7 @@
                             x-cloak
                             @click="markRead(item, { openUrl: true })"
                         >
-                            Open
+                            {{ __('storefront.open') }}
                         </button>
                     </div>
                 </div>
@@ -245,7 +245,7 @@
         </div>
 
         <div class="shrink-0 border-t border-beige px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
-            <a href="{{ $indexUrl }}" class="text-xs text-taupe underline hover:text-charcoal" @click="open = false">View all notifications</a>
+            <a href="{{ $indexUrl }}" class="text-xs text-taupe underline hover:text-charcoal" @click="open = false">{{ __('storefront.view_all_notifications') }}</a>
         </div>
     </div>
 </div>
