@@ -112,6 +112,6 @@ class LocaleStorefrontTest extends TestCase
         $this->get(route('cart.index'))
             ->assertOk()
             ->assertSee('سلتك', false)
-            ->assertSee('تسوّقي الآن', false);
+            ->assertSee('تسوّق الآن', false);
     }
 }
