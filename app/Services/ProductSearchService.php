@@ -22,9 +22,11 @@ class ProductSearchService
             $like = '%'.$q.'%';
             $query->where(function (Builder $builder) use ($q, $like) {
                 $builder->where('name', 'like', $like)
+                    ->orWhere('name_ar', 'like', $like)
                     ->orWhere('sku', 'like', $like)
                     ->orWhere('barcode', 'like', $like)
                     ->orWhere('short_description', 'like', $like)
+                    ->orWhere('short_description_ar', 'like', $like)
                     ->orWhereHas('variants', function (Builder $variants) use ($like) {
                         $variants->where('barcode', 'like', $like)
                             ->orWhere('sku', 'like', $like);

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasArabicFields;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,10 +12,14 @@ use Illuminate\Support\Str;
 
 class Offer extends Model
 {
+    use HasArabicFields;
+
     protected $fillable = [
         'title',
+        'title_ar',
         'slug',
         'description',
+        'description_ar',
         'total_price',
         'image_path',
         'is_active',
@@ -169,7 +174,7 @@ class Offer extends Model
             $items->push([
                 'id' => 'main',
                 'image' => $images->url($this->image_path),
-                'label' => $this->title,
+                'label' => $this->localized('title'),
             ]);
         }
 
@@ -177,7 +182,7 @@ class Offer extends Model
             $items->push([
                 'id' => 'product-'.$product->id,
                 'image' => $images->url($product->primaryImagePath()),
-                'label' => $product->name,
+                'label' => $product->localized('name'),
             ]);
         }
 

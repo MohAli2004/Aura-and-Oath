@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}" dir="{{ is_rtl() ? 'rtl' : 'ltr' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -54,9 +54,10 @@
                     <x-brand-logo size="md" class="max-w-[160px] sm:max-w-none" />
                 </div>
                 <form action="{{ route('search') }}" method="GET" class="hidden md:block flex-1 max-w-md">
-                    <input type="search" name="q" value="{{ request('q') }}" placeholder="Search products and offers..." class="input" aria-label="Search products">
+                    <input type="search" name="q" value="{{ request('q') }}" placeholder="{{ __('storefront.search_placeholder') }}" class="input" aria-label="{{ __('storefront.search') }}">
                 </form>
                 <div class="flex items-center gap-2">
+                    <x-locale-switcher class="hidden sm:inline-flex" />
                     @auth
                         <x-notification-bell
                             :feed-url="route('account.notifications.feed')"
@@ -65,14 +66,14 @@
                             :index-url="route('account.notifications.index')"
                         />
                     @endauth
-                    <a href="{{ route('cart.index') }}" class="btn btn-secondary px-3 py-2 relative inline-flex items-center gap-2" aria-label="Bag">
+                    <a href="{{ route('cart.index') }}" class="btn btn-secondary px-3 py-2 relative inline-flex items-center gap-2" aria-label="{{ __('storefront.bag') }}">
                         <x-icon name="bag" class="w-5 h-5" />
-                        Bag
+                        {{ __('storefront.bag') }}
                         <span data-cart-count class="absolute -top-1 -right-1 text-[10px] bg-blush text-white px-1.5 rounded-full" @if(($cartCount ?? 0) < 1) hidden @endif>{{ $cartCount ?? 0 }}</span>
                     </a>
-                    <button class="btn btn-secondary px-3 py-2 relative z-10 inline-flex items-center gap-2" @click="open = true" type="button" aria-label="Open menu">
+                    <button class="btn btn-secondary px-3 py-2 relative z-10 inline-flex items-center gap-2" @click="open = true" type="button" aria-label="{{ __('storefront.menu') }}">
                         <x-icon name="menu" class="w-5 h-5" />
-                        Menu
+                        {{ __('storefront.menu') }}
                     </button>
                 </div>
             </div>
@@ -83,40 +84,40 @@
                         <x-brand-logo size="md" />
                     </div>
                     <form action="{{ route('search') }}" method="GET" class="storefront-header-search">
-                        <input type="search" name="q" value="{{ request('q') }}" placeholder="Search products and offers..." class="input" aria-label="Search products">
+                        <input type="search" name="q" value="{{ request('q') }}" placeholder="{{ __('storefront.search_placeholder') }}" class="input" aria-label="{{ __('storefront.search') }}">
                     </form>
                 </div>
 
                 <nav class="storefront-header-center text-sm tracking-wide">
                 <div class="relative" @click.outside="nav === 'shop' && (nav = '')">
                     <button type="button" class="inline-flex items-center gap-1 min-h-11" @click="nav = nav === 'shop' ? '' : 'shop'" :aria-expanded="nav === 'shop'">
-                        Shop <span class="text-taupe text-xs" :class="nav === 'shop' && 'rotate-90'">›</span>
+                        {{ __('storefront.shop') }} <span class="text-taupe text-xs" :class="nav === 'shop' && 'rotate-90'">›</span>
                     </button>
                     <div
                         x-show="nav === 'shop'"
                         x-cloak
                         class="absolute start-0 top-full z-50 mt-1 min-w-[14rem] border border-beige bg-[#FFFCFA] py-1"
                     >
-                        <x-nav-item class="px-4 py-2.5" :href="route('shop')" icon="shop" label="All products" />
-                        <x-nav-item class="px-4 py-2.5" :href="route('offers.index')" icon="featured" label="Hot offers" />
-                        <x-nav-item class="px-4 py-2.5" :href="route('shop', ['gender' => 'women'])" icon="women" label="Women" />
-                        <x-nav-item class="px-4 py-2.5" :href="route('shop', ['gender' => 'men'])" icon="men" label="Men" />
-                        <x-nav-item class="px-4 py-2.5" :href="route('shop', ['gender' => 'unisex'])" icon="unisex" label="Unisex" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('shop')" icon="shop" :label="__('storefront.all_products')" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('offers.index')" icon="featured" :label="__('storefront.hot_offers')" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('shop', ['gender' => 'women'])" icon="women" :label="__('storefront.women')" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('shop', ['gender' => 'men'])" icon="men" :label="__('storefront.men')" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('shop', ['gender' => 'unisex'])" icon="unisex" :label="__('storefront.unisex')" />
                         <div class="my-1 border-t border-beige"></div>
-                        <x-nav-item class="px-4 py-2.5" :href="route('shop', ['featured' => 1])" icon="featured" label="Featured" />
-                        <x-nav-item class="px-4 py-2.5" :href="route('shop', ['sort' => 'newest'])" icon="new" label="New arrivals" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('shop', ['featured' => 1])" icon="featured" :label="__('storefront.featured')" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('shop', ['sort' => 'newest'])" icon="new" :label="__('storefront.new_arrivals')" />
                     </div>
                 </div>
 
                 @if(! empty($hasLiveOffers))
-                    <a href="{{ route('offers.index') }}" class="inline-flex items-center min-h-11 text-blush">Hot offers</a>
+                    <a href="{{ route('offers.index') }}" class="inline-flex items-center min-h-11 text-blush">{{ __('storefront.hot_offers') }}</a>
                 @endif
 
                 @isset($navCategories)
                     @if($navCategories->isNotEmpty())
                         <div class="relative" @click.outside="nav === 'categories' && (nav = '')">
                             <button type="button" class="inline-flex items-center gap-1 min-h-11" @click="nav = nav === 'categories' ? '' : 'categories'" :aria-expanded="nav === 'categories'">
-                                Categories <span class="text-taupe text-xs" :class="nav === 'categories' && 'rotate-90'">›</span>
+                                {{ __('storefront.categories') }} <span class="text-taupe text-xs" :class="nav === 'categories' && 'rotate-90'">›</span>
                             </button>
                             <div
                                 x-show="nav === 'categories'"
@@ -135,7 +136,7 @@
                                                 loading="eager"
                                             >
                                         </span>
-                                        <span>{{ $navCategory->name }}</span>
+                                        <span>{{ $navCategory->localized('name') }}</span>
                                     </a>
                                 @endforeach
                             </div>
@@ -147,7 +148,7 @@
                     @if($navBrands->isNotEmpty())
                         <div class="relative" @click.outside="nav === 'brands' && (nav = '')">
                             <button type="button" class="inline-flex items-center gap-1 min-h-11" @click="nav = nav === 'brands' ? '' : 'brands'" :aria-expanded="nav === 'brands'">
-                                Brands <span class="text-taupe text-xs" :class="nav === 'brands' && 'rotate-90'">›</span>
+                                {{ __('storefront.brands') }} <span class="text-taupe text-xs" :class="nav === 'brands' && 'rotate-90'">›</span>
                             </button>
                             <div
                                 x-show="nav === 'brands'"
@@ -166,7 +167,7 @@
                                                 loading="eager"
                                             >
                                         </span>
-                                        <span>{{ $navBrand->name }}</span>
+                                        <span>{{ $navBrand->localized('name') }}</span>
                                     </a>
                                 @endforeach
                                 @if(($navBrandsTotal ?? $navBrands->count()) > 8)
@@ -174,7 +175,7 @@
                                         href="{{ route('brands.index') }}"
                                         class="block w-full px-4 py-2.5 text-sm text-taupe hover:bg-beige/40 hover:text-charcoal border-t border-beige"
                                     >
-                                        Show more
+                                        {{ __('storefront.show_more') }}
                                     </a>
                                 @endif
                             </div>
@@ -184,22 +185,23 @@
 
                 <div class="relative" @click.outside="nav === 'help' && (nav = '')">
                     <button type="button" class="inline-flex items-center gap-1 min-h-11" @click="nav = nav === 'help' ? '' : 'help'" :aria-expanded="nav === 'help'">
-                        Help <span class="text-taupe text-xs" :class="nav === 'help' && 'rotate-90'">›</span>
+                        {{ __('storefront.help') }} <span class="text-taupe text-xs" :class="nav === 'help' && 'rotate-90'">›</span>
                     </button>
                     <div
                         x-show="nav === 'help'"
                         x-cloak
                         class="absolute start-0 top-full z-50 mt-1 min-w-[14rem] border border-beige bg-[#FFFCFA] py-1"
                     >
-                        <x-nav-item class="px-4 py-2.5" :href="route('pages.about')" icon="about" label="About" />
-                        <x-nav-item class="px-4 py-2.5" :href="route('pages.contact')" icon="contact" label="Contact" />
-                        <x-nav-item class="px-4 py-2.5" :href="route('pages.faq')" icon="faq" label="FAQ" />
-                        <x-nav-item class="px-4 py-2.5" :href="route('orders.track')" icon="track" label="Track order" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('pages.about')" icon="about" :label="__('storefront.about')" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('pages.contact')" icon="contact" :label="__('storefront.contact')" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('pages.faq')" icon="faq" :label="__('storefront.faq')" />
+                        <x-nav-item class="px-4 py-2.5" :href="route('orders.track')" icon="track" :label="__('storefront.track_order')" />
                     </div>
                 </div>
                 </nav>
 
                 <div class="storefront-header-right text-sm tracking-wide">
+                <x-locale-switcher />
                 @auth
                     <x-notification-bell
                         :feed-url="route('account.notifications.feed')"
@@ -209,26 +211,26 @@
                     />
                     <div class="relative" @click.outside="nav === 'account' && (nav = '')">
                         <button type="button" class="inline-flex items-center gap-1 min-h-11" @click="nav = nav === 'account' ? '' : 'account'" :aria-expanded="nav === 'account'">
-                            Account <span class="text-taupe text-xs" :class="nav === 'account' && 'rotate-90'">›</span>
+                            {{ __('storefront.account') }} <span class="text-taupe text-xs" :class="nav === 'account' && 'rotate-90'">›</span>
                         </button>
                         <div
                             x-show="nav === 'account'"
                             x-cloak
                             class="absolute end-0 top-full z-50 mt-1 min-w-[14rem] border border-beige bg-[#FFFCFA] py-1"
                         >
-                            <x-nav-item class="px-4 py-2.5" :href="route('account.index')" icon="account" label="My account" />
-                            <x-nav-item class="px-4 py-2.5" :href="route('account.notifications.index')" icon="bell" label="Notifications" />
-                            <x-nav-item class="px-4 py-2.5" :href="route('account.orders.index')" icon="orders" label="Orders" />
-                            <x-nav-item class="px-4 py-2.5" :href="route('returns.index')" icon="returns" label="Returns" />
-                            <x-nav-item class="px-4 py-2.5" :href="route('wishlist.index')" icon="wishlist" label="Wishlist" />
+                            <x-nav-item class="px-4 py-2.5" :href="route('account.index')" icon="account" :label="__('storefront.my_account')" />
+                            <x-nav-item class="px-4 py-2.5" :href="route('account.notifications.index')" icon="bell" :label="__('storefront.notifications')" />
+                            <x-nav-item class="px-4 py-2.5" :href="route('account.orders.index')" icon="orders" :label="__('storefront.orders')" />
+                            <x-nav-item class="px-4 py-2.5" :href="route('returns.index')" icon="returns" :label="__('storefront.returns')" />
+                            <x-nav-item class="px-4 py-2.5" :href="route('wishlist.index')" icon="wishlist" :label="__('storefront.wishlist')" />
                             @if(auth()->user()->isAdmin())
-                                <x-nav-item class="px-4 py-2.5" :href="route('admin.dashboard')" icon="admin" label="Admin" />
+                                <x-nav-item class="px-4 py-2.5" :href="route('admin.dashboard')" icon="admin" :label="__('storefront.admin')" />
                             @endif
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="flex w-full items-center gap-2.5 px-4 py-2.5 text-start hover:bg-beige/40 hover:text-blush transition-colors">
                                     <x-nav-icon name="logout" />
-                                    <span>Sign out</span>
+                                    <span>{{ __('storefront.sign_out') }}</span>
                                 </button>
                             </form>
                         </div>
@@ -236,13 +238,13 @@
                 @else
                     <a href="{{ route('login') }}" class="min-h-11 inline-flex items-center gap-2">
                         <x-nav-icon name="login" class="h-6 w-6" />
-                        Sign in
+                        {{ __('storefront.sign_in') }}
                     </a>
                 @endauth
 
                 <a href="{{ route('cart.index') }}" class="relative min-h-11 inline-flex items-center gap-2">
                     <x-nav-icon name="bag" class="h-6 w-6" />
-                    Bag
+                    {{ __('storefront.bag') }}
                     <span data-cart-count class="absolute -top-2 -right-3 text-[10px] bg-blush text-white px-1.5 rounded-full" @if(($cartCount ?? 0) < 1) hidden @endif>{{ $cartCount ?? 0 }}</span>
                 </a>
                 </div>
@@ -252,7 +254,7 @@
 
     @if(! empty($hasLiveOffers) && ! request()->routeIs('home', 'offers.*'))
         <a href="{{ route('offers.index') }}" class="block bg-blush text-[#FFFCFA] text-center text-xs sm:text-sm tracking-wide py-2.5 px-4 hover:opacity-90">
-            Hot offers are on now — special prices on selected items and sets
+            {{ __('storefront.hot_offers_banner') }}
         </a>
     @endif
 
@@ -265,7 +267,7 @@
             x-transition.opacity
         ></div>
         <div
-            class="storefront-mobile-nav__panel fixed inset-y-0 right-0 z-[99999] w-[min(20rem,92vw)] bg-[#FFFCFA] border-l border-beige p-5 overflow-y-auto shadow-lg"
+            class="storefront-mobile-nav__panel fixed inset-y-0 end-0 z-[99999] w-[min(20rem,92vw)] bg-[#FFFCFA] border-s border-beige p-5 overflow-y-auto shadow-lg"
             x-show="open"
             x-data="{ section: 'shop' }"
             x-transition:enter="transition transform ease-out duration-250"
@@ -276,18 +278,22 @@
             x-transition:leave-end="translate-x-full"
             role="dialog"
             aria-modal="true"
-            aria-label="Site menu"
+            aria-label="{{ __('storefront.site_menu') }}"
         >
             <div class="flex items-center justify-between mb-5">
-                <span class="font-display text-2xl">Menu</span>
-                <button type="button" class="btn btn-secondary px-3 py-2 inline-flex items-center gap-2" @click="open = false" aria-label="Close menu">
+                <span class="font-display text-2xl">{{ __('storefront.menu') }}</span>
+                <button type="button" class="btn btn-secondary px-3 py-2 inline-flex items-center gap-2" @click="open = false" aria-label="{{ __('storefront.close') }}">
                     <x-icon name="close" class="w-5 h-5" />
-                    Close
+                    {{ __('storefront.close') }}
                 </button>
             </div>
 
+            <div class="mb-4">
+                <x-locale-switcher />
+            </div>
+
             <form action="{{ route('search') }}" method="GET" class="mb-5">
-                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search products and offers..." class="input" aria-label="Search products">
+                <input type="search" name="q" value="{{ request('q') }}" placeholder="{{ __('storefront.search_placeholder') }}" class="input" aria-label="{{ __('storefront.search') }}">
             </form>
 
             <nav class="space-y-2 text-sm">
@@ -295,9 +301,9 @@
                     <a href="{{ route('offers.index') }}" class="flex items-center justify-between gap-2 px-3 py-2.5 border border-blush/40 bg-blush/5 text-blush" @click="open = false">
                         <span class="inline-flex items-center gap-2.5">
                             <x-nav-icon name="featured" />
-                            <span class="font-medium">Hot offers</span>
+                            <span class="font-medium">{{ __('storefront.hot_offers') }}</span>
                         </span>
-                        <span class="text-xs uppercase tracking-widest">Shop deals</span>
+                        <span class="text-xs uppercase tracking-widest">{{ __('storefront.shop_deals') }}</span>
                     </a>
                 @endif
 
@@ -306,21 +312,21 @@
                     <button type="button" class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left bg-ivory/50" @click="section = section === 'shop' ? '' : 'shop'">
                         <span class="inline-flex items-center gap-2.5">
                             <x-nav-icon name="shop" />
-                            <span class="font-medium">Shop</span>
+                            <span class="font-medium">{{ __('storefront.shop') }}</span>
                         </span>
                         <span class="text-taupe text-xs transition-transform" x-bind:class="section === 'shop' && 'rotate-90'">›</span>
                     </button>
                     <div class="border-t border-beige bg-[#FFFCFA] px-2 py-1.5 space-y-0.5" x-show="section === 'shop'" x-cloak>
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop')" icon="shop" label="All products" @click="open = false" />
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('offers.index')" icon="featured" label="Hot offers" @click="open = false" />
-                        <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.14em] text-taupe">By gender</p>
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['gender' => 'women'])" icon="women" label="Women" @click="open = false" />
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['gender' => 'men'])" icon="men" label="Men" @click="open = false" />
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['gender' => 'unisex'])" icon="unisex" label="Unisex" @click="open = false" />
-                        <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.14em] text-taupe">Collections</p>
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['featured' => 1])" icon="featured" label="Featured" @click="open = false" />
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['sort' => 'newest'])" icon="new" label="New arrivals" @click="open = false" />
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('cart.index')" icon="bag" label="Bag ({{ $cartCount ?? 0 }})" @click="open = false" />
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop')" icon="shop" :label="__('storefront.all_products')" @click="open = false" />
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('offers.index')" icon="featured" :label="__('storefront.hot_offers')" @click="open = false" />
+                        <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.14em] text-taupe">{{ __('storefront.by_gender') }}</p>
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['gender' => 'women'])" icon="women" :label="__('storefront.women')" @click="open = false" />
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['gender' => 'men'])" icon="men" :label="__('storefront.men')" @click="open = false" />
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['gender' => 'unisex'])" icon="unisex" :label="__('storefront.unisex')" @click="open = false" />
+                        <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.14em] text-taupe">{{ __('storefront.collections') }}</p>
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['featured' => 1])" icon="featured" :label="__('storefront.featured')" @click="open = false" />
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('shop', ['sort' => 'newest'])" icon="new" :label="__('storefront.new_arrivals')" @click="open = false" />
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('cart.index')" icon="bag" :label="__('storefront.bag').' ('.($cartCount ?? 0).')'" @click="open = false" />
                     </div>
                 </div>
 
@@ -331,7 +337,7 @@
                             <button type="button" class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left bg-ivory/50" @click="section = section === 'categories' ? '' : 'categories'">
                                 <span class="inline-flex items-center gap-2.5">
                                     <x-nav-icon name="categories" />
-                                    <span class="font-medium">Categories</span>
+                                    <span class="font-medium">{{ __('storefront.categories') }}</span>
                                 </span>
                                 <span class="text-taupe text-xs transition-transform" x-bind:class="section === 'categories' && 'rotate-90'">›</span>
                             </button>
@@ -348,7 +354,7 @@
                                                 loading="eager"
                                             >
                                         </span>
-                                        <span>{{ $navCategory->name }}</span>
+                                        <span>{{ $navCategory->localized('name') }}</span>
                                     </a>
                                 @endforeach
                             </div>
@@ -362,7 +368,7 @@
                             <button type="button" class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left bg-ivory/50" @click="section = section === 'brands' ? '' : 'brands'">
                                 <span class="inline-flex items-center gap-2.5">
                                     <x-nav-icon name="brands" />
-                                    <span class="font-medium">Brands</span>
+                                    <span class="font-medium">{{ __('storefront.brands') }}</span>
                                 </span>
                                 <span class="text-taupe text-xs transition-transform" x-bind:class="section === 'brands' && 'rotate-90'">›</span>
                             </button>
@@ -379,7 +385,7 @@
                                                 loading="eager"
                                             >
                                         </span>
-                                        <span>{{ $navBrand->name }}</span>
+                                        <span>{{ $navBrand->localized('name') }}</span>
                                     </a>
                                 @endforeach
                                 @if(($navBrandsTotal ?? $navBrands->count()) > 8)
@@ -388,7 +394,7 @@
                                         class="block w-full px-3 py-2.5 text-sm text-taupe rounded-sm hover:bg-beige/40 hover:text-charcoal border-t border-beige mt-1"
                                         @click="open = false"
                                     >
-                                        Show more
+                                        {{ __('storefront.show_more') }}
                                     </a>
                                 @endif
                             </div>
@@ -401,30 +407,30 @@
                     <button type="button" class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left bg-ivory/50" @click="section = section === 'account' ? '' : 'account'">
                         <span class="inline-flex items-center gap-2.5">
                             <x-nav-icon name="account" />
-                            <span class="font-medium">Account</span>
+                            <span class="font-medium">{{ __('storefront.account') }}</span>
                         </span>
                         <span class="text-taupe text-xs transition-transform" x-bind:class="section === 'account' && 'rotate-90'">›</span>
                     </button>
                     <div class="border-t border-beige bg-[#FFFCFA] px-2 py-1.5 space-y-0.5" x-show="section === 'account'" x-cloak>
                         @auth
-                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.index')" icon="account" label="My account" @click="open = false" />
-                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.notifications.index')" icon="bell" label="Notifications" @click="open = false" />
-                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.orders.index')" icon="orders" label="Orders" @click="open = false" />
-                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('returns.index')" icon="returns" label="Returns" @click="open = false" />
-                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('wishlist.index')" icon="wishlist" label="Wishlist" @click="open = false" />
+                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.index')" icon="account" :label="__('storefront.my_account')" @click="open = false" />
+                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.notifications.index')" icon="bell" :label="__('storefront.notifications')" @click="open = false" />
+                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('account.orders.index')" icon="orders" :label="__('storefront.orders')" @click="open = false" />
+                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('returns.index')" icon="returns" :label="__('storefront.returns')" @click="open = false" />
+                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('wishlist.index')" icon="wishlist" :label="__('storefront.wishlist')" @click="open = false" />
                             @if(auth()->user()->isAdmin())
-                                <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('admin.dashboard')" icon="admin" label="Admin portal" @click="open = false" />
+                                <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('admin.dashboard')" icon="admin" :label="__('storefront.admin_portal')" @click="open = false" />
                             @endif
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <button type="submit" class="flex w-full items-center gap-2.5 text-left px-3 py-2.5 rounded-sm hover:bg-beige/40">
                                     <x-nav-icon name="logout" />
-                                    <span>Sign out</span>
+                                    <span>{{ __('storefront.sign_out') }}</span>
                                 </button>
                             </form>
                         @else
-                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('login')" icon="login" label="Sign in" @click="open = false" />
-                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('register')" icon="register" label="Create account" @click="open = false" />
+                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('login')" icon="login" :label="__('storefront.sign_in')" @click="open = false" />
+                            <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('register')" icon="register" :label="__('storefront.create_account')" @click="open = false" />
                         @endauth
                     </div>
                 </div>
@@ -434,15 +440,15 @@
                     <button type="button" class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left bg-ivory/50" @click="section = section === 'help' ? '' : 'help'">
                         <span class="inline-flex items-center gap-2.5">
                             <x-nav-icon name="help" />
-                            <span class="font-medium">Help</span>
+                            <span class="font-medium">{{ __('storefront.help') }}</span>
                         </span>
                         <span class="text-taupe text-xs transition-transform" x-bind:class="section === 'help' && 'rotate-90'">›</span>
                     </button>
                     <div class="border-t border-beige bg-[#FFFCFA] px-2 py-1.5 space-y-0.5" x-show="section === 'help'" x-cloak>
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('pages.about')" icon="about" label="About" @click="open = false" />
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('pages.contact')" icon="contact" label="Contact" @click="open = false" />
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('pages.faq')" icon="faq" label="FAQ" @click="open = false" />
-                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('orders.track')" icon="track" label="Track order" @click="open = false" />
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('pages.about')" icon="about" :label="__('storefront.about')" @click="open = false" />
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('pages.contact')" icon="contact" :label="__('storefront.contact')" @click="open = false" />
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('pages.faq')" icon="faq" :label="__('storefront.faq')" @click="open = false" />
+                        <x-nav-item class="px-3 py-2.5 rounded-sm" :href="route('orders.track')" icon="track" :label="__('storefront.track_order')" @click="open = false" />
                     </div>
                 </div>
             </nav>
@@ -474,27 +480,29 @@
                 <p class="text-taupe max-w-md">{{ config('aura.tagline') }}</p>
             </div>
             <div>
-                <div class="label mb-3">Shop</div>
+                <div class="label mb-3">{{ __('storefront.shop') }}</div>
                 <div class="space-y-1">
-                    <x-nav-item class="py-1.5" :href="route('shop')" icon="shop" label="All products" />
-                    <x-nav-item class="py-1.5" :href="route('offers.index')" icon="featured" label="Hot offers" />
-                    <x-nav-item class="py-1.5" :href="route('shop', ['gender' => 'women'])" icon="women" label="Women" />
-                    <x-nav-item class="py-1.5" :href="route('shop', ['gender' => 'men'])" icon="men" label="Men" />
-                    <x-nav-item class="py-1.5" :href="route('shop', ['gender' => 'unisex'])" icon="unisex" label="Unisex" />
-                    <x-nav-item class="py-1.5" :href="route('shop', ['featured' => 1])" icon="featured" label="Featured" />
+                    <x-nav-item class="py-1.5" :href="route('shop')" icon="shop" :label="__('storefront.all_products')" />
+                    <x-nav-item class="py-1.5" :href="route('offers.index')" icon="featured" :label="__('storefront.hot_offers')" />
+                    <x-nav-item class="py-1.5" :href="route('shop', ['gender' => 'women'])" icon="women" :label="__('storefront.women')" />
+                    <x-nav-item class="py-1.5" :href="route('shop', ['gender' => 'men'])" icon="men" :label="__('storefront.men')" />
+                    <x-nav-item class="py-1.5" :href="route('shop', ['gender' => 'unisex'])" icon="unisex" :label="__('storefront.unisex')" />
+                    <x-nav-item class="py-1.5" :href="route('shop', ['featured' => 1])" icon="featured" :label="__('storefront.featured')" />
                 </div>
             </div>
             <div>
-                <div class="label mb-3">Help</div>
+                <div class="label mb-3">{{ __('storefront.help') }}</div>
                 <div class="space-y-1">
-                    <x-nav-item class="py-1.5" :href="route('pages.about')" icon="about" label="About" />
-                    <x-nav-item class="py-1.5" :href="route('pages.contact')" icon="contact" label="Contact" />
-                    <x-nav-item class="py-1.5" :href="route('pages.faq')" icon="faq" label="FAQ" />
-                    <x-nav-item class="py-1.5" :href="route('orders.track')" icon="track" label="Track order" />
-                    <x-nav-item class="py-1.5" :href="route('returns.index')" icon="returns" label="Returns" />
+                    <x-nav-item class="py-1.5" :href="route('pages.about')" icon="about" :label="__('storefront.about')" />
+                    <x-nav-item class="py-1.5" :href="route('pages.contact')" icon="contact" :label="__('storefront.contact')" />
+                    <x-nav-item class="py-1.5" :href="route('pages.faq')" icon="faq" :label="__('storefront.faq')" />
+                    <x-nav-item class="py-1.5" :href="route('orders.track')" icon="track" :label="__('storefront.track_order')" />
+                    <x-nav-item class="py-1.5" :href="route('returns.index')" icon="returns" :label="__('storefront.returns')" />
+                    <x-nav-item class="py-1.5" :href="route('pages.show', 'privacy-policy')" icon="faq" :label="__('storefront.privacy')" />
+                    <x-nav-item class="py-1.5" :href="route('pages.show', 'terms-of-service')" icon="faq" :label="__('storefront.terms')" />
                 </div>
                 @if(site_flag('show_newsletter'))
-                <div class="label mt-8 mb-3">Newsletter</div>
+                <div class="label mt-8 mb-3">{{ __('storefront.newsletter') }}</div>
                 <form
                     method="POST"
                     action="{{ route('newsletter.store') }}"
@@ -524,9 +532,9 @@
                     @csrf
                     <input type="email" name="email" required placeholder="Email" class="input" aria-label="Newsletter email" :disabled="submitting || done">
                     <button class="btn btn-primary w-full" type="submit" :disabled="submitting || done">
-                        <span x-show="!submitting && !done">Subscribe</span>
-                        <span x-show="submitting" x-cloak>Saving…</span>
-                        <span x-show="done && !submitting" x-cloak>Subscribed</span>
+                        <span x-show="!submitting && !done">{{ __('storefront.subscribe') }}</span>
+                        <span x-show="submitting" x-cloak>{{ __('storefront.saving') }}</span>
+                        <span x-show="done && !submitting" x-cloak>{{ __('storefront.subscribed') }}</span>
                     </button>
                 </form>
                 @endif

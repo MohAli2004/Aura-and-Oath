@@ -11,9 +11,9 @@ enum ProductGender: string
     public function label(): string
     {
         return match ($this) {
-            self::Women => 'Women',
-            self::Men => 'Men',
-            self::Unisex => 'Unisex',
+            self::Women => __('storefront.gender_women'),
+            self::Men => __('storefront.gender_men'),
+            self::Unisex => __('storefront.gender_unisex'),
         };
     }
 }

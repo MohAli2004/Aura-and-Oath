@@ -977,7 +977,7 @@ class AuraCommerceTest extends TestCase
         $product = $this->createProduct(['stock_quantity' => 2]);
         $admin = User::factory()->admin()->create();
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
         app(InventoryService::class)->adjust(
             $product,
             -5,

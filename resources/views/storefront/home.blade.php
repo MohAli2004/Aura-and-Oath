@@ -19,9 +19,9 @@
         style="background: linear-gradient(120deg, rgba(44,42,40,0.35), rgba(44,42,40,0.15));"
     ></div>
     <div class="relative z-[2] max-w-7xl mx-auto w-full px-4 sm:px-6 pb-20 pt-40 text-[#FFFCFA]">
-        <p class="font-display text-5xl sm:text-7xl max-w-3xl leading-[0.95] mb-4">{{ $hero->title ?? config('aura.name') }}</p>
-        <p class="text-lg sm:text-xl max-w-xl opacity-90 mb-8">{{ $hero->subtitle ?? config('aura.tagline') }}</p>
-        <a href="{{ safe_href($hero->link_url ?? null, route('shop')) }}" class="btn btn-gold">{{ $hero->button_text ?? 'Shop now' }}</a>
+        <p class="font-display text-5xl sm:text-7xl max-w-3xl leading-[0.95] mb-4">{{ $hero?->localized('title') ?: config('aura.name') }}</p>
+        <p class="text-lg sm:text-xl max-w-xl opacity-90 mb-8">{{ $hero?->localized('subtitle') ?: config('aura.tagline') }}</p>
+        <a href="{{ safe_href($hero->link_url ?? null, route('shop')) }}" class="btn btn-gold">{{ $hero?->localized('button_text') ?: __('storefront.shop') }}</a>
     </div>
 </section>
 
@@ -132,7 +132,7 @@
                     <div class="mb-4 flex h-12 w-12 items-center justify-center">
                         <img src="{{ $category->iconUrl() }}" alt="" class="max-h-full max-w-full object-contain" loading="lazy">
                     </div>
-                    <div class="font-display text-2xl">{{ $category->name }}</div>
+                    <div class="font-display text-2xl">{{ $category->localized('name') }}</div>
                     <div class="text-xs text-taupe mt-2 uppercase tracking-widest">Shop</div>
                 </a>
             @endforeach
@@ -162,4 +162,6 @@
     </div>
 </section>
 @endif
+
+<x-trust-facts />
 @endsection

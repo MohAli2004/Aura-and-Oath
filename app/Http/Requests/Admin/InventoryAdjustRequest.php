@@ -20,4 +20,27 @@ class InventoryAdjustRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:500'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        $raw = $this->input('quantity_change');
+
+        if (! is_string($raw)) {
+            return;
+        }
+
+        $trimmed = trim($raw);
+
+        if ($trimmed === '' || $trimmed === '+' || $trimmed === '-') {
+            return;
+        }
+
+        if (preg_match('/^([+-]?)(\d+)$/', $trimmed, $matches)) {
+            $amount = (int) $matches[2];
+
+            $this->merge([
+                'quantity_change' => $matches[1] === '-' ? -$amount : $amount,
+            ]);
+        }
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasArabicFields;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,11 +12,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ProductVariant extends Model
 {
+    use HasArabicFields;
     use SoftDeletes;
 
     protected $fillable = [
         'product_id',
         'name',
+        'name_ar',
         'sku',
         'barcode',
         'price',
@@ -101,9 +104,11 @@ class ProductVariant extends Model
     public function displayName(): string
     {
         if ($this->name) {
-            return $this->name;
+            return $this->localized('name');
         }
 
-        return $this->attributeValues->pluck('value')->implode(' / ') ?: 'Default';
+        $values = $this->attributeValues->map(fn (AttributeValue $value) => $value->localized('value'));
+
+        return $values->filter()->implode(' / ') ?: __('storefront.default_variant');
     }
 }

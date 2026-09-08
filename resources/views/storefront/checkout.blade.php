@@ -188,6 +188,12 @@
                         <li>Returns are accepted only for a real problem — a defective or damaged item, a missing item, or a different item than the one you ordered.</li>
                         <li>Used items, or items broken after delivery, cannot be returned.</li>
                     </ul>
+                    <p>
+                        Read our
+                        <a href="{{ route('pages.show', 'terms-of-service') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">Terms</a>
+                        and
+                        <a href="{{ route('pages.show', 'privacy-policy') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">Privacy policy</a>.
+                    </p>
                 </div>
                 <label class="flex items-start gap-3 text-sm">
                     <input
@@ -206,6 +212,12 @@
                 @error('terms_agreed')
                     <p class="text-sm text-red-700">{{ $message }}</p>
                 @enderror
+            </div>
+
+            <div class="space-y-3 text-sm text-taupe leading-relaxed">
+                <x-trust-reassurance />
+                <p>Prices shown in your summary include the delivery fee for the region you select.</p>
+                <p>After you place the order, we review it and send email updates. You can track status from your account or the Track order page.</p>
             </div>
 
             <button class="btn btn-primary" type="submit">Place order</button>
@@ -254,7 +266,7 @@
                 <h2 class="font-display text-2xl mb-4">Summary</h2>
                 @foreach($cart->items as $item)
                     <div class="flex justify-between text-sm py-2 border-b border-beige/70">
-                        <span>{{ $item->product->name }} × {{ $item->quantity }}</span>
+                        <span>{{ $item->product->localized('name') }} × {{ $item->quantity }}</span>
                         <span>{{ money($item->lineTotal()) }}</span>
                     </div>
                 @endforeach

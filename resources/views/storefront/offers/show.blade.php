@@ -6,13 +6,13 @@
     $defaultImage = (string) ($galleryPayload->first()['image'] ?? $offer->imageUrl());
     $canBuy = $offer->isPurchasable();
     $maxStock = $offer->availableQuantity();
-    $seoDescription = $offer->description
-        ? Str::limit(strip_tags((string) $offer->description), 160)
+    $seoDescription = $offer->localized('description')
+        ? Str::limit(strip_tags((string) $offer->localized('description')), 160)
         : 'Buy this set together at a better price.';
 @endphp
-@section('title', $offer->title.' — '.config('aura.name'))
+@section('title', $offer->localized('title').' — '.config('aura.name'))
 @section('meta_description', $seoDescription)
-@section('og_title', $offer->title)
+@section('og_title', $offer->localized('title'))
 @section('og_type', 'product')
 @section('og_image', $defaultImage)
 @section('canonical', route('offers.show', $offer->slug))
@@ -48,7 +48,7 @@
                 <img
                     src="{{ $defaultImage }}"
                     :src="activeImage"
-                    alt="{{ $offer->title }}"
+                    alt="{{ $offer->localized('title') }}"
                     class="mx-auto block h-auto max-h-[75vh] w-auto max-w-full object-contain"
                     decoding="async"
                 >
@@ -95,7 +95,7 @@
 
         <div class="w-full min-w-0">
             <div class="text-xs uppercase tracking-[0.18em] text-blush mb-2">Hot offer</div>
-            <h1 class="font-display text-4xl sm:text-5xl mb-3">{{ $offer->title }}</h1>
+            <h1 class="font-display text-4xl sm:text-5xl mb-3">{{ $offer->localized('title') }}</h1>
             <p class="text-xs uppercase tracking-[0.16em] text-taupe mb-3">{{ $offer->includedUnitCount() }} {{ Str::plural('piece', $offer->includedUnitCount()) }} in this offer</p>
 
             <div class="mb-4 flex flex-wrap items-baseline gap-3">
@@ -127,10 +127,10 @@
                             <div class="text-start border border-beige bg-[#FFFCFA] p-3">
                                 <div class="flex gap-3">
                                     <div class="h-14 w-14 shrink-0 overflow-hidden border border-beige bg-beige/30">
-                                        <img src="{{ $productImage }}" alt="{{ $product->name }}" class="h-full w-full object-cover">
+                                        <img src="{{ $productImage }}" alt="{{ $product->localized('name') }}" class="h-full w-full object-cover">
                                     </div>
                                     <div class="min-w-0 flex-1">
-                                        <a href="{{ route('products.show', $product->slug) }}" class="font-medium leading-snug block hover:text-gold transition">{{ $product->name }}</a>
+                                        <a href="{{ route('products.show', $product->slug) }}" class="font-medium leading-snug block hover:text-gold transition">{{ $product->localized('name') }}</a>
                                         <div class="text-xs text-taupe mt-0.5">{{ $qty }} × included</div>
                                     </div>
                                 </div>

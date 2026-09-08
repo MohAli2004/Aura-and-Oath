@@ -12,6 +12,8 @@ return [
     'currency' => env('AURA_CURRENCY', 'USD'),
     'currency_symbol' => env('AURA_CURRENCY_SYMBOL', '$'),
     'locale' => env('AURA_LOCALE', 'en_US'),
+    'default_locale' => env('AURA_DEFAULT_LOCALE', 'en'),
+    'locales' => ['en', 'ar'],
     'country' => env('AURA_COUNTRY', 'LB'),
     'country_name' => env('AURA_COUNTRY_NAME', 'Lebanon'),
 

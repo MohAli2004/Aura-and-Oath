@@ -6,7 +6,7 @@
         return [
             'id' => 'image-'.$image->id,
             'image' => $images->url($image->path),
-            'label' => $image->alt ?: ($product->name.' photo '.($index + 1)),
+            'label' => $image->alt ?: ($product->localized('name').' photo '.($index + 1)),
         ];
     })->values();
 
@@ -53,9 +53,9 @@
         : (is_array($productGalleryPayload->first())
             ? $productGalleryPayload->first()['image']
             : $images->url($product->primaryImagePath()));
-    $seoTitle = $product->meta_title ?: ($product->name.' — '.config('aura.name'));
-    $seoDescription = $product->meta_description
-        ?: ($product->short_description ?: Str::limit(strip_tags((string) $product->description), 160));
+    $seoTitle = $product->localized('meta_title') ?: ($product->localized('name').' — '.config('aura.name'));
+    $seoDescription = $product->localized('meta_description')
+        ?: ($product->localized('short_description') ?: Str::limit(strip_tags((string) $product->localized('description')), 160));
 @endphp
 @section('title', $seoTitle)
 @section('meta_description', $seoDescription)
@@ -69,7 +69,7 @@
         $productGalleryPayload = collect([[
             'id' => 'fallback',
             'image' => $defaultImage,
-            'label' => $product->name,
+            'label' => $product->localized('name'),
         ]]);
     }
 
@@ -92,7 +92,7 @@
     class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10"
     x-data="{
         productId: @js((string) $product->id),
-        productName: @js($product->name),
+        productName: @js($product->localized('name')),
         productPrice: @js((float) $product->effectivePrice()),
         productPriceLabel: @js(money($product->effectivePrice())),
         productCompareAt: @js($product->compareAtPrice() ? money($product->compareAtPrice()) : null),
@@ -353,7 +353,7 @@
             <div class="flex min-h-[280px] w-full items-center justify-center bg-beige/40 sm:min-h-[360px]">
                 <img
                     :src="activeImage"
-                    alt="{{ $product->name }}"
+                    alt="{{ $product->localized('name') }}"
                     class="mx-auto block h-auto max-h-[75vh] w-auto max-w-full object-contain"
                     decoding="async"
                 >
@@ -405,9 +405,9 @@
         </div>
         <div class="w-full min-w-0">
             @if($product->brand)
-                <div class="text-xs uppercase tracking-[0.18em] text-taupe mb-2">{{ $product->brand->name }}</div>
+                <div class="text-xs uppercase tracking-[0.18em] text-taupe mb-2">{{ $product->brand->localized('name') }}</div>
             @endif
-            <h1 class="font-display text-4xl sm:text-5xl mb-3">{{ $product->name }}</h1>
+            <h1 class="font-display text-4xl sm:text-5xl mb-3">{{ $product->localized('name') }}</h1>
             @if($product->gender)
                 <p class="text-xs uppercase tracking-[0.16em] text-taupe mb-3">{{ $product->gender->label() }}</p>
             @endif
@@ -471,7 +471,7 @@
                             This product is included in
                         @endif
                         @foreach($productOffers as $offer)
-                            <a class="underline" href="{{ route('offers.show', $offer->slug) }}">{{ $offer->title }}</a>@if(! $loop->last)<span class="text-taupe"> or </span>@endif
+                            <a class="underline" href="{{ route('offers.show', $offer->slug) }}">{{ $offer->localized('title') }}</a>@if(! $loop->last)<span class="text-taupe"> or </span>@endif
                         @endforeach
                         at the offer price. Buying it on its own uses the regular price.
                     </p>
@@ -479,7 +479,7 @@
                 </div>
             @endif
 
-            <p class="text-taupe mb-6">{{ $product->short_description }}</p>
+            <p class="text-taupe mb-6">{{ $product->localized('short_description') }}</p>
 
             <p class="text-sm mb-6">
                 <x-badge>
@@ -561,6 +561,9 @@
                     Add to bag
                 </button>
 
+                <x-trust-product-notes class="max-w-sm" />
+                <x-trust-reassurance class="max-w-sm" />
+
                 <div
                     x-show="staged.length > 0"
                     x-cloak
@@ -629,14 +632,14 @@
             @endauth
 
             <div class="mt-10 space-y-6 text-sm leading-relaxed">
-                @if($product->description)
-                    <div><h2 class="font-display text-2xl mb-2">Details</h2><div class="text-taupe whitespace-pre-line">{{ $product->description }}</div></div>
+                @if($product->localized('description'))
+                    <div><h2 class="font-display text-2xl mb-2">Details</h2><div class="text-taupe whitespace-pre-line">{{ $product->localized('description') }}</div></div>
                 @endif
-                @if($product->ingredients)
-                    <div><h2 class="font-display text-2xl mb-2">Ingredients</h2><div class="text-taupe whitespace-pre-line">{{ $product->ingredients }}</div></div>
+                @if($product->localized('ingredients'))
+                    <div><h2 class="font-display text-2xl mb-2">Ingredients</h2><div class="text-taupe whitespace-pre-line">{{ $product->localized('ingredients') }}</div></div>
                 @endif
-                @if($product->how_to_use)
-                    <div><h2 class="font-display text-2xl mb-2">How to use</h2><div class="text-taupe whitespace-pre-line">{{ $product->how_to_use }}</div></div>
+                @if($product->localized('how_to_use'))
+                    <div><h2 class="font-display text-2xl mb-2">How to use</h2><div class="text-taupe whitespace-pre-line">{{ $product->localized('how_to_use') }}</div></div>
                 @endif
             </div>
         </div>

@@ -11,9 +11,9 @@ enum StockStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::InStock => 'In Stock',
-            self::LowStock => 'Low Stock',
-            self::OutOfStock => 'Out of Stock',
+            self::InStock => __('storefront.in_stock'),
+            self::LowStock => __('storefront.low_stock'),
+            self::OutOfStock => __('storefront.out_of_stock'),
         };
     }
 }

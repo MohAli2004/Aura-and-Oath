@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class InventoryService
@@ -189,11 +190,15 @@ class InventoryService
             $newStock = $stockBefore + $quantityChange;
 
             if ($newStock < 0) {
-                throw new RuntimeException('Stock cannot go negative.');
+                throw ValidationException::withMessages([
+                    'quantity_change' => "There isn't that much in stock. Current stock is {$stockBefore}.",
+                ]);
             }
 
             if ($newStock < $reservedBefore) {
-                throw new RuntimeException('Stock cannot fall below reserved quantity.');
+                throw ValidationException::withMessages([
+                    'quantity_change' => "Cannot go below reserved quantity ({$reservedBefore} reserved, {$stockBefore} on hand).",
+                ]);
             }
 
             $stockable->stock_quantity = $newStock;

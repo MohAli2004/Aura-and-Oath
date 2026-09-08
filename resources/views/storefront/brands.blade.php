@@ -25,7 +25,7 @@
                         >
                     </span>
                     <span class="flex flex-1 flex-col items-center gap-2 px-4 py-4 sm:px-5 sm:py-5">
-                        <span class="font-display text-xl sm:text-2xl leading-tight">{{ $brand->name }}</span>
+                        <span class="font-display text-xl sm:text-2xl leading-tight">{{ $brand->localized('name') }}</span>
                         <span class="mt-auto text-xs uppercase tracking-widest text-taupe">Shop</span>
                     </span>
                 </a>

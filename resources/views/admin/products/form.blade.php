@@ -309,6 +309,13 @@
                 data-required-label="Name"
             />
             <x-input
+                label="Name (Arabic)"
+                name="name_ar"
+                value="{{ old('name_ar', $product->name_ar) }}"
+                hint="Optional Arabic title. Shown when the customer selects عربي."
+                dir="rtl"
+            />
+            <x-input
                 label="Slug"
                 name="slug"
                 value="{{ old('slug', $product->slug) }}"
@@ -543,11 +550,23 @@
                 <p class="mt-1 text-xs text-taupe leading-snug">One short line under the title (e.g. Gentle cleanser for daily use).</p>
             </div>
             <div>
+                <label class="label" for="short_description_ar">
+                    Short description (Arabic) <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
+                </label>
+                <textarea id="short_description_ar" name="short_description_ar" class="input" rows="2" dir="rtl">{{ old('short_description_ar', $product->short_description_ar) }}</textarea>
+            </div>
+            <div>
                 <label class="label" for="description">
                     Description <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
                 </label>
                 <textarea id="description" name="description" class="input" rows="5">{{ old('description', $product->description) }}</textarea>
                 <p class="mt-1 text-xs text-taupe leading-snug">Full product details shown on the product page.</p>
+            </div>
+            <div>
+                <label class="label" for="description_ar">
+                    Description (Arabic) <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
+                </label>
+                <textarea id="description_ar" name="description_ar" class="input" rows="5" dir="rtl">{{ old('description_ar', $product->description_ar) }}</textarea>
             </div>
             <div>
                 <label class="label" for="ingredients">
@@ -557,11 +576,23 @@
                 <p class="mt-1 text-xs text-taupe leading-snug">List ingredients or contents when relevant (cosmetics, household, and similar products).</p>
             </div>
             <div>
+                <label class="label" for="ingredients_ar">
+                    Ingredients (Arabic) <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
+                </label>
+                <textarea id="ingredients_ar" name="ingredients_ar" class="input" rows="3" dir="rtl">{{ old('ingredients_ar', $product->ingredients_ar) }}</textarea>
+            </div>
+            <div>
                 <label class="label" for="how_to_use">
                     How to use <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
                 </label>
                 <textarea id="how_to_use" name="how_to_use" class="input" rows="3">{{ old('how_to_use', $product->how_to_use) }}</textarea>
                 <p class="mt-1 text-xs text-taupe leading-snug">Simple steps for the customer (e.g. Apply 2–3 drops morning and night).</p>
+            </div>
+            <div>
+                <label class="label" for="how_to_use_ar">
+                    How to use (Arabic) <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
+                </label>
+                <textarea id="how_to_use_ar" name="how_to_use_ar" class="input" rows="3" dir="rtl">{{ old('how_to_use_ar', $product->how_to_use_ar) }}</textarea>
             </div>
         </div>
 

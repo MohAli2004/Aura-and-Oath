@@ -8,7 +8,7 @@
         <select id="shop-category" name="category" class="input">
             <option value="">All</option>
             @foreach($categories as $cat)
-                <option value="{{ $cat->slug }}" @selected(($filters['category'] ?? '') === $cat->slug)>{{ $cat->name }}</option>
+                <option value="{{ $cat->slug }}" @selected(($filters['category'] ?? '') === $cat->slug)>{{ $cat->localized('name') }}</option>
             @endforeach
         </select>
     </div>
@@ -17,7 +17,7 @@
         <select id="shop-brand" name="brand" class="input">
             <option value="">All</option>
             @foreach($brands as $brand)
-                <option value="{{ $brand->slug }}" @selected(($filters['brand'] ?? '') === $brand->slug)>{{ $brand->name }}</option>
+                <option value="{{ $brand->slug }}" @selected(($filters['brand'] ?? '') === $brand->slug)>{{ $brand->localized('name') }}</option>
             @endforeach
         </select>
     </div>

@@ -146,7 +146,7 @@ class CheckoutService
             'order_id' => $order->id,
             'product_id' => $product->id,
             'product_variant_id' => $variant?->id,
-            'product_name' => $product->name,
+            'product_name' => $product->localized('name'),
             'variant_name' => $variant?->displayName(),
             'sku' => $variant?->sku ?? $product->sku,
             'barcode' => $variant?->barcode ?? $product->barcode,

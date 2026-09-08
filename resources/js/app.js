@@ -1,6 +1,7 @@
 import './bootstrap';
 import Alpine from 'alpinejs';
 import checkoutPage from './checkout';
+import initInventoryAdjust from './inventory-adjust';
 import pushNotifications from './push-notifications';
 import { auraFetch, flashToast, notifyNotificationsChanged } from './aura-http';
 
@@ -19,6 +20,12 @@ window.addEventListener('aura:cart-count', (event) => {
 
 Alpine.data('checkoutPage', checkoutPage);
 Alpine.data('pushNotifications', pushNotifications);
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => initInventoryAdjust());
+} else {
+    initInventoryAdjust();
+}
 Alpine.data('productCard', (config = {}) => ({
     productId: config.productId,
     variants: Array.isArray(config.variants) ? config.variants : [],

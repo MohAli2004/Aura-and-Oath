@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use RuntimeException;
 
 class InventoryController extends Controller
 {
@@ -86,7 +87,11 @@ class InventoryController extends Controller
         $change = (int) $data['quantity_change'];
         $type = $change > 0 ? InventoryMovementType::AdjustmentAdd : InventoryMovementType::AdjustmentReduce;
 
-        $this->inventory->adjust($product, $change, $type, $variant, Auth::user(), $data['notes'] ?? null);
+        try {
+            $this->inventory->adjust($product, $change, $type, $variant, Auth::user(), $data['notes'] ?? null);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', 'Inventory adjusted.');
     }

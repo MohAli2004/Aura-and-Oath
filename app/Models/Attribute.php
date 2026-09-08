@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasArabicFields;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Attribute extends Model
 {
+    use HasArabicFields;
+
     protected $fillable = [
         'name',
+        'name_ar',
         'slug',
         'type',
         'is_variant',

@@ -1059,3 +1059,17 @@
         display: none !important;
     }
 }
+
+[dir="rtl"] body {
+    font-family: "Cormorant Garamond", "Noto Naskh Arabic", Georgia, serif;
+}
+
+[dir="rtl"] .font-display,
+[dir="rtl"] .font-sans {
+    font-family: "Cormorant Garamond", "Noto Naskh Arabic", Georgia, serif;
+}
+
+[dir="rtl"] .storefront-header-center,
+[dir="rtl"] .storefront-header-right {
+    direction: rtl;
+}

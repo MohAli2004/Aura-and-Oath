@@ -6,6 +6,7 @@ use App\Enums\ProductGender;
 use App\Enums\ProductStatus;
 use App\Enums\ProductVisibility;
 use App\Enums\StockStatus;
+use App\Models\Concerns\HasArabicFields;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,19 +18,25 @@ use Illuminate\Support\Str;
 
 class Product extends Model
 {
+    use HasArabicFields;
     use SoftDeletes;
 
     protected $fillable = [
         'category_id',
         'brand_id',
         'name',
+        'name_ar',
         'slug',
         'sku',
         'barcode',
         'short_description',
+        'short_description_ar',
         'description',
+        'description_ar',
         'ingredients',
+        'ingredients_ar',
         'how_to_use',
+        'how_to_use_ar',
         'price',
         'compare_at_price',
         'cost_price',
@@ -49,7 +56,9 @@ class Product extends Model
         'size',
         'unit',
         'meta_title',
+        'meta_title_ar',
         'meta_description',
+        'meta_description_ar',
         'published_at',
     ];
 

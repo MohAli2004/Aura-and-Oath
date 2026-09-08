@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasArabicFields;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,14 +10,19 @@ use Illuminate\Support\Str;
 
 class Page extends Model
 {
+    use HasArabicFields;
     use SoftDeletes;
 
     protected $fillable = [
         'title',
+        'title_ar',
         'slug',
         'content',
+        'content_ar',
         'meta_title',
+        'meta_title_ar',
         'meta_description',
+        'meta_description_ar',
         'is_published',
     ];
 

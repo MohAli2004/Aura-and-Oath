@@ -44,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Ties each session to the current password hash, so changing a
             // password really does end every other signed-in session.
             \Illuminate\Session\Middleware\AuthenticateSession::class,
+            \App\Http\Middleware\SetStorefrontLocale::class,
             \App\Http\Middleware\UseSeeOtherRedirectsForFormPosts::class,
         ]);
 

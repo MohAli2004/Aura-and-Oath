@@ -222,6 +222,31 @@ if (! function_exists('print_page_size')) {
     }
 }
 
+if (! function_exists('localized')) {
+    function localized(?string $en, ?string $ar): string
+    {
+        if (app()->getLocale() === 'ar' && filled($ar)) {
+            return $ar;
+        }
+
+        return $en ?? '';
+    }
+}
+
+if (! function_exists('storefront_locale')) {
+    function storefront_locale(): string
+    {
+        return app()->getLocale();
+    }
+}
+
+if (! function_exists('is_rtl')) {
+    function is_rtl(): bool
+    {
+        return app()->getLocale() === 'ar';
+    }
+}
+
 if (! function_exists('csp_nonce')) {
     function csp_nonce(): string
     {

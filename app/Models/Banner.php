@@ -2,20 +2,25 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasArabicFields;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Banner extends Model
 {
+    use HasArabicFields;
     use SoftDeletes;
 
     protected $fillable = [
         'title',
+        'title_ar',
         'subtitle',
+        'subtitle_ar',
         'image_path',
         'link_url',
         'button_text',
+        'button_text_ar',
         'placement',
         'sort_order',
         'is_active',

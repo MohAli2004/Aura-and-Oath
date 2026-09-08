@@ -91,7 +91,7 @@ class AppServiceProvider extends ServiceProvider
                         ->orderBy('sort_order')
                         ->orderBy('name')
                         ->take(8)
-                        ->get(['id', 'name', 'slug', 'image_path']);
+                        ->get(['id', 'name', 'name_ar', 'slug', 'image_path']);
                 });
             } catch (\Throwable) {
                 $navCategories = collect();
@@ -104,7 +104,7 @@ class AppServiceProvider extends ServiceProvider
                         ->orderBy('sort_order')
                         ->orderBy('name')
                         ->take(8)
-                        ->get(['id', 'name', 'slug', 'logo_path']);
+                        ->get(['id', 'name', 'name_ar', 'slug', 'logo_path']);
                 });
                 $navBrandsTotal = Cache::remember('storefront.nav_brands_total', 300, function () {
                     return Brand::query()->active()->count();

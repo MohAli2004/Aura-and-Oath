@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasArabicFields;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,12 +13,15 @@ use Illuminate\Support\Str;
 
 class Brand extends Model
 {
+    use HasArabicFields;
     use SoftDeletes;
 
     protected $fillable = [
         'name',
+        'name_ar',
         'slug',
         'description',
+        'description_ar',
         'logo_path',
         'website',
         'is_active',

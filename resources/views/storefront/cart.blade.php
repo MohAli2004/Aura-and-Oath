@@ -16,7 +16,7 @@
                     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
                         <div>
                             <div class="text-[11px] uppercase tracking-[0.16em] text-blush">Hot offer</div>
-                            <div class="font-display text-3xl mt-1">{{ $group['offer']->title ?? 'Offer' }}</div>
+                            <div class="font-display text-3xl mt-1">{{ $group['offer']->localized('title') ?? __('storefront.offer') }}</div>
                             <p class="text-sm text-taupe mt-1">Priced as one total, with the amounts listed below.</p>
                             <div class="mt-2 flex items-baseline gap-2">
                                 <span class="text-lg">{{ money($group['offer_total']) }}</span>
@@ -47,11 +47,11 @@
                             <div class="flex gap-4 items-center">
                                 @if($productUrl)
                                     <a href="{{ $productUrl }}" class="shrink-0 h-16 w-16 overflow-hidden border border-beige bg-beige/30">
-                                        <img src="{{ $imageUrl }}" alt="{{ $item->product->name }}" class="h-full w-full object-cover">
+                                        <img src="{{ $imageUrl }}" alt="{{ $item->product->localized('name') }}" class="h-full w-full object-cover">
                                     </a>
                                 @endif
                                 <div class="min-w-0 flex-1">
-                                    <div class="font-medium leading-tight">{{ $item->product->name }}</div>
+                                    <div class="font-medium leading-tight">{{ $item->product->localized('name') }}</div>
                                     <div class="text-xs text-taupe mt-0.5">{{ $item->quantity }} included</div>
                                     @if($item->variant)
                                         <div class="text-xs text-taupe mt-0.5">{{ $item->variant->displayName() }}</div>
@@ -76,7 +76,7 @@
                     <div class="flex gap-4 min-w-0">
                         @if($productUrl)
                             <a href="{{ $productUrl }}" class="shrink-0 h-20 w-20 sm:h-24 sm:w-24 overflow-hidden border border-beige bg-beige/30">
-                                <img src="{{ $imageUrl }}" alt="{{ $item->product->name }}" class="h-full w-full object-cover">
+                                <img src="{{ $imageUrl }}" alt="{{ $item->product->localized('name') }}" class="h-full w-full object-cover">
                             </a>
                         @else
                             <div class="shrink-0 h-20 w-20 sm:h-24 sm:w-24 overflow-hidden border border-beige bg-beige/30">
@@ -86,10 +86,10 @@
                         <div class="min-w-0">
                             @if($productUrl)
                                 <a href="{{ $productUrl }}" class="font-display text-2xl leading-tight hover:text-gold transition">
-                                    {{ $item->product->name }}
+                                    {{ $item->product->localized('name') }}
                                 </a>
                             @else
-                                <div class="font-display text-2xl">{{ $item->product->name ?? 'Product' }}</div>
+                                <div class="font-display text-2xl">{{ $item->product->localized('name') ?: __('storefront.product') }}</div>
                             @endif
                             @if($item->variant)
                                 <div class="text-sm text-taupe mt-1">{{ $item->variant->displayName() }}</div>
@@ -110,13 +110,32 @@
                 </div>
             @endforeach
         </div>
-        <div class="mt-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div class="text-xl">Subtotal: <strong>{{ money($subtotal) }}</strong></div>
-            @auth
-                <a href="{{ route('checkout.create') }}" class="btn btn-primary">Checkout</a>
-            @else
-                <a href="{{ route('checkout.create') }}" class="btn btn-primary">Sign in to checkout</a>
-            @endauth
+        <div class="mt-8 space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div class="text-xl">Subtotal: <strong>{{ money($subtotal) }}</strong></div>
+                @auth
+                    <a href="{{ route('checkout.create') }}" class="btn btn-primary">Checkout</a>
+                @else
+                    <a href="{{ route('checkout.create') }}" class="btn btn-primary">Sign in to checkout</a>
+                @endauth
+            </div>
+
+            <div class="max-w-2xl space-y-3 text-sm text-taupe leading-relaxed">
+                <x-trust-reassurance />
+                <p>Delivery fee is chosen at checkout based on your area. The total you confirm includes delivery.</p>
+                @guest
+                    <p>Sign in to checkout so we can save your order, send updates, and help with returns from your account.</p>
+                @endguest
+                <p>
+                    After you place an order, we review it and email status updates. Track progress on
+                    <a href="{{ route('orders.track') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">Track order</a>
+                    @auth
+                        or from <a href="{{ route('account.orders.index') }}" class="underline decoration-beige underline-offset-2 hover:text-charcoal">your orders</a>.
+                    @else
+                        with your order number and email.
+                    @endauth
+                </p>
+            </div>
         </div>
     @endif
 </div>

@@ -51,6 +51,7 @@ class DatabaseSeeder extends Seeder
         $this->seedBanners();
         $this->seedPages();
         $this->seedOrders($admin, $products);
+        $this->call(ArabicCatalogSeeder::class);
     }
 
     protected function seedSettings(): void
@@ -538,8 +539,16 @@ class DatabaseSeeder extends Seeder
     protected function seedPages(): void
     {
         foreach ([
-            ['Privacy Policy', 'privacy-policy', 'We respect your privacy. This policy explains how Aura & Oath collects and uses information.'],
-            ['Terms of Service', 'terms-of-service', 'By shopping with Aura & Oath you agree to these terms.'],
+            [
+                'Privacy Policy',
+                'privacy-policy',
+                "Aura & Oath is a small retailer based in Lebanon. This policy explains, in plain language, how we handle your information.\n\nWhat we collect\nWhen you shop or contact us, we may collect your name, email, phone number, delivery address, and order details. If you create an account, we store your sign-in information securely.\n\nHow we use it\nWe use this information to process orders, arrange delivery, respond to messages, manage returns, and send order updates. We do not sell your personal data.\n\nHow long we keep it\nOrder and account records are kept as long as needed for legal, accounting, and customer-service purposes.\n\nQuestions\nIf you have a privacy question, contact us through the Contact page or at the email shown there.",
+            ],
+            [
+                'Terms of Service',
+                'terms-of-service',
+                "These terms apply when you shop with Aura & Oath, a Lebanon-based online store.\n\nOrders\nPlacing an order is a request to buy. We review each order before preparing it. We may contact you if something needs clarification.\n\nPrices and payment\nPrices are shown in the store currency. Delivery fees depend on your area and are added at checkout. Available payment methods are shown at checkout.\n\nDelivery\nWe deliver across Lebanon. Timing depends on your location and our courier schedule.\n\nCancellation\nYou may cancel before we start preparing your order. After that, please wait for delivery and use the Returns page if needed.\n\nReturns\nReturns are accepted within 24 hours of delivery only for eligible problems — a defective or damaged item, a missing item, or a different item than ordered. See our Returns policy for full details.\n\nChanges\nWe may update these terms occasionally. The version on this site applies to orders placed after it is published.",
+            ],
             ['Shipping Policy', 'shipping-policy', 'We deliver across Lebanon. Fees depend on your area: Beirut Central ($3), Metn & Coastal Suburbs ($5), Mountain & Southern Coastal ($6), Major Cities North & South ($7), and Remote & Eastern Districts ($8). Delivery takes 1–3 business days depending on distance.'],
             ['Returns Policy', 'returns-policy', 'Returns are accepted within 24 hours of delivery, only when there is a real problem: a defective or damaged item, a missing item, or a different item than the one ordered. Used items, or items broken after delivery, cannot be returned. Start a return from the Returns page with your order number, email, a photo of the item, and details of the problem.'],
         ] as [$title, $slug, $content]) {

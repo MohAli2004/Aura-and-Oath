@@ -78,12 +78,7 @@
                     <td class="p-3">{{ $product->availableStock() }}</td>
                     <td class="p-3">
                         @if($unlocked)
-                            <form method="POST" action="{{ route('admin.inventory.adjust') }}" class="flex gap-1">
-                                @csrf
-                                <input type="hidden" name="product_id" value="{{ $product->id }}">
-                                <input class="input w-20" type="number" name="quantity_change" placeholder="+/-" required>
-                                <button class="btn btn-secondary" type="submit">OK</button>
-                            </form>
+                            @include('admin.inventory.partials.adjust-form', ['product' => $product])
                         @else
                             <span class="text-xs text-taupe">Locked</span>
                         @endif
@@ -97,13 +92,7 @@
                         <td class="p-3">{{ $variant->availableStock() }}</td>
                         <td class="p-3">
                             @if($unlocked)
-                                <form method="POST" action="{{ route('admin.inventory.adjust') }}" class="flex gap-1">
-                                    @csrf
-                                    <input type="hidden" name="product_id" value="{{ $product->id }}">
-                                    <input type="hidden" name="product_variant_id" value="{{ $variant->id }}">
-                                    <input class="input w-20" type="number" name="quantity_change" required>
-                                    <button class="btn btn-secondary" type="submit">OK</button>
-                                </form>
+                                @include('admin.inventory.partials.adjust-form', ['product' => $product, 'variant' => $variant])
                             @else
                                 <span class="text-xs text-taupe">Locked</span>
                             @endif

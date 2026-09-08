@@ -3,6 +3,7 @@
 @section('content')
 <div class="max-w-xl mx-auto px-4 sm:px-6 py-16">
     <h1 class="font-display text-5xl mb-4">Contact</h1>
+    <p class="text-taupe mb-4 leading-relaxed">Questions about an order, delivery, or a product? Send a message — we usually reply within one business day.</p>
     <x-store-contact class="text-taupe mb-8" />
     <form method="POST" action="{{ route('pages.contact.submit') }}" class="space-y-4">
         @csrf
