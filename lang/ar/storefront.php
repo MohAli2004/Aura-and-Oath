@@ -471,4 +471,6 @@ return [
     'js_could_not_mark_read' => 'تعذّر التعليم كمقروء.',
     'js_could_not_mark_all_read' => 'تعذّر تعليم الكل كمقروء.',
     'js_could_not_update_wishlist' => 'تعذّر تحديث المفضّلة.',
+
+    'links_page_title' => 'روابط — Aura & Oath',
 ];

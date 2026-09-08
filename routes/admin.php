@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DeliveryRegionController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\LinkHubController;
 use App\Http\Controllers\Admin\OfferController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ProductController;
@@ -93,6 +94,9 @@ Route::get('reports/orders.csv', [ReportController::class, 'exportOrders'])->nam
 
 Route::get('settings', [SettingController::class, 'edit'])->name('settings.edit');
 Route::put('settings', [SettingController::class, 'update'])->name('settings.update');
+
+Route::get('link-hub', [LinkHubController::class, 'edit'])->name('link-hub.edit');
+Route::put('link-hub', [LinkHubController::class, 'update'])->name('link-hub.update');
 
 Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
 

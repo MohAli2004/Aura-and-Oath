@@ -42,6 +42,7 @@
         'System' => [
             ['admin.notifications.index', 'Notifications', 'bell', 'notifications'],
             ['admin.settings.edit', 'Control panel', 'settings', null],
+            ['admin.link-hub.edit', 'Link page', 'links', null],
             ['admin.audit-logs.index', 'Audit Log', 'audit', 'audit'],
         ],
     ];

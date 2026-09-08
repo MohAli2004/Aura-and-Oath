@@ -471,4 +471,6 @@ return [
     'js_could_not_mark_read' => 'Could not mark as read.',
     'js_could_not_mark_all_read' => 'Could not mark all as read.',
     'js_could_not_update_wishlist' => 'Could not update wishlist.',
+
+    'links_page_title' => 'Links — Aura & Oath',
 ];

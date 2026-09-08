@@ -33,6 +33,7 @@ class SitemapController extends Controller
         $entries[] = $this->entry(route('pages.about'), now());
         $entries[] = $this->entry(route('pages.contact'), now());
         $entries[] = $this->entry(route('pages.faq'), now());
+        $entries[] = $this->entry(route('links.index'), now());
 
         Page::query()
             ->published()

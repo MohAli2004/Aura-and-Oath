@@ -6,6 +6,7 @@ use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\LinkHubController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\NotificationController;
@@ -36,6 +37,7 @@ Route::get('/sitemap.xml', SitemapController::class)
         \App\Http\Middleware\SetStorefrontLocale::class,
     ]);
 Route::get('/', HomeController::class)->name('home');
+Route::get('/links', LinkHubController::class)->name('links.index');
 Route::get('/shop', ShopController::class)->name('shop');
 Route::get('/offers', [OfferController::class, 'index'])->name('offers.index');
 Route::get('/offers/{slug}', [OfferController::class, 'show'])->name('offers.show');

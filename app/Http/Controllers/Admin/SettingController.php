@@ -263,6 +263,12 @@ class SettingController extends Controller
                 'status' => 'Add or edit regions, fees, and coverage',
             ],
             [
+                'label' => 'Link page',
+                'hint' => \App\Models\LinkHubButton::query()->where('is_active', true)->count().' active buttons',
+                'route' => 'admin.link-hub.edit',
+                'status' => 'Instagram bio / link hub at /links',
+            ],
+            [
                 'label' => 'Products',
                 'hint' => $activeProducts.' active of '.$totalProducts,
                 'route' => 'admin.products.index',
