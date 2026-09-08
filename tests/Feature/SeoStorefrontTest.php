@@ -55,9 +55,12 @@ class SeoStorefrontTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/xml; charset=UTF-8');
-        $response->assertSee('/products/sitemap-serum', false);
+        $response->assertSee('<?xml version="1.0" encoding="UTF-8"?>', false);
+        $response->assertSee('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"', false);
+        $response->assertSee('<loc>'.route('products.show', 'sitemap-serum').'</loc>', false);
         $response->assertSee('hreflang="en"', false);
         $response->assertSee('hreflang="ar"', false);
+        $response->assertHeaderMissing('Set-Cookie');
     }
 
     public function test_robots_txt_points_to_sitemap_and_blocks_admin(): void
@@ -66,7 +69,7 @@ class SeoStorefrontTest extends TestCase
 
         $this->assertNotFalse($contents);
         $this->assertStringContainsString('Sitemap:', $contents);
-        $this->assertStringContainsString('sitemap.xml', $contents);
+        $this->assertStringContainsString('https://auraandoath.com/sitemap.xml', $contents);
         $this->assertStringContainsString('Disallow: /admin', $contents);
     }
 

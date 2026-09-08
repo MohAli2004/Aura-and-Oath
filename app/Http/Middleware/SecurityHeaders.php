@@ -26,6 +26,12 @@ class SecurityHeaders
             return $response;
         }
 
+        if ($request->is('sitemap.xml')) {
+            $response->headers->set('X-Content-Type-Options', 'nosniff');
+
+            return $response;
+        }
+
         $headers = $response->headers;
 
         $headers->set('X-Content-Type-Options', 'nosniff');

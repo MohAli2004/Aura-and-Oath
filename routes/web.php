@@ -24,7 +24,17 @@ use Illuminate\Support\Facades\Route;
 Route::post('/locale', LocaleController::class)->name('locale.update');
 Route::get('/lang/{locale}', LocaleController::class)->name('locale.switch');
 
-Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
+Route::get('/sitemap.xml', SitemapController::class)
+    ->name('sitemap')
+    ->withoutMiddleware([
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        \Illuminate\Session\Middleware\AuthenticateSession::class,
+        \App\Http\Middleware\SetStorefrontLocale::class,
+    ]);
 Route::get('/', HomeController::class)->name('home');
 Route::get('/shop', ShopController::class)->name('shop');
 Route::get('/offers', [OfferController::class, 'index'])->name('offers.index');
