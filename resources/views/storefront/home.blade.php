@@ -1,6 +1,11 @@
 @extends('layouts.storefront')
 @section('title', config('aura.name').' — '.config('aura.tagline'))
-@section('meta_description', config('aura.tagline'))
+@section('meta_description', __('storefront.home_meta_description'))
+@section('canonical', url('/'))
+@push('json_ld')
+<script type="application/ld+json">{!! \App\Support\Seo::encodeJsonLd(\App\Support\Seo::organizationSchema()) !!}</script>
+<script type="application/ld+json">{!! \App\Support\Seo::encodeJsonLd(\App\Support\Seo::websiteSchema()) !!}</script>
+@endpush
 @section('content')
 @php
     $hero = $banners->first();

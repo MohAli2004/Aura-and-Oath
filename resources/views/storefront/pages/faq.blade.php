@@ -1,5 +1,7 @@
 @extends('layouts.storefront')
 @section('title', __('storefront.page_title_faq'))
+@section('meta_description', __('storefront.faq_meta_description'))
+@section('canonical', route('pages.faq'))
 @section('content')
 <div class="max-w-3xl mx-auto px-4 sm:px-6 py-16 space-y-6">
     <h1 class="font-display text-5xl mb-8">{{ __('storefront.faq') }}</h1>

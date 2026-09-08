@@ -1,5 +1,7 @@
 @extends('layouts.storefront')
 @section('title', __('storefront.page_title_contact'))
+@section('meta_description', __('storefront.contact_meta_description'))
+@section('canonical', route('pages.contact'))
 @section('content')
 <div class="max-w-xl mx-auto px-4 sm:px-6 py-16">
     <h1 class="font-display text-5xl mb-4">{{ __('storefront.contact') }}</h1>

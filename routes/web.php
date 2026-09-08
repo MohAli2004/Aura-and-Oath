@@ -16,6 +16,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ShopController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\WhishPaymentController;
 use App\Http\Controllers\WishlistController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\Route;
 Route::post('/locale', LocaleController::class)->name('locale.update');
 Route::get('/lang/{locale}', LocaleController::class)->name('locale.switch');
 
+Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/', HomeController::class)->name('home');
 Route::get('/shop', ShopController::class)->name('shop');
 Route::get('/offers', [OfferController::class, 'index'])->name('offers.index');

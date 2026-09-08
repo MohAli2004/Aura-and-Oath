@@ -1,7 +1,7 @@
 @extends('layouts.storefront')
 @php
     $seoTitle = $page->localized('meta_title') ?: $page->localized('title');
-    $seoDescription = $page->localized('meta_description') ?: Str::limit(strip_tags((string) $page->localized('content')), 160);
+    $seoDescription = seo_truncate($page->localized('meta_description') ?: strip_tags((string) $page->localized('content')), 155);
 @endphp
 @section('title', $seoTitle)
 @section('meta_description', $seoDescription)

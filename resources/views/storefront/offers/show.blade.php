@@ -7,15 +7,21 @@
     $canBuy = $offer->isPurchasable();
     $maxStock = $offer->availableQuantity();
     $seoDescription = $offer->localized('description')
-        ? Str::limit(strip_tags((string) $offer->localized('description')), 160)
-        : 'Buy this set together at a better price.';
+        ? seo_truncate(strip_tags((string) $offer->localized('description')), 155)
+        : __('storefront.offers_meta_description');
+    $offerPrice = number_format((float) $offerTotal, 2, '.', '');
 @endphp
 @section('title', $offer->localized('title').' — '.config('aura.name'))
 @section('meta_description', $seoDescription)
 @section('og_title', $offer->localized('title'))
 @section('og_type', 'product')
 @section('og_image', $defaultImage)
+@section('og_price_amount', $offerPrice)
+@section('og_price_currency', config('aura.currency', 'USD'))
 @section('canonical', route('offers.show', $offer->slug))
+@push('json_ld')
+<script type="application/ld+json">{!! \App\Support\Seo::encodeJsonLd(\App\Support\Seo::offerSchema($offer, route('offers.show', $offer->slug), $defaultImage)) !!}</script>
+@endpush
 @section('content')
 <div
     class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10"

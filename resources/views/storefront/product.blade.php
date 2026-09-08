@@ -56,13 +56,26 @@
     $seoTitle = $product->localized('meta_title') ?: ($product->localized('name').' — '.config('aura.name'));
     $seoDescription = $product->localized('meta_description')
         ?: ($product->localized('short_description') ?: Str::limit(strip_tags((string) $product->localized('description')), 160));
+    $seoDescription = seo_truncate($seoDescription, 155);
+    $productPrice = number_format($product->effectivePrice($firstVariant), 2, '.', '');
+    $breadcrumbItems = [
+        ['name' => config('aura.name'), 'url' => url('/')],
+        ['name' => __('storefront.shop'), 'url' => route('shop')],
+        ['name' => $product->localized('name'), 'url' => route('products.show', $product->slug)],
+    ];
 @endphp
 @section('title', $seoTitle)
 @section('meta_description', $seoDescription)
 @section('og_title', $seoTitle)
 @section('og_type', 'product')
 @section('og_image', $defaultImage)
+@section('og_price_amount', $productPrice)
+@section('og_price_currency', config('aura.currency', 'USD'))
 @section('canonical', route('products.show', $product->slug))
+@push('json_ld')
+<script type="application/ld+json">{!! \App\Support\Seo::encodeJsonLd(\App\Support\Seo::productSchema($product, route('products.show', $product->slug), $defaultImage)) !!}</script>
+<script type="application/ld+json">{!! \App\Support\Seo::encodeJsonLd(\App\Support\Seo::breadcrumbSchema($breadcrumbItems)) !!}</script>
+@endpush
 @section('content')
 @php
     if ($productGalleryPayload->isEmpty() && ! $product->has_variants) {

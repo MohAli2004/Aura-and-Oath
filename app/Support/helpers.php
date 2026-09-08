@@ -247,6 +247,32 @@ if (! function_exists('is_rtl')) {
     }
 }
 
+if (! function_exists('seo_canonical')) {
+    function seo_canonical(?string $override = null): string
+    {
+        if ($override !== null && trim($override) !== '') {
+            return trim($override);
+        }
+
+        return \App\Support\Seo::canonicalFromRequest();
+    }
+}
+
+if (! function_exists('seo_hreflang_alternates')) {
+    /** @return array<string, string> */
+    function seo_hreflang_alternates(string $canonical): array
+    {
+        return \App\Support\Seo::hreflangAlternates($canonical);
+    }
+}
+
+if (! function_exists('seo_truncate')) {
+    function seo_truncate(string $text, int $max = 160): string
+    {
+        return \App\Support\Seo::truncate($text, $max);
+    }
+}
+
 if (! function_exists('csp_nonce')) {
     function csp_nonce(): string
     {

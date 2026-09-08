@@ -1,5 +1,54 @@
 @extends('layouts.storefront')
-@section('title', __('storefront.page_title_shop', ['name' => config('aura.name')]))
+@php
+    $activeCategory = ! empty($filters['category'])
+        ? $categories->firstWhere('slug', $filters['category'])
+        : null;
+    $activeBrand = ! empty($filters['brand'])
+        ? $brands->firstWhere('slug', $filters['brand'])
+        : null;
+    $genderKey = match ($filters['gender'] ?? null) {
+        'women' => 'gender_women',
+        'men' => 'gender_men',
+        'unisex' => 'gender_unisex',
+        default => null,
+    };
+
+    if ($activeCategory) {
+        $seoTitle = $activeCategory->localized('name').' — '.config('aura.name');
+        $seoDescription = __('storefront.shop_meta_category', ['category' => $activeCategory->localized('name')]);
+        $shopCanonical = route('shop', ['category' => $activeCategory->slug]);
+    } elseif ($activeBrand) {
+        $seoTitle = $activeBrand->localized('name').' — '.config('aura.name');
+        $seoDescription = __('storefront.shop_meta_brand', ['brand' => $activeBrand->localized('name')]);
+        $shopCanonical = route('shop', ['brand' => $activeBrand->slug]);
+    } elseif ($genderKey) {
+        $seoTitle = __('storefront.'.$genderKey).' — '.config('aura.name');
+        $seoDescription = __('storefront.shop_meta_gender', ['gender' => __('storefront.'.$genderKey)]);
+        $shopCanonical = route('shop', ['gender' => $filters['gender']]);
+    } else {
+        $seoTitle = __('storefront.page_title_shop', ['name' => config('aura.name')]);
+        $seoDescription = __('storefront.shop_meta_description');
+        $shopCanonical = route('shop');
+    }
+
+    $breadcrumbItems = [
+        ['name' => config('aura.name'), 'url' => url('/')],
+        ['name' => __('storefront.shop'), 'url' => route('shop')],
+    ];
+    if ($activeCategory) {
+        $breadcrumbItems[] = ['name' => $activeCategory->localized('name'), 'url' => $shopCanonical];
+    } elseif ($activeBrand) {
+        $breadcrumbItems[] = ['name' => $activeBrand->localized('name'), 'url' => $shopCanonical];
+    } elseif ($genderKey) {
+        $breadcrumbItems[] = ['name' => __('storefront.'.$genderKey), 'url' => $shopCanonical];
+    }
+@endphp
+@section('title', $seoTitle)
+@section('meta_description', $seoDescription)
+@section('canonical', $shopCanonical)
+@push('json_ld')
+<script type="application/ld+json">{!! \App\Support\Seo::encodeJsonLd(\App\Support\Seo::breadcrumbSchema($breadcrumbItems)) !!}</script>
+@endpush
 @section('content')
 <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10" x-data="{ filtersOpen: false }" @keydown.escape.window="filtersOpen = false">
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sm:mb-8">

@@ -10,17 +10,38 @@
     <meta name="apple-mobile-web-app-title" content="{{ config('aura.name') }}">
     <title>@yield('title', config('aura.name'))</title>
     @php
-        $metaDescription = trim($__env->yieldContent('meta_description', config('aura.tagline', '')));
-        $ogTitle = trim($__env->yieldContent('og_title', $__env->yieldContent('title', config('aura.name'))));
-        $ogImage = trim($__env->yieldContent('og_image', store_logo_url() ?: ''));
-        $canonical = trim($__env->yieldContent('canonical', url()->current()));
+        $metaDescription = seo_truncate(trim($__env->yieldContent('meta_description') ?: config('aura.tagline', '')), 155);
+        $ogTitle = trim($__env->yieldContent('og_title') ?: ($__env->yieldContent('title') ?: config('aura.name')));
+        $ogImage = trim($__env->yieldContent('og_image') ?: (store_logo_url() ?: ''));
+        $canonicalOverride = trim($__env->yieldContent('canonical') ?: '');
+        $canonical = seo_canonical($canonicalOverride !== '' ? $canonicalOverride : null);
+        $hreflangAlternates = seo_hreflang_alternates($canonical);
+        $ogLocale = \App\Support\Seo::ogLocale();
+        $ogLocaleAlternates = \App\Support\Seo::ogLocaleAlternates();
+        $robotsDirective = trim($__env->yieldContent('robots') ?: (\App\Support\Seo::shouldNoindex() ? 'noindex, nofollow' : 'index, follow'));
+        $ogPriceAmount = trim($__env->yieldContent('og_price_amount') ?: '');
+        $ogPriceCurrency = trim($__env->yieldContent('og_price_currency') ?: config('aura.currency', 'USD'));
+        $googleVerification = env('GOOGLE_SITE_VERIFICATION');
     @endphp
     @if($metaDescription !== '')
         <meta name="description" content="{{ $metaDescription }}">
     @endif
+    @if($robotsDirective !== '')
+        <meta name="robots" content="{{ $robotsDirective }}">
+    @endif
     <link rel="canonical" href="{{ $canonical }}">
+    @foreach($hreflangAlternates as $hreflang => $href)
+        <link rel="alternate" hreflang="{{ $hreflang }}" href="{{ $href }}">
+    @endforeach
+    @if($googleVerification)
+        <meta name="google-site-verification" content="{{ $googleVerification }}">
+    @endif
     <meta property="og:type" content="@yield('og_type', 'website')">
     <meta property="og:site_name" content="{{ config('aura.name') }}">
+    <meta property="og:locale" content="{{ $ogLocale }}">
+    @foreach($ogLocaleAlternates as $alternateLocale)
+        <meta property="og:locale:alternate" content="{{ $alternateLocale }}">
+    @endforeach
     <meta property="og:title" content="{{ $ogTitle }}">
     @if($metaDescription !== '')
         <meta property="og:description" content="{{ $metaDescription }}">
@@ -28,6 +49,10 @@
     <meta property="og:url" content="{{ $canonical }}">
     @if($ogImage !== '')
         <meta property="og:image" content="{{ $ogImage }}">
+    @endif
+    @if($ogPriceAmount !== '')
+        <meta property="product:price:amount" content="{{ $ogPriceAmount }}">
+        <meta property="product:price:currency" content="{{ $ogPriceCurrency }}">
     @endif
     <meta name="twitter:card" content="{{ $ogImage !== '' ? 'summary_large_image' : 'summary' }}">
     <meta name="twitter:title" content="{{ $ogTitle }}">
@@ -37,6 +62,7 @@
     @if($ogImage !== '')
         <meta name="twitter:image" content="{{ $ogImage }}">
     @endif
+    @stack('json_ld')
     @if(store_favicon_url())
         <link rel="icon" href="{{ store_favicon_url() }}">
         <link rel="apple-touch-icon" href="{{ store_favicon_url() }}">
