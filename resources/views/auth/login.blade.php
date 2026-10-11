@@ -2,7 +2,9 @@
 @section('title', __('storefront.page_title_sign_in'))
 @section('content')
     <h1 class="font-display text-3xl sm:text-4xl mb-5 sm:mb-6">{{ __('storefront.welcome_back') }}</h1>
-
+    <p class="text-sm text-taupe">
+        hello world
+    </p>
     @if(filled(config('services.google.client_id')) && filled(config('services.google.client_secret')))
         <x-google-auth-button />
 
