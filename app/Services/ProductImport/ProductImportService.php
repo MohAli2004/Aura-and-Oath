@@ -1186,21 +1186,176 @@ class ProductImportService
      */
     protected function decodeJson(string $contents): array
     {
+        $contents = preg_replace('/^\xEF\xBB\xBF/', '', $contents) ?? $contents;
         if (! str_starts_with(ltrim($contents), '{')) {
             throw new \InvalidArgumentException('The JSON file must be an object with a products array.');
         }
 
-        try {
-            $decoded = json_decode($contents, true, 32, JSON_THROW_ON_ERROR);
-        } catch (\JsonException $exception) {
-            throw new \InvalidArgumentException('The JSON file could not be read. '.$exception->getMessage(), 0, $exception);
-        }
+        $contents = $this->escapeControlCharactersInJsonStrings($contents);
 
+        try {
+            return $this->decodeJsonString($contents);
+        } catch (\JsonException $exception) {
+            $repaired = $this->repairTruncatedJson($contents);
+            if ($repaired !== null) {
+                $decoded = $this->decodeJsonString($repaired);
+                $source = is_array($decoded['source'] ?? null) ? $decoded['source'] : [];
+                $note = 'The file ended before the JSON was finished. Only complete products and options were kept. Download the file again if products are missing.';
+                $source['notes'] = trim(($source['notes'] ?? '').' '.$note);
+                $decoded['source'] = $source;
+
+                return $decoded;
+            }
+
+            throw new \InvalidArgumentException('The JSON file could not be read. It looks incomplete or contains a broken character. '.$exception->getMessage(), 0, $exception);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function decodeJsonString(string $contents): array
+    {
+        $decoded = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
         if (! is_array($decoded)) {
             throw new \InvalidArgumentException('The JSON file must contain an object.');
         }
 
         return $decoded;
+    }
+
+    protected function escapeControlCharactersInJsonStrings(string $json): string
+    {
+        $out = '';
+        $inString = false;
+        $escaped = false;
+        $length = strlen($json);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $json[$i];
+            if ($inString) {
+                if ($escaped) {
+                    $out .= $char;
+                    $escaped = false;
+
+                    continue;
+                }
+                if ($char === '\\') {
+                    $out .= $char;
+                    $escaped = true;
+
+                    continue;
+                }
+                if ($char === '"') {
+                    $inString = false;
+                    $out .= $char;
+
+                    continue;
+                }
+                $code = ord($char);
+                if ($code < 32) {
+                    $out .= match ($char) {
+                        "\n" => '\\n',
+                        "\r" => '\\r',
+                        "\t" => '\\t',
+                        default => sprintf('\\u%04x', $code),
+                    };
+
+                    continue;
+                }
+            } elseif ($char === '"') {
+                $inString = true;
+            }
+
+            $out .= $char;
+        }
+
+        return $out;
+    }
+
+    protected function repairTruncatedJson(string $json): ?string
+    {
+        $length = strlen($json);
+        $attempts = 0;
+
+        for ($pos = $length - 1; $pos > 0 && $attempts < 40; $pos--) {
+            if ($json[$pos] !== '}' && $json[$pos] !== ']') {
+                continue;
+            }
+            $attempts++;
+            $closed = $this->closeJson(substr($json, 0, $pos + 1));
+            if ($closed === null) {
+                continue;
+            }
+            try {
+                $decoded = $this->decodeJsonString($closed);
+            } catch (\JsonException|\InvalidArgumentException) {
+                continue;
+            }
+            if (isset($decoded['products']) && is_array($decoded['products']) && $decoded['products'] !== []) {
+                return $closed;
+            }
+        }
+
+        return null;
+    }
+
+    protected function closeJson(string $json): ?string
+    {
+        $stack = [];
+        $inString = false;
+        $escaped = false;
+        $length = strlen($json);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $json[$i];
+            if ($inString) {
+                if ($escaped) {
+                    $escaped = false;
+
+                    continue;
+                }
+                if ($char === '\\') {
+                    $escaped = true;
+
+                    continue;
+                }
+                if ($char === '"') {
+                    $inString = false;
+                }
+
+                continue;
+            }
+
+            if ($char === '"') {
+                $inString = true;
+
+                continue;
+            }
+            if ($char === '{' || $char === '[') {
+                $stack[] = $char;
+
+                continue;
+            }
+            if ($char === '}' || $char === ']') {
+                $open = array_pop($stack);
+                $expected = $char === '}' ? '{' : '[';
+                if ($open !== $expected) {
+                    return null;
+                }
+            }
+        }
+
+        if ($inString || $stack === []) {
+            return null;
+        }
+
+        $closers = '';
+        for ($i = count($stack) - 1; $i >= 0; $i--) {
+            $closers .= $stack[$i] === '{' ? '}' : ']';
+        }
+
+        return $json.$closers;
     }
 
     /**

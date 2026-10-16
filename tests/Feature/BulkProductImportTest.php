@@ -449,6 +449,50 @@ class BulkProductImportTest extends TestCase
         $this->assertSame(1, Product::query()->count());
     }
 
+    public function test_truncated_and_line_break_json_still_import_complete_products(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $cutOff = <<<'JSON'
+{
+  "schema_version": "1.0",
+  "products": [{
+    "name": "Cut Off Serum",
+    "has_variants": true,
+    "variants": [
+      {"option_name": "Ivory"}
+    ,
+      {"option_name": "
+JSON;
+        $brokenLine = <<<'JSON'
+{
+  "schema_version": "1.0",
+  "products": [{
+    "name": "Line Break Serum",
+    "description": "First line
+second line"
+  }]
+}
+JSON;
+
+        $this->actingAs($admin)
+            ->post(route('admin.bulk-import.upload'), [
+                'file' => UploadedFile::fake()->createWithContent('cut.json', $cutOff),
+            ])
+            ->assertRedirect();
+        $cut = ImportBatch::query()->where('original_filename', 'cut.json')->firstOrFail();
+        $this->assertSame('Cut Off Serum', $cut->rows()->first()->name);
+        $this->assertStringContainsString('ended before the JSON was finished', (string) ($cut->source_meta['notes'] ?? ''));
+
+        $this->actingAs($admin)
+            ->post(route('admin.bulk-import.upload'), [
+                'file' => UploadedFile::fake()->createWithContent('line.json', $brokenLine),
+            ])
+            ->assertRedirect();
+        $line = ImportBatch::query()->where('original_filename', 'line.json')->firstOrFail();
+        $this->assertSame('Line Break Serum', $line->rows()->first()->name);
+        $this->assertStringContainsString('second line', (string) ($line->rows()->first()->payload['description'] ?? ''));
+    }
+
     public function test_exported_csv_reimport_does_not_duplicate(): void
     {
         $admin = User::factory()->admin()->create();
