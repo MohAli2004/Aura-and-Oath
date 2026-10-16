@@ -182,8 +182,9 @@
             'optionValueId' => isset($variant['optionValueId']) ? (string) $variant['optionValueId'] : '',
             'sizeAmount' => $variant['sizeAmount'] ?? '',
             'sizeUnit' => $variant['sizeUnit'] ?? $defaultMeasureUnit,
-            'priceLocked' => (bool) ($variant['priceLocked'] ?? false),
-            'costLocked' => (bool) ($variant['costLocked'] ?? false),
+            'priceLocked' => (bool) ($variant['priceLocked'] ?? true),
+            'costLocked' => (bool) ($variant['costLocked'] ?? true),
+            'stockLocked' => (bool) ($variant['stockLocked'] ?? true),
         ];
     };
 
@@ -244,8 +245,9 @@
                     'optionValueId' => $optionValueId,
                     'sizeAmount' => $parsedSize['amount'],
                     'sizeUnit' => $parsedSize['unit'],
-                    'priceLocked' => false,
-                    'costLocked' => false,
+                    'priceLocked' => true,
+                    'costLocked' => true,
+                    'stockLocked' => true,
                 ]);
             })->values()->all()
             : [];
@@ -258,6 +260,7 @@
         'productImages' => $initialProductImages,
         'mainPrice' => old('price', $product->price),
         'mainCost' => old('cost_price', $product->cost_price),
+        'mainStock' => '',
         'hasVariants' => count($initialVariants) > 0,
         'optionUnit' => $initialOptionUnit,
         'optionUnits' => $optionUnits,
@@ -265,6 +268,12 @@
         'variants' => $initialVariants,
     ]))"
 >
+    @unless($product->exists)
+        <div class="mb-4">
+            <a href="{{ route('admin.bulk-import.index') }}" class="btn btn-secondary">AI Import</a>
+        </div>
+    @endunless
+
     <div class="flex flex-wrap gap-2 mb-4 text-sm">
         @foreach(['basics'=>'Basics','pricing'=>'Pricing & stock','content'=>'Content','media'=>'Media','variants'=>'Variants'] as $k=>$v)
             <button type="button" class="btn" :class="tab==='{{ $k }}' ? 'btn-primary' : 'btn-secondary'" @click="tab='{{ $k }}'">{{ $v }}</button>
@@ -272,7 +281,7 @@
     </div>
 
     <p class="mb-6 text-sm text-taupe">
-        Fields marked <span class="text-blush">Required</span> must be filled before saving.
+        A name is required to save. Barcode, price, cost, stock, and an image are required before a product can be Active. Anything incomplete stays in Draft.
         <span class="text-taupe">Optional</span> fields can be left empty.
     </p>
 
@@ -344,7 +353,7 @@
                     name="barcode"
                     value="{{ old('barcode', $product->barcode) }}"
                     required-mark
-                    hint="Main product barcode (required when this product has no variants)."
+                    hint="Required to publish a product that has no variants. A draft can be saved without it."
                     data-required="true"
                     data-required-when="no-variants"
                     data-required-tab="basics"
@@ -423,7 +432,7 @@
                         <option value="{{ $status->value }}" @selected(old('status', $product->status?->value ?? 'active')==$status->value)>{{ $status->label() }}</option>
                     @endforeach
                 </select>
-                <p class="mt-1 text-xs text-taupe leading-snug">Draft = not for sale yet. Active = live. Archived = retired.</p>
+                <p class="mt-1 text-xs text-taupe leading-snug">Draft = not for sale yet. Active is saved only when the barcode, price, cost, stock, image, and approved content are complete. Visibility is separate: public, hidden, or private.</p>
             </div>
             <div>
                 <label class="label" for="visibility">
@@ -450,7 +459,7 @@
         <div x-show="tab==='pricing'" class="grid sm:grid-cols-2 gap-4">
             <div>
                 <label class="label" for="price">
-                    Price <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required</span>
+                    Price <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required to publish</span>
                 </label>
                 <input
                     id="price"
@@ -467,7 +476,7 @@
                     data-required-label="Price"
                 >
                 @error('price')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
-                <p class="mt-1 text-xs text-taupe leading-snug">Main selling price (USD). Required for every product. New variants copy this price automatically (you can still change each one).</p>
+                <p class="mt-1 text-xs text-taupe leading-snug">Selling price. Required before the product can be Active. A draft can be saved without it. On a product with options, this price is copied to every option. Change an option if it should cost differently.</p>
             </div>
             <x-input
                 label="Compare at"
@@ -479,7 +488,7 @@
             />
             <div>
                 <label class="label" for="cost_price">
-                    Cost (admin only) <span class="normal-case tracking-wide text-[10px] font-normal text-taupe">Optional</span>
+                    Cost (admin only) <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required to publish</span>
                 </label>
                 <input
                     id="cost_price"
@@ -491,7 +500,7 @@
                     @input="onMainCostInput($event)"
                     value="{{ old('cost_price', $product->cost_price) }}"
                 >
-                <p class="mt-1 text-xs text-taupe leading-snug">Your cost. New variants copy this too; customers never see it.</p>
+                <p class="mt-1 text-xs text-taupe leading-snug">Your cost. On a product with options, this cost is copied to every option. Customers never see it.</p>
             </div>
             <div x-show="!hasVariants" x-cloak>
                 <x-input
@@ -503,11 +512,21 @@
                     x-bind:disabled="hasVariants"
                 />
             </div>
-            <div x-show="hasVariants" x-cloak class="sm:col-span-2">
+            <div x-show="hasVariants" x-cloak>
                 <input type="hidden" name="stock_quantity" value="0" x-bind:disabled="!hasVariants">
-                <p class="text-sm text-taupe border border-beige bg-[#FFFCFA] p-3">
-                    Main stock is disabled for variant products. Set stock on each option in the Variants tab.
-                </p>
+                <label class="label" for="shared_stock_quantity">
+                    Stock quantity <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required to publish</span>
+                </label>
+                <input
+                    id="shared_stock_quantity"
+                    class="input"
+                    type="number"
+                    min="0"
+                    x-model="mainStock"
+                    @input="onMainStockInput($event)"
+                    placeholder="Quantity for every option"
+                >
+                <p class="mt-1 text-xs text-taupe leading-snug">Copied to every option. Change an option in the Variants tab if its quantity should differ. Zero is allowed.</p>
             </div>
             <x-input
                 label="Low stock threshold"
@@ -831,8 +850,8 @@
                                     <label class="label">
                                         Stock <span class="normal-case tracking-wide text-[10px] font-normal text-blush">Required</span>
                                     </label>
-                                    <input class="input" type="number" min="0" x-model="variant.stock_quantity">
-                                    <p class="mt-1 text-xs text-taupe">Units available for this option only (main product stock is not used).</p>
+                                    <input class="input" type="number" min="0" x-model="variant.stock_quantity" @input="variant.stockLocked = false">
+                                    <p class="mt-1 text-xs text-taupe">Copied from the shared quantity. Change it if this option has a different amount.</p>
                                 </div>
                                 <div class="flex items-end">
                                     <label class="flex items-center gap-2 text-sm pb-2">
@@ -943,6 +962,7 @@ document.addEventListener('alpine:init', () => {
         productImages: Array.isArray(config.productImages) ? config.productImages : [],
         mainPrice: config.mainPrice,
         mainCost: config.mainCost,
+        mainStock: config.mainStock ?? '',
         hasVariants: Boolean(config.hasVariants),
         optionUnit: config.optionUnit || '',
         optionUnits: Array.isArray(config.optionUnits) ? config.optionUnits : [],
@@ -1117,7 +1137,7 @@ document.addEventListener('alpine:init', () => {
                 barcode: '',
                 price: this.mainPrice === '' || this.mainPrice === null ? '' : this.mainPrice,
                 cost_price: this.mainCost === '' || this.mainCost === null ? '' : this.mainCost,
-                stock_quantity: 0,
+                stock_quantity: this.mainStock === '' || this.mainStock === null ? 0 : this.mainStock,
                 is_active: true,
                 is_default: isFirst,
                 images: [],
@@ -1126,6 +1146,7 @@ document.addEventListener('alpine:init', () => {
                 sizeUnit: this.defaultMeasureUnit,
                 priceLocked: true,
                 costLocked: true,
+                stockLocked: true,
             });
             if (this.usesSizeOptions) {
                 this.syncSizeName(this.variants[this.variants.length - 1]);
@@ -1167,6 +1188,14 @@ document.addEventListener('alpine:init', () => {
             this.variants.forEach((variant) => {
                 if (variant.costLocked) {
                     variant.cost_price = this.mainCost;
+                }
+            });
+        },
+        onMainStockInput(event) {
+            this.mainStock = event.target.value;
+            this.variants.forEach((variant) => {
+                if (variant.stockLocked) {
+                    variant.stock_quantity = this.mainStock;
                 }
             });
         },
@@ -1213,8 +1242,12 @@ document.addEventListener('alpine:init', () => {
             this.syncImageFileInputs();
             document.getElementById('variants_json').value = this.variantsJson();
 
+            const publishing = (form.querySelector('#status')?.value || 'active') === 'active';
             const fields = [...form.querySelectorAll('[data-required]')];
             for (const field of fields) {
+                if (!publishing && (field.dataset.requiredLabel || '') !== 'Name') {
+                    continue;
+                }
                 if (field.dataset.requiredWhen !== undefined) {
                     if (field.dataset.requiredWhen === 'no-variants' && this.hasVariants) {
                         continue;
@@ -1240,6 +1273,20 @@ document.addEventListener('alpine:init', () => {
                     field.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
                 });
                 return false;
+            }
+
+            if (!publishing) {
+                return true;
+            }
+
+            if (!this.hasVariants) {
+                const cost = (form.querySelector('[name="cost_price"]')?.value || '').toString().trim();
+                if (cost === '' || Number(cost) < 0 || Number.isNaN(Number(cost))) {
+                    event.preventDefault();
+                    this.tab = 'pricing';
+                    this.formError = 'Cost is required before this product can be Active.';
+                    return false;
+                }
             }
 
             if (!this.hasVariants && this.productImages.length === 0) {
@@ -1298,6 +1345,12 @@ document.addEventListener('alpine:init', () => {
                         event.preventDefault();
                         this.tab = 'variants';
                         this.formError = 'Variant ' + (i + 1) + ': stock is required (use 0 if none).';
+                        return false;
+                    }
+                    if (variant.cost_price === '' || variant.cost_price === null || Number(variant.cost_price) < 0 || Number.isNaN(Number(variant.cost_price))) {
+                        event.preventDefault();
+                        this.tab = 'variants';
+                        this.formError = 'Variant ' + (i + 1) + ': cost is required before this product can be Active.';
                         return false;
                     }
                     if (variant.price === '' || variant.price === null || Number.isNaN(Number(variant.price)) || Number(variant.price) < 0) {

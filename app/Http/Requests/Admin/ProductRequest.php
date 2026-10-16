@@ -37,7 +37,7 @@ class ProductRequest extends FormRequest
             'ingredients_ar' => ['nullable', 'string'],
             'how_to_use' => ['nullable', 'string'],
             'how_to_use_ar' => ['nullable', 'string'],
-            'price' => ['required', 'numeric', 'min:0'],
+            'price' => ['nullable', 'numeric', 'min:0'],
             'compare_at_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'stock_quantity' => ['nullable', 'integer', 'min:0'],
@@ -76,6 +76,20 @@ class ProductRequest extends FormRequest
         ];
     }
 
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $compare = $this->input('compare_at_price');
+            $price = $this->input('price');
+            if ($compare === null || $compare === '') {
+                return;
+            }
+            if ($price === null || $price === '' || (float) $compare <= (float) $price) {
+                $validator->errors()->add('compare_at_price', 'Compare-at price must be greater than the selling price.');
+            }
+        });
+    }
+
     protected function prepareForValidation(): void
     {
         $unit = $this->input('unit');
@@ -98,6 +112,7 @@ class ProductRequest extends FormRequest
             'slug' => $this->filled('slug') ? $this->input('slug') : null,
             'sku' => $this->filled('sku') ? $this->input('sku') : null,
             'barcode' => $this->filled('barcode') ? $this->input('barcode') : null,
+            'price' => $this->filled('price') ? $this->input('price') : null,
             'compare_at_price' => $this->filled('compare_at_price') ? $this->input('compare_at_price') : null,
             'cost_price' => $this->filled('cost_price') ? $this->input('cost_price') : null,
             'size' => $this->filled('size') ? $this->input('size') : null,

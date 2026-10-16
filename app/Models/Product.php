@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ContentSource;
 use App\Enums\ProductGender;
 use App\Enums\ProductStatus;
 use App\Enums\ProductVisibility;
@@ -24,6 +25,7 @@ class Product extends Model
     protected $fillable = [
         'category_id',
         'brand_id',
+        'import_batch_id',
         'name',
         'name_ar',
         'slug',
@@ -60,10 +62,17 @@ class Product extends Model
         'meta_description',
         'meta_description_ar',
         'published_at',
+        'content_approved_at',
+        'content_source',
+        'readiness_issues',
+        'import_meta',
+        'is_publishable',
     ];
 
     protected $hidden = [
         'cost_price',
+        'import_meta',
+        'readiness_issues',
     ];
 
     protected function casts(): array
@@ -84,6 +93,11 @@ class Product extends Model
             'gender' => ProductGender::class,
             'stock_status' => StockStatus::class,
             'published_at' => 'datetime',
+            'content_approved_at' => 'datetime',
+            'content_source' => ContentSource::class,
+            'readiness_issues' => 'array',
+            'import_meta' => 'array',
+            'is_publishable' => 'boolean',
         ];
     }
 
@@ -112,6 +126,11 @@ class Product extends Model
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(ImportBatch::class);
     }
 
     public function images(): HasMany

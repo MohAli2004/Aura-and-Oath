@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auraandoath.local/schemas/product-import-v1.schema.json",
+  "title": "Aura & Oath product import",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "products"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\." },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "generator": { "type": "string", "maxLength": 100 },
+        "notes": { "type": "string", "maxLength": 1000 }
+      }
+    },
+    "products": {
+      "type": "array",
+      "maxItems": 500,
+      "items": { "$ref": "#/$defs/product" }
+    }
+  },
+  "$defs": {
+    "product": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name"],
+      "properties": {
+        "external_id": { "type": ["string", "null"], "maxLength": 100 },
+        "catalogue_product_id": { "type": ["integer", "null"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "name_ar": { "type": ["string", "null"], "maxLength": 255 },
+        "slug": { "type": ["string", "null"], "maxLength": 255 },
+        "sku": { "type": ["string", "null"], "maxLength": 100 },
+        "brand": { "type": ["string", "null"], "maxLength": 255 },
+        "categories": { "type": "array", "items": { "type": "string", "maxLength": 255 } },
+        "gender": { "type": ["string", "null"], "enum": ["women", "men", "unisex", "female", "male", null] },
+        "short_description": { "type": ["string", "null"] },
+        "short_description_ar": { "type": ["string", "null"] },
+        "description": { "type": ["string", "null"] },
+        "description_ar": { "type": ["string", "null"] },
+        "ingredients": { "type": ["string", "null"] },
+        "ingredients_ar": { "type": ["string", "null"] },
+        "how_to_use": { "type": ["string", "null"] },
+        "how_to_use_ar": { "type": ["string", "null"] },
+        "meta_title": { "type": ["string", "null"], "maxLength": 255 },
+        "meta_title_ar": { "type": ["string", "null"], "maxLength": 255 },
+        "meta_description": { "type": ["string", "null"], "maxLength": 255 },
+        "meta_description_ar": { "type": ["string", "null"], "maxLength": 255 },
+        "size": { "type": ["number", "null"], "minimum": 0 },
+        "unit": { "type": ["string", "null"], "maxLength": 20 },
+        "weight": { "type": ["number", "null"], "minimum": 0 },
+        "barcode": { "type": ["string", "null"], "maxLength": 64 },
+        "price": { "type": ["number", "string", "null"], "minimum": 0 },
+        "cost": { "type": ["number", "string", "null"], "minimum": 0 },
+        "compare_at_price": { "type": ["number", "string", "null"], "minimum": 0 },
+        "stock": { "type": ["integer", "null"], "minimum": 0 },
+        "has_variants": { "type": "boolean" },
+        "variant_type": { "type": ["string", "null"], "enum": ["size", "shade", "scent", "option", null] },
+        "image_filenames": { "type": "array", "items": { "type": "string" } },
+        "content_warnings": { "type": "array", "items": { "type": "string" } },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "url": { "type": "string" }
+            }
+          }
+        },
+        "variants": {
+          "type": "array",
+          "maxItems": 40,
+          "items": { "$ref": "#/$defs/variant" }
+        }
+      }
+    },
+    "variant": {
+      "type": "object",
+      "required": ["option_name"],
+      "properties": {
+        "option_name": { "type": "string", "maxLength": 255 },
+        "option_name_ar": { "type": ["string", "null"], "maxLength": 255 },
+        "size": { "type": ["string", "null"] },
+        "shade": { "type": ["string", "null"] },
+        "scent": { "type": ["string", "null"] },
+        "barcode": { "type": ["string", "null"], "maxLength": 64 },
+        "price": { "type": ["number", "string", "null"], "minimum": 0 },
+        "cost": { "type": ["number", "string", "null"], "minimum": 0 },
+        "compare_at_price": { "type": ["number", "string", "null"], "minimum": 0 },
+        "stock": { "type": ["integer", "null"], "minimum": 0 },
+        "show_first": { "type": "boolean" },
+        "is_active": { "type": "boolean" },
+        "image_filenames": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

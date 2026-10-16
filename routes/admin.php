@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\Admin\BarcodeLookupController;
+use App\Http\Controllers\Admin\BulkProductImportController;
 use App\Http\Controllers\Admin\BrandController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CouponController;
@@ -37,6 +38,25 @@ Route::post('products/{product}/restore', [ProductController::class, 'restore'])
 Route::post('products/{product}/activate', [ProductController::class, 'activate'])->name('products.activate');
 Route::delete('products/{product}/force', [ProductController::class, 'forceDestroy'])->withTrashed()->name('products.force-destroy');
 Route::resource('products', ProductController::class)->except(['show']);
+
+Route::middleware('throttle:20,1')->group(function () {
+    Route::post('bulk-import', [BulkProductImportController::class, 'upload'])->name('bulk-import.upload');
+    Route::post('bulk-import/media', [BulkProductImportController::class, 'uploadMedia'])->name('bulk-import.media');
+});
+Route::get('bulk-import', [BulkProductImportController::class, 'index'])->name('bulk-import.index');
+Route::get('bulk-import/editor', [BulkProductImportController::class, 'editor'])->name('bulk-import.editor');
+Route::post('bulk-import/editor', [BulkProductImportController::class, 'save'])->name('bulk-import.editor.save');
+Route::post('bulk-import/editor/bulk', [BulkProductImportController::class, 'bulkApply'])->name('bulk-import.editor.bulk');
+Route::post('bulk-import/editor/publish', [BulkProductImportController::class, 'publish'])->name('bulk-import.editor.publish');
+Route::get('bulk-import/export', [BulkProductImportController::class, 'export'])->name('bulk-import.export');
+Route::get('bulk-import/schema', [BulkProductImportController::class, 'schema'])->name('bulk-import.schema');
+Route::get('bulk-import/example', [BulkProductImportController::class, 'example'])->name('bulk-import.example');
+Route::get('bulk-import/{batch}', [BulkProductImportController::class, 'show'])->name('bulk-import.show');
+Route::put('bulk-import/{batch}', [BulkProductImportController::class, 'update'])->name('bulk-import.update');
+Route::post('bulk-import/{batch}/commit', [BulkProductImportController::class, 'commit'])->name('bulk-import.commit');
+Route::get('bulk-import/{batch}/status', [BulkProductImportController::class, 'status'])->name('bulk-import.status');
+Route::get('bulk-import/{batch}/file', [BulkProductImportController::class, 'download'])->name('bulk-import.download');
+Route::post('bulk-import/media/{medium}/assign', [BulkProductImportController::class, 'assignMedia'])->name('bulk-import.media.assign');
 
 Route::delete('categories/bulk', [CategoryController::class, 'bulkDestroy'])->name('categories.bulk-destroy');
 Route::resource('categories', CategoryController::class)->except(['show']);

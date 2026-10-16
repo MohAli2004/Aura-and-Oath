@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0.0",
+  "source": {
+    "generator": "gemini",
+    "notes": "Sample only. Descriptions are AI-generated and must be reviewed. Do not invent barcodes, prices, costs, or stock."
+  },
+  "products": [
+    {
+      "external_id": "example-serum",
+      "name": "Calm Daily Serum",
+      "name_ar": "سيروم يومي هادئ",
+      "brand": "Aura Lab",
+      "categories": ["Face Care"],
+      "gender": "unisex",
+      "short_description": "A lightweight serum described from the bottle.",
+      "short_description_ar": "سيروم خفيف كما هو موصوف على العبوة.",
+      "description": "<p>AI draft. Confirm the claims before publishing.</p>",
+      "description_ar": "<p>مسودة ذكاء اصطناعي. راجعوا الادعاءات قبل النشر.</p>",
+      "ingredients": "Aqua, glycerin",
+      "ingredients_ar": "ماء، غليسرين",
+      "how_to_use": "Apply to clean skin.",
+      "how_to_use_ar": "يوضع على بشرة نظيفة.",
+      "size": 30,
+      "unit": "ml",
+      "barcode": null,
+      "price": null,
+      "cost": null,
+      "compare_at_price": null,
+      "stock": null,
+      "has_variants": false,
+      "content_warnings": ["Ingredient list was read from packaging and is not independently verified."],
+      "sources": [{ "title": "Brand page", "url": "https://example.com/calm-daily-serum" }]
+    },
+    {
+      "external_id": "example-foundation",
+      "name": "Soft Veil Foundation",
+      "name_ar": "كريم أساس الحجاب الناعم",
+      "brand": "Oath Color",
+      "categories": ["Makeup"],
+      "gender": "women",
+      "description": "Shade range suggested from the carton. Confirm each shade name.",
+      "description_ar": "درجات مقترحة من العلبة. يرجى تأكيد اسم كل درجة.",
+      "has_variants": true,
+      "variant_type": "shade",
+      "variants": [
+        {
+          "option_name": "Ivory",
+          "option_name_ar": "عاجي",
+          "shade": "Ivory",
+          "barcode": null,
+          "price": null,
+          "cost": null,
+          "stock": null,
+          "show_first": true
+        },
+        {
+          "option_name": "Sand",
+          "option_name_ar": "رملي",
+          "shade": "Sand",
+          "barcode": null,
+          "price": 42,
+          "cost": 18,
+          "compare_at_price": 55,
+          "stock": 0,
+          "show_first": false
+        }
+      ]
+    },
+    {
+      "external_id": "example-mist",
+      "name": "Linen Room Mist",
+      "name_ar": "بخاخ غرف الكتان",
+      "brand": "House Oath",
+      "categories": ["Home"],
+      "gender": "unisex",
+      "description": "Single size with a known barcode in this sample.",
+      "barcode": "6280000000012",
+      "price": 24,
+      "cost": 9,
+      "stock": 0,
+      "has_variants": false
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ContentSource;
 use App\Enums\InventoryMovementType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
@@ -55,6 +56,8 @@ class AuraCommerceTest extends TestCase
             'status' => ProductStatus::Active,
             'visibility' => ProductVisibility::Public,
             'stock_status' => 'in_stock',
+            'content_source' => ContentSource::Verified,
+            'content_approved_at' => now(),
             'published_at' => now(),
         ], $overrides));
     }
@@ -400,6 +403,16 @@ class AuraCommerceTest extends TestCase
             ->assertSee('Draft Mist')
             ->assertSee('Archived Oil')
             ->assertDontSee('Live Serum');
+
+        foreach ([$draft, $archived] as $product) {
+            ProductImage::query()->create([
+                'product_id' => $product->id,
+                'path' => 'products/'.$product->sku.'.jpg',
+                'alt' => $product->name,
+                'sort_order' => 0,
+                'is_primary' => true,
+            ]);
+        }
 
         $this->actingAs($admin)
             ->post(route('admin.products.activate', $draft))
@@ -1615,8 +1628,11 @@ class AuraCommerceTest extends TestCase
             ->get(route('admin.products.create'))
             ->assertOk()
             ->assertSee('Save product', false)
+            ->assertSee('AI Import', false)
             ->assertSee('x-data="productForm(', false)
             ->getContent();
+
+        $this->assertSame(1, substr_count($html, 'AI Import'));
 
         $this->assertMatchesRegularExpression(
             '/<script nonce="[^"]+">\s*document\.addEventListener\(\'alpine:init\'/',
@@ -1644,6 +1660,7 @@ class AuraCommerceTest extends TestCase
                 'name' => 'Gallery Serum',
                 'barcode' => '6229990000771',
                 'price' => 40,
+                'cost_price' => 12,
                 'stock_quantity' => 5,
                 'status' => 'active',
                 'visibility' => 'public',
@@ -1668,6 +1685,7 @@ class AuraCommerceTest extends TestCase
             ->post('/admin/products', [
                 'name' => 'Shade Duo',
                 'price' => 22,
+                'cost_price' => 8,
                 'status' => 'active',
                 'visibility' => 'public',
                 'track_inventory' => 1,

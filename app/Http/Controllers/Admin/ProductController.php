@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\ContentSource;
 use App\Enums\ProductGender;
 use App\Enums\ProductStatus;
 use App\Enums\ProductVisibility;
@@ -17,6 +18,7 @@ use App\Models\ProductVariant;
 use App\Services\AuditService;
 use App\Services\BarcodeService;
 use App\Services\ImageService;
+use App\Services\ProductReadinessService;
 use App\Services\ProductSearchService;
 use App\Services\ProductVariantService;
 use Illuminate\Http\RedirectResponse;
@@ -34,7 +36,8 @@ class ProductController extends Controller
         protected BarcodeService $barcodes,
         protected ImageService $images,
         protected ProductVariantService $variants,
-        protected AuditService $audit
+        protected AuditService $audit,
+        protected ProductReadinessService $readiness,
     ) {}
 
     public function index(Request $request): View
@@ -109,6 +112,8 @@ class ProductController extends Controller
         }
 
         $data['slug'] = $data['slug'] ?? Str::slug($data['name']).'-'.Str::lower(Str::random(4));
+        $data['content_source'] = ContentSource::Verified;
+        $data['content_approved_at'] = now();
         $product = Product::query()->create($data);
         $product->categories()->sync($categoryIds);
 
@@ -125,7 +130,7 @@ class ProductController extends Controller
         $product->refreshStockStatus();
         $this->audit->log('product.created', $product);
 
-        return redirect()->route('admin.products.index')->with('success', 'Product created.');
+        return $this->redirectAfterPublication($product, $data['status'] ?? null, 'admin.products.index', 'Product created.');
     }
 
     public function edit(Product $product): View
@@ -169,6 +174,7 @@ class ProductController extends Controller
             $this->barcodes->assertUnique($data['barcode'], $product->id);
         }
 
+        $data['content_approved_at'] = now();
         $product->update($data);
         $product->categories()->sync($categoryIds);
 
@@ -185,7 +191,7 @@ class ProductController extends Controller
         $product->refreshStockStatus();
         $this->audit->log('product.updated', $product);
 
-        return redirect()->route('admin.products.index')->with('success', 'Product updated.');
+        return $this->redirectAfterPublication($product, $data['status'] ?? null, 'admin.products.index', 'Product updated.');
     }
 
     public function destroy(Product $product): RedirectResponse
@@ -210,7 +216,18 @@ class ProductController extends Controller
     {
         abort_if($product->trashed() || $product->status === ProductStatus::Active, 404);
 
-        $product->update(['status' => ProductStatus::Active]);
+        $issues = $this->readiness->issues($product);
+        $this->readiness->remember($product, $issues);
+        if ($issues !== []) {
+            return back()->withErrors([
+                'status' => 'This product stays in Draft. Still needed: '.implode(', ', $this->readiness->labels($issues)).'.',
+            ]);
+        }
+
+        $product->update([
+            'status' => ProductStatus::Active,
+            'published_at' => $product->published_at ?? now(),
+        ]);
         $this->audit->log('product.activated', $product);
 
         return redirect()->route('admin.products.index')->with('success', 'Product activated.');
@@ -267,17 +284,33 @@ class ProductController extends Controller
             ->where('status', '!=', ProductStatus::Active)
             ->get();
 
+        $activated = 0;
+        $held = 0;
         foreach ($products as $product) {
-            $product->update(['status' => ProductStatus::Active]);
+            $issues = $this->readiness->issues($product);
+            $this->readiness->remember($product, $issues);
+            if ($issues !== []) {
+                $held++;
+
+                continue;
+            }
+
+            $product->update([
+                'status' => ProductStatus::Active,
+                'published_at' => $product->published_at ?? now(),
+            ]);
             $this->audit->log('product.activated', $product);
+            $activated++;
         }
 
-        $count = $products->count();
-        $noun = $count === 1 ? 'product' : 'products';
+        $message = "{$activated} ".($activated === 1 ? 'product' : 'products').' activated.';
+        if ($held > 0) {
+            $message .= " {$held} ".($held === 1 ? 'product stays' : 'products stay').' in Draft because required information is missing.';
+        }
 
         return redirect()
             ->route('admin.products.index')
-            ->with('success', "{$count} {$noun} activated.");
+            ->with('success', $message);
     }
 
     public function bulkForceDestroy(Request $request): RedirectResponse
@@ -295,6 +328,38 @@ class ProductController extends Controller
         return redirect()
             ->route('admin.products.trashed')
             ->with('success', "{$count} {$noun} permanently deleted.");
+    }
+
+    protected function redirectAfterPublication(Product $product, mixed $requestedStatus, string $route, string $success): RedirectResponse
+    {
+        $status = $requestedStatus instanceof ProductStatus
+            ? $requestedStatus
+            : ProductStatus::tryFrom((string) $requestedStatus);
+
+        $product->refresh()->load(['images', 'variants.images', 'variants.attributeValues']);
+        $issues = $this->readiness->issues($product);
+        $this->readiness->remember($product, $issues);
+
+        if ($status !== ProductStatus::Active || $issues === []) {
+            if ($status === ProductStatus::Active && $product->published_at === null) {
+                $product->update(['published_at' => now()]);
+            }
+
+            return redirect()->route($route)->with('success', $success);
+        }
+
+        if ($product->status !== ProductStatus::Draft) {
+            $product->update(['status' => ProductStatus::Draft]);
+            $this->readiness->remember($product);
+        }
+
+        $message = 'This product stays in Draft. Still needed: '.implode(', ', $this->readiness->labels($issues)).'.';
+
+        return redirect()
+            ->route('admin.products.edit', $product)
+            ->withInput()
+            ->withErrors(['status' => $message])
+            ->with('error', $message);
     }
 
     /**

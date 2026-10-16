@@ -1,0 +1,27 @@
+Oracle : Upload local changes to internet
+
+ssh -i "F:\Downloads\ssh-key-2026-10-10.key" ubuntu@84.13.145.80
+
+cd /var/www/Aura-and-Oath
+
+git status --short
+
+git pull --ff-only origin main
+
+php artisan optimize:clear
+
+git log -1 --oneline
+
+_________________________________
+On your Windows computer
+
+git add .
+git commit -m "describe changes"
+git push origin main
+
+
+On your Oracle server
+
+cd /var/www/Aura-and-Oath
+git pull --ff-only origin main
+php artisan optimize:clear

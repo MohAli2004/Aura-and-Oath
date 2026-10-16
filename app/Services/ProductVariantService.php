@@ -71,13 +71,17 @@ class ProductVariantService
                     'price' => $data['price'] ?? null,
                     'compare_at_price' => $data['compare_at_price'] ?? null,
                     'cost_price' => $data['cost_price'] ?? null,
-                    'stock_quantity' => $data['stock_quantity'] ?? 0,
+                    'stock_quantity' => array_key_exists('stock_quantity', $data) ? $data['stock_quantity'] : 0,
                     'low_stock_threshold' => $data['low_stock_threshold'] ?? 5,
                     'weight' => $data['weight'] ?? null,
                     'is_active' => $data['is_active'] ?? true,
                     'sort_order' => $index,
                     'is_default' => $defaultIndex === $index,
                 ];
+
+                if (array_key_exists('name_ar', $data)) {
+                    $payload['name_ar'] = $data['name_ar'] ?: null;
+                }
 
                 if ($variant) {
                     $variant->update($payload);
