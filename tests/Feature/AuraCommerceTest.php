@@ -417,21 +417,19 @@ class AuraCommerceTest extends TestCase
         }
 
         $this->actingAs($admin)
-            ->from(route('admin.products.inactive'))
             ->post(route('admin.products.activate', $draft))
             ->assertRedirect(route('admin.products.inactive'));
 
         $this->assertEquals(ProductStatus::Active, $draft->fresh()->status);
 
         $this->actingAs($admin)
-            ->from(route('admin.products.inactive'))
             ->post(route('admin.products.bulk-activate'), ['ids' => [$archived->id]])
             ->assertRedirect(route('admin.products.inactive'));
 
         $this->assertEquals(ProductStatus::Active, $archived->fresh()->status);
     }
 
-    public function test_saving_an_inactive_product_stays_on_the_edit_page(): void
+    public function test_saving_an_inactive_product_returns_to_the_inactive_list(): void
     {
         $admin = User::factory()->admin()->create();
         $draft = $this->createProduct([
@@ -465,7 +463,7 @@ class AuraCommerceTest extends TestCase
 
         $this->actingAs($admin)
             ->put(route('admin.products.update', $draft), $payload)
-            ->assertRedirect(route('admin.products.edit', $draft))
+            ->assertRedirect(route('admin.products.inactive'))
             ->assertSessionHas('success', 'Product updated.');
 
         $this->assertSame('Draft Gift Set Ready', $draft->fresh()->name);
@@ -476,10 +474,26 @@ class AuraCommerceTest extends TestCase
                 'name' => 'Draft Gift Set Live',
                 'status' => ProductStatus::Active->value,
             ]))
-            ->assertRedirect(route('admin.products.edit', $draft))
+            ->assertRedirect(route('admin.products.inactive'))
             ->assertSessionHas('success', 'Product updated.');
 
         $this->assertSame(ProductStatus::Active, $draft->fresh()->status);
+
+        $this->createProduct([
+            'name' => 'Still Draft',
+            'sku' => 'SKU-STILL-DRAFT',
+            'barcode' => 'BC-STILL-DRAFT',
+            'slug' => 'still-draft',
+            'status' => ProductStatus::Draft,
+            'published_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.products.inactive'))
+            ->assertOk()
+            ->assertSee('Still Draft')
+            ->assertSee('Activate all on this page')
+            ->assertDontSee('Draft Gift Set Live');
     }
 
     public function test_admin_can_create_hot_offer_as_a_bundle_customers_must_buy_together(): void

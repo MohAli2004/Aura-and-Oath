@@ -944,6 +944,9 @@
 
         <div class="flex gap-3">
             <button class="btn btn-primary" type="submit">Save product</button>
+            @if($product->exists && $product->status !== \App\Enums\ProductStatus::Active)
+                <button form="activate-product" class="btn btn-secondary" type="submit">Activate</button>
+            @endif
             @if($product->exists)
                 <button form="delete-product" class="btn btn-danger" type="submit" onclick="return confirm('Move this product to Deleted products? You can restore it later.')">Delete</button>
             @endif
@@ -951,6 +954,9 @@
     </form>
 
     @if($product->exists)
+        @if($product->status !== \App\Enums\ProductStatus::Active)
+            <form id="activate-product" method="POST" action="{{ route('admin.products.activate', $product) }}">@csrf</form>
+        @endif
         <form id="delete-product" method="POST" action="{{ route('admin.products.destroy', $product) }}">@csrf @method('DELETE')</form>
     @endif
 </div>

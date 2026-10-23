@@ -187,6 +187,7 @@ class ProductController extends Controller
 
     public function update(ProductRequest $request, Product $product): RedirectResponse
     {
+        $wasInactive = $product->status !== ProductStatus::Active;
         $data = $request->safe()->except([
             'image',
             'images',
@@ -230,7 +231,9 @@ class ProductController extends Controller
         $product->refreshStockStatus();
         $this->audit->log('product.updated', $product);
 
-        return $this->redirectAfterPublication($product, $data['status'] ?? null, 'admin.products.edit', 'Product updated.');
+        $returnTo = $wasInactive ? 'admin.products.inactive' : 'admin.products.index';
+
+        return $this->redirectAfterPublication($product, $data['status'] ?? null, $returnTo, 'Product updated.');
     }
 
     public function destroy(Product $product): RedirectResponse
@@ -269,7 +272,7 @@ class ProductController extends Controller
         ]);
         $this->audit->log('product.activated', $product);
 
-        return back()->with('success', 'Product activated.');
+        return redirect()->route('admin.products.inactive')->with('success', 'Product activated.');
     }
 
     public function forceDestroy(Product $product): RedirectResponse
@@ -347,7 +350,7 @@ class ProductController extends Controller
             $message .= " {$held} ".($held === 1 ? 'product stays' : 'products stay').' in Draft because required information is missing.';
         }
 
-        return back()->with('success', $message);
+        return redirect()->route('admin.products.inactive')->with('success', $message);
     }
 
     public function bulkForceDestroy(Request $request): RedirectResponse
