@@ -230,7 +230,7 @@ class ProductController extends Controller
         $product->refreshStockStatus();
         $this->audit->log('product.updated', $product);
 
-        return $this->redirectAfterPublication($product, $data['status'] ?? null, 'admin.products.index', 'Product updated.');
+        return $this->redirectAfterPublication($product, $data['status'] ?? null, 'admin.products.edit', 'Product updated.');
     }
 
     public function destroy(Product $product): RedirectResponse
@@ -269,7 +269,7 @@ class ProductController extends Controller
         ]);
         $this->audit->log('product.activated', $product);
 
-        return redirect()->route('admin.products.index')->with('success', 'Product activated.');
+        return back()->with('success', 'Product activated.');
     }
 
     public function forceDestroy(Product $product): RedirectResponse
@@ -347,9 +347,7 @@ class ProductController extends Controller
             $message .= " {$held} ".($held === 1 ? 'product stays' : 'products stay').' in Draft because required information is missing.';
         }
 
-        return redirect()
-            ->route('admin.products.index')
-            ->with('success', $message);
+        return back()->with('success', $message);
     }
 
     public function bulkForceDestroy(Request $request): RedirectResponse
@@ -384,7 +382,11 @@ class ProductController extends Controller
                 $product->update(['published_at' => now()]);
             }
 
-            return redirect()->route($route)->with('success', $success);
+            $redirect = $route === 'admin.products.edit'
+                ? redirect()->route($route, $product)
+                : redirect()->route($route);
+
+            return $redirect->with('success', $success);
         }
 
         if ($product->status !== ProductStatus::Draft) {

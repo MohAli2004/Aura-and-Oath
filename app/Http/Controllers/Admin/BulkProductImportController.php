@@ -200,12 +200,27 @@ class BulkProductImportController extends Controller
             'new_variant_images.*.*' => ['image', 'max:4096'],
             'remove_image_ids' => ['nullable', 'array'],
             'remove_image_ids.*' => ['integer'],
+            'activate' => ['nullable', 'boolean'],
         ]);
 
         $this->imports->saveEditor($request->input('products', []));
         $this->syncEditorImages($request);
 
-        return back()->with('success', 'Changes saved. Incomplete products remain in Draft.');
+        if (! $request->boolean('activate')) {
+            return back()->with('success', 'Changes saved. Incomplete products remain in Draft.');
+        }
+
+        $ids = array_map('intval', array_keys($request->input('products', [])));
+        $result = $this->imports->publish($ids);
+        $activated = count($result['activated']);
+        $held = count($result['rejected']);
+
+        return back()
+            ->with('success', $activated > 0
+                ? ($activated === 1 ? 'Product activated.' : $activated.' products activated.')
+                : 'Changes saved. Incomplete products remain in Draft.')
+            ->with('error', $held > 0 ? $held.' product'.($held === 1 ? '' : 's').' stayed in Draft because required information is still missing.' : null)
+            ->with('publish_rejections', $result['rejected']);
     }
 
     public function bulkApply(Request $request): RedirectResponse

@@ -417,16 +417,69 @@ class AuraCommerceTest extends TestCase
         }
 
         $this->actingAs($admin)
+            ->from(route('admin.products.inactive'))
             ->post(route('admin.products.activate', $draft))
-            ->assertRedirect(route('admin.products.index'));
+            ->assertRedirect(route('admin.products.inactive'));
 
         $this->assertEquals(ProductStatus::Active, $draft->fresh()->status);
 
         $this->actingAs($admin)
+            ->from(route('admin.products.inactive'))
             ->post(route('admin.products.bulk-activate'), ['ids' => [$archived->id]])
-            ->assertRedirect(route('admin.products.index'));
+            ->assertRedirect(route('admin.products.inactive'));
 
         $this->assertEquals(ProductStatus::Active, $archived->fresh()->status);
+    }
+
+    public function test_saving_an_inactive_product_stays_on_the_edit_page(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $draft = $this->createProduct([
+            'name' => 'Draft Gift Set',
+            'sku' => 'SKU-EDIT-DRAFT',
+            'barcode' => 'BC-EDIT-DRAFT',
+            'slug' => 'draft-gift-set',
+            'status' => ProductStatus::Draft,
+            'published_at' => null,
+        ]);
+        ProductImage::query()->create([
+            'product_id' => $draft->id,
+            'path' => 'products/'.$draft->sku.'.jpg',
+            'alt' => $draft->name,
+            'sort_order' => 0,
+            'is_primary' => true,
+        ]);
+
+        $imageId = $draft->images()->value('id');
+        $payload = [
+            'name' => 'Draft Gift Set Ready',
+            'slug' => $draft->slug,
+            'barcode' => $draft->barcode,
+            'price' => 18,
+            'cost_price' => 8,
+            'stock_quantity' => 12,
+            'status' => ProductStatus::Draft->value,
+            'visibility' => ProductVisibility::Public->value,
+            'existing_image_ids' => [$imageId],
+        ];
+
+        $this->actingAs($admin)
+            ->put(route('admin.products.update', $draft), $payload)
+            ->assertRedirect(route('admin.products.edit', $draft))
+            ->assertSessionHas('success', 'Product updated.');
+
+        $this->assertSame('Draft Gift Set Ready', $draft->fresh()->name);
+        $this->assertSame(ProductStatus::Draft, $draft->fresh()->status);
+
+        $this->actingAs($admin)
+            ->put(route('admin.products.update', $draft), array_merge($payload, [
+                'name' => 'Draft Gift Set Live',
+                'status' => ProductStatus::Active->value,
+            ]))
+            ->assertRedirect(route('admin.products.edit', $draft))
+            ->assertSessionHas('success', 'Product updated.');
+
+        $this->assertSame(ProductStatus::Active, $draft->fresh()->status);
     }
 
     public function test_admin_can_create_hot_offer_as_a_bundle_customers_must_buy_together(): void

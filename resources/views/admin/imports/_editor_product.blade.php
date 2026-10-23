@@ -167,7 +167,12 @@
         </div>
     </div>
 
-    <button class="btn btn-primary mt-4" type="submit">Save this product</button>
+    <div class="mt-4 flex flex-wrap gap-2">
+        <button class="btn btn-primary" type="submit">Save this product</button>
+        @if($product->status !== \App\Enums\ProductStatus::Active)
+            <button class="btn btn-secondary" type="submit" name="activate" value="1">Activate</button>
+        @endif
+    </div>
 </form>
 
 <script nonce="{{ csp_nonce() }}">

@@ -317,6 +317,36 @@ class BulkProductImportTest extends TestCase
         $this->assertSame(ProductVisibility::Public, $product->fresh()->visibility);
     }
 
+    public function test_editor_activate_saves_and_stays_on_the_product(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $product = $this->readyProduct();
+        $url = route('admin.bulk-import.editor', ['product' => $product->id]);
+
+        $this->actingAs($admin)
+            ->from($url)
+            ->post(route('admin.bulk-import.editor.save'), [
+                'activate' => '1',
+                'products' => [
+                    $product->id => [
+                        'name' => 'Activated Gift Set',
+                        'approve_content' => '1',
+                    ],
+                ],
+            ])
+            ->assertRedirect($url)
+            ->assertSessionHas('success', 'Product activated.');
+
+        $this->assertSame('Activated Gift Set', $product->fresh()->name);
+        $this->assertSame(ProductStatus::Active, $product->fresh()->status);
+
+        $this->actingAs($admin)
+            ->get($url)
+            ->assertOk()
+            ->assertSee('Activated Gift Set')
+            ->assertSee('Active');
+    }
+
     public function test_compare_at_must_be_higher_than_price_when_provided(): void
     {
         $product = $this->readyProduct(['compare_at_price' => 10, 'price' => 20]);
