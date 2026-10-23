@@ -1612,6 +1612,38 @@ class AuraCommerceTest extends TestCase
         $this->assertEquals(PaymentStatus::Paid, $paid->payment_status);
     }
 
+    public function test_admin_can_toggle_delivery_region_visibility_from_the_list(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $beirut = $this->createRegion('BRT');
+        $metn = $this->createRegion('MET');
+        $metn->update(['name' => 'Metn & Coastal Suburbs']);
+
+        $this->actingAs($admin)
+            ->from(route('admin.delivery-regions.index'))
+            ->patch(route('admin.delivery-regions.visibility', $metn), ['is_active' => '0'])
+            ->assertRedirect(route('admin.delivery-regions.index'))
+            ->assertSessionHas('success');
+
+        $this->assertFalse($metn->fresh()->is_active);
+        $this->assertTrue($beirut->fresh()->is_active);
+
+        $this->actingAs($admin)
+            ->from(route('admin.delivery-regions.index'))
+            ->patch(route('admin.delivery-regions.visibility', $beirut), ['is_active' => '0'])
+            ->assertRedirect(route('admin.delivery-regions.index'))
+            ->assertSessionHas('error');
+
+        $this->assertTrue($beirut->fresh()->is_active);
+
+        $this->actingAs($admin)
+            ->from(route('admin.delivery-regions.index'))
+            ->patch(route('admin.delivery-regions.visibility', $metn), ['is_active' => '1'])
+            ->assertRedirect(route('admin.delivery-regions.index'));
+
+        $this->assertTrue($metn->fresh()->is_active);
+    }
+
     public function test_inactive_delivery_region_is_rejected_at_checkout(): void
     {
         $product = $this->createProduct();

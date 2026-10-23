@@ -53,9 +53,30 @@ class DeliveryRegionController extends Controller
 
     public function update(DeliveryRegionRequest $request, DeliveryRegion $deliveryRegion): RedirectResponse
     {
-        $deliveryRegion->update($request->validated());
+        $data = $request->validated();
+        if (! ($data['is_active'] ?? false) && ! $this->anotherRegionIsVisible($deliveryRegion)) {
+            return back()
+                ->withInput()
+                ->withErrors(['is_active' => 'Keep at least one delivery choice visible to customers.']);
+        }
+
+        $deliveryRegion->update($data);
 
         return redirect()->route('admin.delivery-regions.index')->with('success', 'Delivery region updated.');
+    }
+
+    public function updateVisibility(Request $request, DeliveryRegion $deliveryRegion): RedirectResponse
+    {
+        $visible = $request->boolean('is_active');
+        if (! $visible && ! $this->anotherRegionIsVisible($deliveryRegion)) {
+            return back()->with('error', 'Keep at least one delivery choice visible to customers.');
+        }
+
+        $deliveryRegion->update(['is_active' => $visible]);
+
+        return back()->with('success', $visible
+            ? $deliveryRegion->name.' is visible at checkout.'
+            : $deliveryRegion->name.' is hidden from customers.');
     }
 
     public function destroy(DeliveryRegion $deliveryRegion): RedirectResponse
@@ -74,5 +95,13 @@ class DeliveryRegionController extends Controller
             'admin.delivery-regions.index',
             'delivery region',
         );
+    }
+
+    protected function anotherRegionIsVisible(DeliveryRegion $region): bool
+    {
+        return DeliveryRegion::query()
+            ->active()
+            ->where('id', '!=', $region->id)
+            ->exists();
     }
 }
