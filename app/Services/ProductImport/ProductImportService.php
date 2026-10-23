@@ -798,7 +798,7 @@ class ProductImportService
             'content_approved_at' => null,
             'is_featured' => false,
             'is_bestseller' => false,
-            'is_new' => false,
+            'is_new' => true,
             'import_meta' => [
                 'external_id' => $payload['external_id'] ?? null,
                 'sources' => $payload['sources'] ?? [],
@@ -1105,7 +1105,10 @@ class ProductImportService
             if (! is_string($name) || trim($name) === '') {
                 continue;
             }
-            $categoryIds[] = $this->findOrCreateCategory($name, $warnings)->id;
+            $category = $this->findExistingCategory($name, $warnings);
+            if ($category) {
+                $categoryIds[] = $category->id;
+            }
         }
 
         $unit = $payload['unit'] ?? null;
@@ -1436,14 +1439,23 @@ class ProductImportService
         return $brand;
     }
 
-    protected function findOrCreateCategory(string $name, array &$warnings): Category
+    protected function findExistingCategory(string $name, array &$warnings): ?Category
     {
         $label = trim($name);
+        if ($label === '') {
+            return null;
+        }
+
         $needle = mb_strtolower($label);
+        $slug = Str::slug($label);
         $category = Category::query()
-            ->where(function ($query) use ($needle) {
+            ->where(function ($query) use ($needle, $slug) {
                 $query->whereRaw('LOWER(name) = ?', [$needle])
-                    ->orWhereRaw('LOWER(name_ar) = ?', [$needle]);
+                    ->orWhereRaw('LOWER(name_ar) = ?', [$needle])
+                    ->orWhereRaw('LOWER(slug) = ?', [$needle]);
+                if ($slug !== '' && $slug !== $needle) {
+                    $query->orWhere('slug', $slug);
+                }
             })
             ->first();
 
@@ -1451,14 +1463,9 @@ class ProductImportService
             return $category;
         }
 
-        $category = Category::query()->create([
-            'name' => $label,
-            'slug' => $this->uniqueRelationSlug(Category::class, $label, 'category'),
-            'is_active' => true,
-        ]);
-        $warnings[] = 'Category "'.$category->name.'" was not in the category list, so it was created.';
+        $warnings[] = 'Category "'.$label.'" is not in your category list, so it was skipped.';
 
-        return $category;
+        return null;
     }
 
     /**

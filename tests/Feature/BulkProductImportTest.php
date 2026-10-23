@@ -65,6 +65,7 @@ class BulkProductImportTest extends TestCase
         $serum = Product::query()->where('name', 'Calm Daily Serum')->firstOrFail();
         $this->assertSame(ProductStatus::Draft, $serum->status);
         $this->assertSame(ProductVisibility::Public, $serum->visibility);
+        $this->assertTrue($serum->is_new);
         $this->assertSame(ContentSource::Ai, $serum->content_source);
         $this->assertNull($serum->content_approved_at);
         $this->assertSame('سيروم يومي هادئ', $serum->name_ar);
@@ -88,7 +89,7 @@ class BulkProductImportTest extends TestCase
         $this->get(route('shop'))->assertOk()->assertDontSee('Calm Daily Serum');
     }
 
-    public function test_unknown_brand_and_category_are_created_and_reused(): void
+    public function test_unknown_brand_is_created_but_unknown_category_is_skipped(): void
     {
         $admin = User::factory()->admin()->create();
         $knownBrand = Brand::query()->create([
@@ -129,20 +130,19 @@ class BulkProductImportTest extends TestCase
         $this->assertTrue($createdBrand->is_active);
         $this->assertSame(2, Brand::query()->count());
 
-        $nightCare = Category::query()->whereRaw('LOWER(name) = ?', ['night care'])->firstOrFail();
-        $this->assertTrue($nightCare->is_active);
-        $this->assertSame(2, Category::query()->count());
+        $this->assertNull(Category::query()->whereRaw('LOWER(name) = ?', ['night care'])->first());
+        $this->assertSame(1, Category::query()->count());
 
         $first = Product::query()->where('name', 'First Cream')->firstOrFail();
         $this->assertSame($createdBrand->id, $first->brand_id);
-        $this->assertEqualsCanonicalizing(
-            [$nightCare->id, $skincare->id],
-            $first->categories()->pluck('categories.id')->all()
-        );
+        $this->assertSame([$skincare->id], $first->categories()->pluck('categories.id')->all());
+        $this->assertTrue(collect($first->import_meta['warnings'] ?? [])->contains(
+            fn ($warning) => is_string($warning) && str_contains($warning, 'Night Care')
+        ));
 
         $second = Product::query()->where('name', 'Second Cream')->firstOrFail();
         $this->assertSame($createdBrand->id, $second->brand_id);
-        $this->assertSame([$nightCare->id], $second->categories()->pluck('categories.id')->all());
+        $this->assertSame([], $second->categories()->pluck('categories.id')->all());
 
         $third = Product::query()->where('name', 'Third Cream')->firstOrFail();
         $this->assertSame($knownBrand->id, $third->brand_id);

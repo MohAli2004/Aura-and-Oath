@@ -50,6 +50,20 @@
 </section>
 @endif
 
+@if(site_flag('home_show_new_arrivals'))
+<section class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+    <div class="flex items-end justify-between mb-8">
+        <h2 class="font-display text-4xl">{{ __('storefront.new_arrivals') }}</h2>
+        <a href="{{ route('shop', ['sort' => 'newest']) }}" class="text-sm text-taupe">{{ __('storefront.view_all') }}</a>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 items-stretch">
+        @foreach($newArrivals as $product)
+            <x-product-card :product="$product" />
+        @endforeach
+    </div>
+</section>
+@endif
+
 @if(site_flag('home_show_shop_by_gender'))
 <section class="bg-[#F3EEE7] py-16">
     <div class="max-w-7xl mx-auto px-4 sm:px-6">
@@ -151,17 +165,6 @@
     <h2 class="font-display text-4xl mb-8">{{ __('storefront.bestsellers') }}</h2>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-5 items-stretch">
         @foreach($bestsellers as $product)
-            <x-product-card :product="$product" />
-        @endforeach
-    </div>
-</section>
-@endif
-
-@if(site_flag('home_show_new_arrivals'))
-<section class="max-w-7xl mx-auto px-4 sm:px-6 pb-20">
-    <h2 class="font-display text-4xl mb-8">{{ __('storefront.new_arrivals') }}</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 items-stretch">
-        @foreach($newArrivals as $product)
             <x-product-card :product="$product" />
         @endforeach
     </div>

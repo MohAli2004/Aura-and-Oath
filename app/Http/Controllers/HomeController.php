@@ -19,7 +19,7 @@ class HomeController extends Controller
                 ->with(['images', 'brand', 'activeVariants'])
                 ->active()
                 ->published()
-                ->latest();
+                ->newestVisible();
 
             return [
                 'banners' => Banner::query()->active()->placement('home_hero')->orderBy('sort_order')->get(),
@@ -29,7 +29,7 @@ class HomeController extends Controller
                 'womenProducts' => $base()->gender(ProductGender::Women)->take(8)->get(),
                 'menProducts' => $base()->gender(ProductGender::Men)->take(8)->get(),
                 'unisexProducts' => $base()->gender(ProductGender::Unisex)->take(8)->get(),
-                'categories' => Category::query()->active()->orderBy('sort_order')->take(8)->get(),
+                'categories' => Category::query()->forStorefront()->get(),
                 'brands' => Brand::query()->active()->featured()->orderBy('sort_order')->take(8)->get(),
             ];
         });

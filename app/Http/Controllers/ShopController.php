@@ -16,7 +16,7 @@ class ShopController extends Controller
         return view('storefront.shop', [
             'products' => $search->search($request->all(), (int) config('aura.shop.per_page', 12)),
             'categories' => Cache::remember('storefront.shop_categories', 300, function () {
-                return Category::query()->active()->orderBy('sort_order')->get();
+                return Category::query()->forStorefront()->get();
             }),
             'brands' => Cache::remember('storefront.shop_brands', 300, function () {
                 return Brand::query()->active()->orderBy('name')->get();

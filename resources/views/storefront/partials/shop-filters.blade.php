@@ -5,6 +5,28 @@
     </div>
     <div>
         <label class="label" for="shop-category">{{ __('storefront.categories') }}</label>
+        @if($categories->isNotEmpty())
+            <div class="mb-3 grid grid-cols-3 gap-2">
+                @foreach($categories as $category)
+                    <a
+                        href="{{ route('shop', array_filter([
+                            'q' => $filters['q'] ?? null,
+                            'category' => $category->slug,
+                            'brand' => $filters['brand'] ?? null,
+                            'gender' => $filters['gender'] ?? null,
+                            'min' => $filters['min'] ?? null,
+                            'max' => $filters['max'] ?? null,
+                            'sort' => $filters['sort'] ?? null,
+                            'featured' => $filters['featured'] ?? null,
+                        ], fn ($value) => $value !== null && $value !== '')) }}"
+                        class="flex flex-col items-center gap-1 border p-2 text-center transition {{ ($filters['category'] ?? '') === $category->slug ? 'border-gold bg-ivory' : 'border-beige bg-ivory/40 hover:border-gold' }}"
+                    >
+                        <img src="{{ $category->iconUrl() }}" alt="" class="h-8 w-8 object-contain" loading="lazy">
+                        <span class="text-[11px] leading-tight">{{ $category->localized('name') }}</span>
+                    </a>
+                @endforeach
+            </div>
+        @endif
         <select id="shop-category" name="category" class="input">
             <option value="">{{ __('storefront.all') }}</option>
             @foreach($categories as $category)

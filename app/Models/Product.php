@@ -109,8 +109,8 @@ class Product extends Model
             }
         });
 
-        static::saved(fn () => Cache::forget('storefront.home'));
-        static::deleted(fn () => Cache::forget('storefront.home'));
+        static::saved(fn () => Category::flushStorefrontCache());
+        static::deleted(fn () => Category::flushStorefrontCache());
     }
 
     public function category(): BelongsTo
@@ -207,6 +207,14 @@ class Product extends Model
     public function scopeNewArrivals(Builder $query): Builder
     {
         return $query->where('is_new', true);
+    }
+
+    public function scopeNewestVisible(Builder $query): Builder
+    {
+        return $query
+            ->orderByDesc('is_new')
+            ->orderByRaw('COALESCE(published_at, created_at) DESC')
+            ->orderByDesc('id');
     }
 
     public function scopePublished(Builder $query): Builder

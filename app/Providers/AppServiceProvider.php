@@ -87,10 +87,7 @@ class AppServiceProvider extends ServiceProvider
             try {
                 $navCategories = Cache::remember('storefront.nav_categories', 300, function () {
                     return Category::query()
-                        ->active()
-                        ->orderBy('sort_order')
-                        ->orderBy('name')
-                        ->take(8)
+                        ->forStorefront()
                         ->get(['id', 'name', 'name_ar', 'slug', 'image_path']);
                 });
             } catch (\Throwable) {

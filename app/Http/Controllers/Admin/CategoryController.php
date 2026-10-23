@@ -6,9 +6,11 @@ use App\Http\Controllers\Admin\Concerns\BulkDestroysResources;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Services\ImageService;
+use App\Support\CategoryIcons;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CategoryController extends Controller
@@ -29,6 +31,7 @@ class CategoryController extends Controller
         return view('admin.categories.form', [
             'category' => new Category(['is_active' => true]),
             'parents' => Category::query()->orderBy('name')->get(),
+            'iconPresets' => CategoryIcons::bundled(),
         ]);
     }
 
@@ -36,9 +39,10 @@ class CategoryController extends Controller
     {
         $data = $this->validated($request);
         $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
+        $this->applyIcon($request, $data);
 
-        if ($request->hasFile('icon')) {
-            $data['image_path'] = $this->images->store($request->file('icon'), 'categories');
+        if (empty($data['image_path'])) {
+            $data['image_path'] = CategoryIcons::pathForKey((string) $data['slug']);
         }
 
         Category::query()->create($data);
@@ -51,19 +55,14 @@ class CategoryController extends Controller
         return view('admin.categories.form', [
             'category' => $category,
             'parents' => Category::query()->where('id', '!=', $category->id)->orderBy('name')->get(),
+            'iconPresets' => CategoryIcons::bundled(),
         ]);
     }
 
     public function update(Request $request, Category $category): RedirectResponse
     {
         $data = $this->validated($request);
-
-        if ($request->hasFile('icon')) {
-            if ($category->image_path && ! str_starts_with($category->image_path, 'images/')) {
-                $this->images->delete($category->image_path);
-            }
-            $data['image_path'] = $this->images->store($request->file('icon'), 'categories');
-        }
+        $this->applyIcon($request, $data, $category);
 
         $category->update($data);
 
@@ -88,6 +87,42 @@ class CategoryController extends Controller
         );
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function applyIcon(Request $request, array &$data, ?Category $category = null): void
+    {
+        if ($request->hasFile('icon')) {
+            $this->deleteUploadedIcon($category);
+            $data['image_path'] = $this->images->store($request->file('icon'), 'categories');
+
+            return;
+        }
+
+        $preset = CategoryIcons::pathForKey((string) $request->input('icon_preset', ''));
+        if ($preset) {
+            $this->deleteUploadedIcon($category);
+            $data['image_path'] = $preset;
+
+            return;
+        }
+
+        if ($request->boolean('remove_icon')) {
+            $this->deleteUploadedIcon($category);
+            $data['image_path'] = null;
+        }
+    }
+
+    protected function deleteUploadedIcon(?Category $category): void
+    {
+        if ($category?->image_path && ! str_starts_with($category->image_path, 'images/')) {
+            $this->images->delete($category->image_path);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     protected function validated(Request $request): array
     {
         $data = $request->validate([
@@ -98,6 +133,8 @@ class CategoryController extends Controller
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
             'is_featured' => ['nullable', 'boolean'],
+            'icon_preset' => ['nullable', 'string', 'max:80', 'regex:/^[a-z0-9\-]*$/'],
+            'remove_icon' => ['nullable', 'boolean'],
             'icon' => [
                 'nullable',
                 'file',
@@ -109,7 +146,14 @@ class CategoryController extends Controller
         ]);
         $data['is_active'] = $request->boolean('is_active');
         $data['is_featured'] = $request->boolean('is_featured');
-        unset($data['icon']);
+
+        if (filled($data['icon_preset'] ?? null) && ! CategoryIcons::pathForKey($data['icon_preset'])) {
+            throw ValidationException::withMessages([
+                'icon_preset' => 'Choose a valid category icon.',
+            ]);
+        }
+
+        unset($data['icon'], $data['icon_preset'], $data['remove_icon']);
 
         return $data;
     }

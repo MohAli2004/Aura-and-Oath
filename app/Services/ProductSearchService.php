@@ -75,8 +75,8 @@ class ProductSearchService
             'price_asc' => $query->orderBy('price'),
             'price_desc' => $query->orderByDesc('price'),
             'name' => $query->orderBy('name'),
-            'featured' => $query->orderByDesc('is_featured')->orderByDesc('created_at'),
-            default => $query->orderByDesc('created_at'),
+            'featured' => $query->orderByDesc('is_featured')->newestVisible(),
+            default => $query->newestVisible(),
         };
 
         return $query->paginate($perPage)->withQueryString();

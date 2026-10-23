@@ -26,45 +26,41 @@ class ArabicCatalogSeeder extends Seeder
     protected function seedCategories(): void
     {
         $map = [
-            'face-care' => [
-                'name_ar' => 'العناية بالوجه',
-                'description_ar' => 'اكتشفي مجموعة العناية بالوجه.',
+            'skincare' => [
+                'name_ar' => 'العناية بالبشرة',
+                'description_ar' => 'اكتشفي مجموعة العناية بالبشرة.',
             ],
-            'body-care' => [
-                'name_ar' => 'العناية بالجسم',
-                'description_ar' => 'اكتشفي مجموعة العناية بالجسم.',
-            ],
-            'hair-care' => [
-                'name_ar' => 'العناية بالشعر',
-                'description_ar' => 'اكتشفي مجموعة العناية بالشعر.',
+            'personal-care' => [
+                'name_ar' => 'العناية الشخصية',
+                'description_ar' => 'اكتشفي مجموعة العناية الشخصية.',
             ],
             'fragrance' => [
                 'name_ar' => 'العطور',
                 'description_ar' => 'اكتشفي مجموعة العطور.',
             ],
-            'makeup' => [
-                'name_ar' => 'المكياج',
-                'description_ar' => 'اكتشفي مجموعة المكياج.',
+            'body-sprays-mists' => [
+                'name_ar' => 'بخاخات الجسم والرذاذ',
+                'description_ar' => 'اكتشفي مجموعة بخاخات الجسم والرذاذ.',
             ],
-            'bath-ritual' => [
-                'name_ar' => 'الاستحمام والطقوس',
-                'description_ar' => 'اكتشفي مجموعة الاستحمام والطقوس.',
-            ],
-            'sun-care' => [
-                'name_ar' => 'العناية من الشمس',
-                'description_ar' => 'اكتشفي مجموعة العناية من الشمس.',
-            ],
-            'mens-grooming' => [
-                'name_ar' => 'العناية الرجالية',
-                'description_ar' => 'اكتشفي مجموعة العناية الرجالية.',
+            'perfume' => [
+                'name_ar' => 'عطر',
+                'description_ar' => 'اكتشفي مجموعة العطور.',
             ],
             'gift-sets' => [
                 'name_ar' => 'مجموعات الهدايا',
                 'description_ar' => 'اكتشفي مجموعة مجموعات الهدايا.',
             ],
-            'wellness-oils' => [
-                'name_ar' => 'زيوت العافية',
-                'description_ar' => 'اكتشفي مجموعة زيوت العافية.',
+            'bath-body' => [
+                'name_ar' => 'الاستحمام والجسم',
+                'description_ar' => 'اكتشفي مجموعة الاستحمام والجسم.',
+            ],
+            'lip-care' => [
+                'name_ar' => 'العناية بالشفاه',
+                'description_ar' => 'اكتشفي مجموعة العناية بالشفاه.',
+            ],
+            'shower-gels' => [
+                'name_ar' => 'جل الاستحمام',
+                'description_ar' => 'اكتشفي مجموعة جل الاستحمام.',
             ],
         ];
 

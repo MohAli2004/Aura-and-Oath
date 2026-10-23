@@ -4,7 +4,7 @@
 @section('content')
 <section class="max-w-3xl border border-beige bg-[#FFFCFA] p-5 sm:p-6">
         <p class="text-sm text-taupe leading-relaxed max-w-2xl">
-            Upload a Gemini JSON file, or a CSV/XLSX file exported from this page. Products are staged for review and saved as drafts. AI text is not treated as verified, and nothing is published until the barcode, price, cost, stock, image, and content approval are complete.
+            Upload a Gemini JSON file, or a CSV/XLSX file exported from this page. Products are staged for review and saved as drafts. AI text is not treated as verified, and nothing is published until the barcode, price, cost, stock, image, and content approval are complete. Categories in the file must match names you already have; unknown categories are skipped and are not created.
         </p>
         <form method="POST" action="{{ route('admin.bulk-import.upload') }}" enctype="multipart/form-data" class="mt-5 space-y-4">
             @csrf

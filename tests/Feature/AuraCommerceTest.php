@@ -77,7 +77,9 @@ class AuraCommerceTest extends TestCase
     {
         $this->createProduct(['name' => 'Shop Serum', 'slug' => 'shop-serum', 'sku' => 'SKU-SHOP', 'barcode' => 'BC-SHOP']);
 
-        $this->get('/')->assertOk();
+        $this->get('/')
+            ->assertOk()
+            ->assertSeeInOrder([__('storefront.featured'), __('storefront.new_arrivals')]);
         $this->get('/shop')
             ->assertOk()
             ->assertSee('Shop Serum')

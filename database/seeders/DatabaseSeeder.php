@@ -171,34 +171,9 @@ class DatabaseSeeder extends Seeder
 
     protected function seedCategories()
     {
-        Category::query()->where('slug', 'skincare')->update([
-            'name' => 'Face Care',
-            'slug' => 'face-care',
-            'description' => 'Explore our Face Care collection.',
-        ]);
+        $this->call(CategorySeeder::class);
 
-        $names = [
-            'Face Care', 'Body Care', 'Hair Care', 'Fragrance', 'Makeup',
-            'Bath & Ritual', 'Sun Care', 'Men\'s Grooming', 'Gift Sets', 'Wellness Oils',
-        ];
-
-        $cats = collect();
-        foreach ($names as $i => $name) {
-            $slug = Str::slug($name);
-            $cats->push(Category::query()->updateOrCreate(
-                ['slug' => $slug],
-                [
-                    'name' => $name,
-                    'description' => "Explore our {$name} collection.",
-                    'image_path' => "images/categories/{$slug}.svg",
-                    'sort_order' => $i + 1,
-                    'is_active' => true,
-                    'is_featured' => $i < 4,
-                ]
-            ));
-        }
-
-        return $cats;
+        return Category::query()->orderBy('sort_order')->get();
     }
 
     protected function seedBrands()

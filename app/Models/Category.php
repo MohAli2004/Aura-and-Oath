@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasArabicFields;
+use App\Support\CategoryIcons;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -84,6 +85,18 @@ class Category extends Model
         return $query->where('is_active', true);
     }
 
+    public function scopeWithListedProducts(Builder $query): Builder
+    {
+        return $query->whereHas('products', function (Builder $products) {
+            $products->active()->published();
+        });
+    }
+
+    public function scopeForStorefront(Builder $query): Builder
+    {
+        return $query->active()->withListedProducts()->orderBy('sort_order')->orderBy('name');
+    }
+
     public function scopeFeatured(Builder $query): Builder
     {
         return $query->where('is_featured', true);
@@ -91,8 +104,10 @@ class Category extends Model
 
     public function iconUrl(): string
     {
-        return app(\App\Services\ImageService::class)->url(
-            $this->image_path ?: 'images/placeholders/category.svg'
-        );
+        $path = $this->image_path
+            ?: CategoryIcons::pathForKey((string) $this->slug)
+            ?: 'images/placeholders/category.svg';
+
+        return app(\App\Services\ImageService::class)->url($path);
     }
 }

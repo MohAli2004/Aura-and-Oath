@@ -103,13 +103,13 @@
         </div>
         <x-admin.toggle name="flags[home_show_hot_offers]" label="Hot offers" :checked="$flags['home_show_hot_offers']" />
         <x-admin.toggle name="flags[home_show_featured]" label="Featured products" :checked="$flags['home_show_featured']" />
+        <x-admin.toggle name="flags[home_show_new_arrivals]" label="New arrivals" :checked="$flags['home_show_new_arrivals']" />
         <x-admin.toggle name="flags[home_show_shop_by_gender]" label="Shop by gender" :checked="$flags['home_show_shop_by_gender']" />
         <x-admin.toggle name="flags[home_show_women]" label="Women products" :checked="$flags['home_show_women']" />
         <x-admin.toggle name="flags[home_show_men]" label="Men products" :checked="$flags['home_show_men']" />
         <x-admin.toggle name="flags[home_show_unisex]" label="Unisex products" :checked="$flags['home_show_unisex']" />
         <x-admin.toggle name="flags[home_show_categories]" label="Categories" :checked="$flags['home_show_categories']" />
         <x-admin.toggle name="flags[home_show_bestsellers]" label="Bestsellers" :checked="$flags['home_show_bestsellers']" />
-        <x-admin.toggle name="flags[home_show_new_arrivals]" label="New arrivals" :checked="$flags['home_show_new_arrivals']" />
         <x-admin.toggle name="flags[show_newsletter]" label="Footer newsletter" :checked="$flags['show_newsletter']" />
     </section>
 
