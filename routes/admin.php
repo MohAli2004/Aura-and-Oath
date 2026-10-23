@@ -30,6 +30,8 @@ Route::post('notifications/{id}/read', [NotificationController::class, 'markRead
 
 Route::get('products/deleted', [ProductController::class, 'trashed'])->name('products.trashed');
 Route::get('products/inactive', [ProductController::class, 'inactive'])->name('products.inactive');
+Route::get('products/export', [ProductController::class, 'exportExcel'])->name('products.export');
+Route::post('products/import', [ProductController::class, 'importExcel'])->middleware('throttle:20,1')->name('products.import');
 Route::post('products/bulk-restore', [ProductController::class, 'bulkRestore'])->name('products.bulk-restore');
 Route::post('products/bulk-activate', [ProductController::class, 'bulkActivate'])->name('products.bulk-activate');
 Route::delete('products/bulk-force', [ProductController::class, 'bulkForceDestroy'])->name('products.bulk-force-destroy');

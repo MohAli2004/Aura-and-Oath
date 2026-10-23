@@ -97,7 +97,11 @@ class ProductMatcher
     /**
      * @param  array<string, mixed>  $payload
      */
-    protected function matchBarcode(array $payload): ?Product
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<int, Product>
+     */
+    public function productsForBarcodes(array $payload): array
     {
         $codes = [];
         if (! empty($payload['barcode'])) {
@@ -124,11 +128,22 @@ class ProductMatcher
             }
         }
 
-        if (count($found) === 1) {
-            return array_values($found)[0];
-        }
+        return $found;
+    }
 
-        return null;
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function findByBarcode(array $payload): ?Product
+    {
+        $found = $this->productsForBarcodes($payload);
+
+        return count($found) === 1 ? array_values($found)[0] : null;
+    }
+
+    protected function matchBarcode(array $payload): ?Product
+    {
+        return $this->findByBarcode($payload);
     }
 
     /**

@@ -43,6 +43,103 @@ class ProductImportService
         protected AuditService $audit,
     ) {}
 
+    /**
+     * @return array{created: int, updated: int, skipped: int, errors: list<string>}
+     */
+    public function syncExcel(UploadedFile $file): array
+    {
+        $name = basename(str_replace('\\', '/', $file->getClientOriginalName()));
+        if (preg_match('/\.(php|phtml|phar|exe|js|html)(\.|$)/i', $name)) {
+            throw ValidationException::withMessages(['file' => 'This file type is not allowed.']);
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (! in_array($extension, ['csv', 'xlsx'], true)) {
+            throw ValidationException::withMessages(['file' => 'Upload the Excel or CSV file exported from this page.']);
+        }
+
+        $contents = $file->get();
+        if (! is_string($contents) || $contents === '') {
+            throw ValidationException::withMessages(['file' => 'The file is empty.']);
+        }
+
+        try {
+            $document = $extension === 'xlsx'
+                ? $this->spreadsheet->productsFromXlsx($contents)
+                : $this->spreadsheet->productsFromCsv($contents);
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['file' => $e->getMessage()]);
+        }
+
+        $created = 0;
+        $updated = 0;
+        $skipped = 0;
+        $errors = [];
+
+        DB::transaction(function () use ($document, &$created, &$updated, &$skipped, &$errors) {
+            foreach ($document['products'] ?? [] as $index => $raw) {
+                if (! is_array($raw)) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                $normalized = $this->normalizer->product($raw, (int) $index);
+                if ($normalized['errors'] !== []) {
+                    $skipped++;
+                    $label = is_string($raw['name'] ?? null) ? $raw['name'] : 'Row '.((int) $index + 1);
+                    $errors[] = $label.': '.implode(' ', $normalized['errors']);
+
+                    continue;
+                }
+
+                $payload = $normalized['payload'];
+                $warnings = $normalized['warnings'];
+                $matches = $this->matcher->productsForBarcodes($payload);
+
+                try {
+                    if (count($matches) > 1) {
+                        $skipped++;
+                        $errors[] = ($payload['name'] ?? 'Product').': barcodes match more than one product.';
+
+                        continue;
+                    }
+
+                    if (count($matches) === 1) {
+                        $this->persistExistingProduct(array_values($matches)[0], $payload, $warnings, markAi: false);
+                        $updated++;
+
+                        continue;
+                    }
+
+                    $this->persistNewProduct($payload, $warnings, [
+                        'batch_id' => null,
+                        'content_source' => ContentSource::Verified,
+                        'ai_unverified' => false,
+                        'is_new' => true,
+                        'status' => ProductStatus::Draft,
+                    ]);
+                    $created++;
+                } catch (ValidationException $e) {
+                    $skipped++;
+                    $errors[] = ($payload['name'] ?? 'Product').': '.collect($e->errors())->flatten()->implode(' ');
+                }
+            }
+        });
+
+        return compact('created', 'updated', 'skipped', 'errors');
+    }
+
+    public function catalogueExportXlsx(): string
+    {
+        $products = Product::query()
+            ->with(['brand', 'categories', 'variants'])
+            ->orderBy('name')
+            ->get();
+
+        return $this->spreadsheet->toXlsx($this->spreadsheet->rows($products));
+    }
+
     public function ingest(UploadedFile $file, User $user, bool $force = false): ImportBatch
     {
         $name = basename(str_replace('\\', '/', $file->getClientOriginalName()));
@@ -752,6 +849,26 @@ class ProductImportService
     {
         $payload = $row->payload ?? [];
         $warnings = $row->warnings ?? [];
+        $product = $this->persistNewProduct($payload, $warnings, [
+            'batch_id' => $batch->id,
+            'content_source' => ContentSource::Ai,
+            'ai_unverified' => true,
+            'is_new' => true,
+            'status' => ProductStatus::Draft,
+            'duplicate_warning' => in_array($row->match_type, ['suggestion', 'barcode', 'sku', 'catalogue', 'external_id'], true),
+        ]);
+        $row->warnings = $warnings;
+
+        return $product;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  list<string>  $warnings
+     * @param  array{batch_id: ?int, content_source: ContentSource, ai_unverified: bool, is_new: bool, status: ProductStatus, duplicate_warning?: bool}  $options
+     */
+    protected function persistNewProduct(array $payload, array &$warnings, array $options): Product
+    {
         [$brandId, $categoryIds, $unit] = $this->resolveRelations($payload, $warnings);
 
         $sku = $this->usableSku($payload['sku'] ?? null) ?? $this->barcodes->generateSku();
@@ -764,7 +881,7 @@ class ProductImportService
         $product = Product::query()->create([
             'category_id' => $categoryIds[0] ?? null,
             'brand_id' => $brandId,
-            'import_batch_id' => $batch->id,
+            'import_batch_id' => $options['batch_id'],
             'name' => $payload['name'],
             'name_ar' => $payload['name_ar'] ?? null,
             'slug' => $this->uniqueSlug($payload['slug'] ?? null, (string) $payload['name']),
@@ -788,24 +905,24 @@ class ProductImportService
             'stock_quantity' => ($payload['has_variants'] ?? false) ? 0 : ($payload['stock'] ?? null),
             'track_inventory' => true,
             'has_variants' => (bool) ($payload['has_variants'] ?? false),
-            'status' => ProductStatus::Draft,
+            'status' => $options['status'],
             'visibility' => ProductVisibility::Public,
             'gender' => $payload['gender'] ?? ProductGender::Unisex->value,
             'size' => $payload['size'] ?? null,
             'unit' => $unit,
             'weight' => $payload['weight'] ?? null,
-            'content_source' => ContentSource::Ai,
-            'content_approved_at' => null,
+            'content_source' => $options['content_source'],
+            'content_approved_at' => $options['ai_unverified'] ? null : now(),
             'is_featured' => false,
             'is_bestseller' => false,
-            'is_new' => true,
+            'is_new' => $options['is_new'],
             'import_meta' => [
                 'external_id' => $payload['external_id'] ?? null,
                 'sources' => $payload['sources'] ?? [],
                 'warnings' => $warnings,
                 'variant_type' => $payload['variant_type'] ?? null,
-                'duplicate_warning' => in_array($row->match_type, ['suggestion', 'barcode', 'sku', 'catalogue', 'external_id'], true),
-                'ai_unverified' => true,
+                'duplicate_warning' => (bool) ($options['duplicate_warning'] ?? false),
+                'ai_unverified' => $options['ai_unverified'],
             ],
         ]);
 
@@ -815,7 +932,7 @@ class ProductImportService
             $this->variants->syncVariants($product, $this->variantPayloads($payload, $warnings));
         }
 
-        $row->warnings = $warnings;
+        $this->readiness->remember($product->refresh()->load(['images', 'variants.images', 'variants.attributeValues']));
 
         return $product;
     }
@@ -829,6 +946,18 @@ class ProductImportService
 
         $payload = $row->payload ?? [];
         $warnings = $row->warnings ?? [];
+        $this->persistExistingProduct($product, $payload, $warnings, markAi: true, batchId: $product->import_batch_id ?? $batch->id);
+        $row->warnings = $warnings;
+
+        return $product->refresh();
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  list<string>  $warnings
+     */
+    protected function persistExistingProduct(Product $product, array $payload, array &$warnings, bool $markAi, ?int $batchId = null): Product
+    {
         [$brandId, $categoryIds, $unit] = $this->resolveRelations($payload, $warnings);
         $data = [];
 
@@ -868,6 +997,9 @@ class ProductImportService
                     $data[$to] = $payload[$from];
                 }
             }
+            if (array_key_exists('stock', $payload) && $payload['stock'] === 0) {
+                $data['stock_quantity'] = 0;
+            }
             if (! empty($data['barcode'])) {
                 $this->barcodes->assertUnique((string) $data['barcode'], $product->id);
             }
@@ -876,12 +1008,14 @@ class ProductImportService
         $meta = $product->import_meta ?? [];
         $meta['sources'] = $payload['sources'] ?? ($meta['sources'] ?? []);
         $meta['warnings'] = array_values(array_unique([...(array) ($meta['warnings'] ?? []), ...$warnings]));
-        $meta['duplicate_warning'] = true;
-        $meta['ai_unverified'] = true;
+        if ($markAi) {
+            $meta['duplicate_warning'] = true;
+            $meta['ai_unverified'] = true;
+            $data['content_source'] = ContentSource::Ai;
+            $data['content_approved_at'] = null;
+            $data['import_batch_id'] = $batchId ?? $product->import_batch_id;
+        }
         $data['import_meta'] = $meta;
-        $data['import_batch_id'] = $product->import_batch_id ?? $batch->id;
-        $data['content_source'] = ContentSource::Ai;
-        $data['content_approved_at'] = null;
 
         $product->update($data);
         if ($categoryIds !== []) {
@@ -893,7 +1027,9 @@ class ProductImportService
             $this->mergeVariants($product, $payload, $warnings, false);
         }
 
-        return $product->refresh();
+        $this->readiness->remember($product->refresh()->load(['images', 'variants.images', 'variants.attributeValues']));
+
+        return $product;
     }
 
     protected function addVariants(ImportBatch $batch, ImportRow $row): Product

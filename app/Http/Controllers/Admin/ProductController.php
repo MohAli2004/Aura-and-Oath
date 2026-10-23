@@ -19,13 +19,16 @@ use App\Services\AuditService;
 use App\Services\BarcodeService;
 use App\Services\ImageService;
 use App\Services\ProductReadinessService;
+use App\Services\ProductImport\ProductImportService;
 use App\Services\ProductSearchService;
 use App\Services\ProductVariantService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductController extends Controller
 {
@@ -38,7 +41,43 @@ class ProductController extends Controller
         protected ProductVariantService $variants,
         protected AuditService $audit,
         protected ProductReadinessService $readiness,
+        protected ProductImportService $imports,
     ) {}
+
+    public function exportExcel(): StreamedResponse
+    {
+        $binary = $this->imports->catalogueExportXlsx();
+        $filename = 'aura-oath-products-'.now()->format('Ymd-His').'.xlsx';
+
+        return response()->streamDownload(function () use ($binary) {
+            echo $binary;
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function importExcel(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'max:8192'],
+        ]);
+
+        /** @var UploadedFile $file */
+        $file = $request->file('file');
+        $result = $this->imports->syncExcel($file);
+
+        $message = 'Spreadsheet imported: '.$result['updated'].' updated, '.$result['created'].' added.';
+        if ($result['skipped'] > 0) {
+            $message .= ' '.$result['skipped'].' skipped.';
+        }
+
+        $redirect = redirect()->route('admin.products.index')->with('success', $message);
+        if ($result['errors'] !== []) {
+            $redirect->with('error', implode(' ', array_slice($result['errors'], 0, 8)));
+        }
+
+        return $redirect;
+    }
 
     public function index(Request $request): View
     {
