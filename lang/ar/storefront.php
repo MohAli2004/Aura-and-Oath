@@ -198,6 +198,7 @@ return [
     'after_order_updates' => 'بعد تقديم الطلب، نراجعه ونرسل تحديثات بالبريد. يمكنك تتبّع الحالة من حسابك أو صفحة تتبّع الطلب.',
     'place_order' => 'تأكيد الطلب',
     'delivery_region' => 'منطقة التوصيل',
+    'choose_delivery_region' => 'اختر منطقة التوصيل قبل تأكيد الطلب.',
     'region_includes' => 'يشمل: :description',
     'summary' => 'الملخّص',
     'coupon' => 'قسيمة',

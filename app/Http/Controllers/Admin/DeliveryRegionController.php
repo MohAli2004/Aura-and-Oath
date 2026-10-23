@@ -65,18 +65,37 @@ class DeliveryRegionController extends Controller
         return redirect()->route('admin.delivery-regions.index')->with('success', 'Delivery region updated.');
     }
 
-    public function updateVisibility(Request $request, DeliveryRegion $deliveryRegion): RedirectResponse
+    public function updateVisibility(Request $request): RedirectResponse
     {
-        $visible = $request->boolean('is_active');
-        if (! $visible && ! $this->anotherRegionIsVisible($deliveryRegion)) {
+        $posted = $request->validate([
+            'is_active' => ['required', 'array'],
+            'is_active.*' => ['nullable'],
+        ])['is_active'];
+
+        $regions = DeliveryRegion::query()->orderBy('id')->get();
+        $anyVisible = $regions->contains(function (DeliveryRegion $region) use ($posted) {
+            if (array_key_exists($region->id, $posted) || array_key_exists((string) $region->id, $posted)) {
+                return filter_var($posted[$region->id] ?? $posted[(string) $region->id] ?? 0, FILTER_VALIDATE_BOOLEAN);
+            }
+
+            return $region->is_active;
+        });
+
+        if ($regions->isNotEmpty() && ! $anyVisible) {
             return back()->with('error', 'Keep at least one delivery choice visible to customers.');
         }
 
-        $deliveryRegion->update(['is_active' => $visible]);
+        foreach ($regions as $region) {
+            if (! array_key_exists($region->id, $posted) && ! array_key_exists((string) $region->id, $posted)) {
+                continue;
+            }
 
-        return back()->with('success', $visible
-            ? $deliveryRegion->name.' is visible at checkout.'
-            : $deliveryRegion->name.' is hidden from customers.');
+            $region->update([
+                'is_active' => filter_var($posted[$region->id] ?? $posted[(string) $region->id] ?? 0, FILTER_VALIDATE_BOOLEAN),
+            ]);
+        }
+
+        return back()->with('success', 'Delivery choices updated.');
     }
 
     public function destroy(DeliveryRegion $deliveryRegion): RedirectResponse

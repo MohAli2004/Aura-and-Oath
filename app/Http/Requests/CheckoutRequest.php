@@ -49,6 +49,7 @@ class CheckoutRequest extends FormRequest
     {
         return [
             'terms_agreed.accepted' => 'Please agree to the order terms before placing your order.',
+            'delivery_region_id.required' => 'Please choose a delivery region before placing your order.',
         ];
     }
 }

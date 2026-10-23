@@ -70,7 +70,7 @@ Route::delete('coupons/bulk', [CouponController::class, 'bulkDestroy'])->name('c
 Route::resource('coupons', CouponController::class)->except(['show']);
 
 Route::delete('delivery-regions/bulk', [DeliveryRegionController::class, 'bulkDestroy'])->name('delivery-regions.bulk-destroy');
-Route::patch('delivery-regions/{delivery_region}/visibility', [DeliveryRegionController::class, 'updateVisibility'])->name('delivery-regions.visibility');
+Route::patch('delivery-regions/visibility', [DeliveryRegionController::class, 'updateVisibility'])->name('delivery-regions.visibility');
 Route::resource('delivery-regions', DeliveryRegionController::class)->except(['show']);
 
 Route::delete('banners/bulk', [BannerController::class, 'bulkDestroy'])->name('banners.bulk-destroy');

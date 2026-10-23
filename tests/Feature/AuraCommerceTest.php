@@ -1621,7 +1621,12 @@ class AuraCommerceTest extends TestCase
 
         $this->actingAs($admin)
             ->from(route('admin.delivery-regions.index'))
-            ->patch(route('admin.delivery-regions.visibility', $metn), ['is_active' => '0'])
+            ->patch(route('admin.delivery-regions.visibility'), [
+                'is_active' => [
+                    $beirut->id => '1',
+                    $metn->id => '0',
+                ],
+            ])
             ->assertRedirect(route('admin.delivery-regions.index'))
             ->assertSessionHas('success');
 
@@ -1630,15 +1635,26 @@ class AuraCommerceTest extends TestCase
 
         $this->actingAs($admin)
             ->from(route('admin.delivery-regions.index'))
-            ->patch(route('admin.delivery-regions.visibility', $beirut), ['is_active' => '0'])
+            ->patch(route('admin.delivery-regions.visibility'), [
+                'is_active' => [
+                    $beirut->id => '0',
+                    $metn->id => '0',
+                ],
+            ])
             ->assertRedirect(route('admin.delivery-regions.index'))
             ->assertSessionHas('error');
 
         $this->assertTrue($beirut->fresh()->is_active);
+        $this->assertFalse($metn->fresh()->is_active);
 
         $this->actingAs($admin)
             ->from(route('admin.delivery-regions.index'))
-            ->patch(route('admin.delivery-regions.visibility', $metn), ['is_active' => '1'])
+            ->patch(route('admin.delivery-regions.visibility'), [
+                'is_active' => [
+                    $beirut->id => '1',
+                    $metn->id => '1',
+                ],
+            ])
             ->assertRedirect(route('admin.delivery-regions.index'));
 
         $this->assertTrue($metn->fresh()->is_active);
@@ -1658,6 +1674,41 @@ class AuraCommerceTest extends TestCase
             'payment_method' => PaymentMethod::CashOnDelivery->value,
             'delivery_region_id' => $region->id,
             'idempotency_token' => 'inactive-region-1',
+            'terms_agreed' => '1',
+            'shipping' => [
+                'full_name' => $user->name,
+                'phone' => '01000000000',
+                'line1' => 'Street 1',
+                'city' => 'Beirut',
+            ],
+        ])->assertSessionHasErrors('delivery_region_id');
+    }
+
+    public function test_checkout_requires_a_delivery_region_and_shows_it_above_place_order(): void
+    {
+        $product = $this->createProduct();
+        $user = User::factory()->customer()->create();
+        $region = $this->createRegion('BEI-CHOOSE');
+
+        $this->actingAs($user);
+        app(CartService::class)->add($product, 1);
+
+        $html = $this->get('/checkout')
+            ->assertOk()
+            ->assertSee('Choose a delivery region before placing your order')
+            ->assertSee($region->name)
+            ->getContent();
+
+        $deliveryPos = strpos($html, 'name="delivery_region_id"');
+        $submitPos = strpos($html, __('storefront.place_order'));
+        $this->assertNotFalse($deliveryPos);
+        $this->assertNotFalse($submitPos);
+        $this->assertLessThan($submitPos, $deliveryPos);
+        $this->assertStringNotContainsString('checked', substr($html, $deliveryPos, 400));
+
+        $this->post('/checkout', [
+            'payment_method' => PaymentMethod::CashOnDelivery->value,
+            'idempotency_token' => 'missing-region-1',
             'terms_agreed' => '1',
             'shipping' => [
                 'full_name' => $user->name,

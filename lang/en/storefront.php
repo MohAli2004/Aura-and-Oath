@@ -198,6 +198,7 @@ return [
     'after_order_updates' => 'After you place the order, we review it and send email updates. You can track status from your account or the Track order page.',
     'place_order' => 'Place order',
     'delivery_region' => 'Delivery region',
+    'choose_delivery_region' => 'Choose a delivery region before placing your order.',
     'region_includes' => 'Includes: :description',
     'summary' => 'Summary',
     'coupon' => 'Coupon',

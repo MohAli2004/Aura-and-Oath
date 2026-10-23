@@ -13,7 +13,7 @@
     ];
     $defaultRegionId = (string) old(
         'delivery_region_id',
-        data_get($draft, 'delivery_region_id', $regions->first()?->id)
+        data_get($draft, 'delivery_region_id', '')
     );
     $defaultPaymentMethod = old(
         'payment_method',
@@ -225,25 +225,21 @@
                 <p>{{ __('storefront.after_order_updates') }}</p>
             </div>
 
-            <button class="btn btn-primary" type="submit">{{ __('storefront.place_order') }}</button>
-        </form>
-
-        <aside class="space-y-6 lg:sticky lg:top-6 self-start">
             <div>
-                <h2 class="font-display text-2xl mb-3">{{ __('storefront.delivery_region') }}</h2>
+                <h2 class="font-display text-2xl mb-1">{{ __('storefront.delivery_region') }} <span class="normal-case tracking-wide text-[10px] font-normal text-blush">{{ __('storefront.required') }}</span></h2>
+                <p class="text-sm text-taupe mb-3">{{ __('storefront.choose_delivery_region') }}</p>
                 <div class="space-y-3" data-field-wrap>
-                    @foreach($regions as $region)
+                    @forelse($regions as $region)
                         <label class="block border border-beige p-4 bg-[#FFFCFA] cursor-pointer transition"
                                :class="regionId == '{{ $region->id }}' ? 'border-[var(--ao-gold)]' : ''">
                             <div class="flex items-start gap-3">
                                 <input
                                     type="radio"
                                     class="mt-1"
-                                    form="checkout-form"
                                     name="delivery_region_id"
                                     value="{{ $region->id }}"
                                     x-model="regionId"
-                                    @checked($defaultRegionId == (string) $region->id)
+                                    @checked($defaultRegionId !== '' && $defaultRegionId == (string) $region->id)
                                     required
                                     data-required
                                     data-required-label="{{ __('storefront.delivery_region') }}"
@@ -260,13 +256,19 @@
                                 </div>
                             </div>
                         </label>
-                    @endforeach
+                    @empty
+                        <p class="text-sm text-taupe">{{ __('storefront.payments_unavailable') }}</p>
+                    @endforelse
                 </div>
                 @error('delivery_region_id')
                     <p class="mt-2 text-sm text-red-700">{{ $message }}</p>
                 @enderror
             </div>
 
+            <button class="btn btn-primary w-full sm:w-auto" type="submit">{{ __('storefront.place_order') }}</button>
+        </form>
+
+        <aside class="space-y-6 lg:sticky lg:top-6 self-start">
             <div class="border border-beige p-5 bg-[#FFFCFA]">
                 <h2 class="font-display text-2xl mb-4">{{ __('storefront.summary') }}</h2>
                 @foreach($cart->items as $item)
