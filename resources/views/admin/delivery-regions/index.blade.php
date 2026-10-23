@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 @section('heading', 'Delivery regions')
 @section('content')
-<p class="text-sm text-taupe max-w-3xl mb-4">Turn off a region to hide it from checkout. Hidden regions stay here so you can show them again. Keep at least one visible.</p>
+<p class="text-sm text-taupe max-w-3xl mb-4">Untick <strong>Visible</strong> to hide a region from checkout, then click <strong>Save</strong>. Keep at least one visible.</p>
 <x-admin.bulk-form
     :action="route('admin.delivery-regions.bulk-destroy')"
     :ids="$regions->pluck('id')"
@@ -35,7 +35,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-3 shrink-0">
-                <form method="POST" action="{{ route('admin.delivery-regions.visibility', $region) }}">
+                <form method="POST" action="{{ route('admin.delivery-regions.visibility', $region) }}" class="flex items-center gap-2">
                     @csrf
                     @method('PATCH')
                     <input type="hidden" name="is_active" value="0">
@@ -46,10 +46,10 @@
                             value="1"
                             class="rounded border-beige text-charcoal focus:ring-gold"
                             @checked($region->is_active)
-                            onchange="this.form.submit()"
                         >
                         <span>{{ $region->is_active ? 'Visible' : 'Hidden' }}</span>
                     </label>
+                    <button class="btn btn-secondary btn-sm" type="submit">Save</button>
                 </form>
                 <a class="underline" href="{{ route('admin.delivery-regions.edit', $region) }}">Edit</a>
             </div>
