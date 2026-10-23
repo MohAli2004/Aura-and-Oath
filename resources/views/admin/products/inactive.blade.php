@@ -44,35 +44,34 @@
                 method="POST"
                 action="{{ route('admin.products.bulk-activate') }}"
                 class="inline"
-                @submit="
-                    $el.querySelectorAll('[data-activate-id]').forEach((node) => node.remove());
-                    const ids = selected.length ? selected : allIds;
-                    if (!ids.length) {
-                        $event.preventDefault();
-                        return;
-                    }
-                    const message = selected.length
-                        ? 'Activate the selected products?'
-                        : 'Activate all products on this page?';
-                    if (!confirm(message)) {
-                        $event.preventDefault();
-                        return;
-                    }
-                    ids.forEach((id) => {
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = 'ids[]';
-                        input.value = id;
-                        input.setAttribute('data-activate-id', '1');
-                        $el.appendChild(input);
-                    });
-                "
+                @submit="if (!selected.length || !confirm('Activate the selected products?')) $event.preventDefault()"
             >
                 @csrf
-                <button type="submit" class="btn btn-secondary">
-                    <span x-show="selected.length">Activate selected <span x-text="'(' + selected.length + ')'"></span></span>
-                    <span x-show="!selected.length">Activate all on this page</span>
+                <template x-for="id in selected" :key="'activate-'+id">
+                    <input type="hidden" name="ids[]" :value="id">
+                </template>
+                <button
+                    type="submit"
+                    class="btn btn-secondary"
+                    :disabled="!selected.length"
+                    :class="!selected.length && 'opacity-40 cursor-not-allowed'"
+                >
+                    Activate selected
+                    <span x-show="selected.length" x-text="'(' + selected.length + ')'"></span>
                 </button>
+            </form>
+            <form
+                method="POST"
+                action="{{ route('admin.products.bulk-activate') }}"
+                class="inline"
+                onsubmit="return confirm('Activate every inactive product? Incomplete ones will stay in Draft.')"
+            >
+                @csrf
+                <input type="hidden" name="scope" value="all">
+                <input type="hidden" name="q" value="{{ request('q') }}">
+                <input type="hidden" name="status" value="{{ request('status') }}">
+                <input type="hidden" name="gender" value="{{ request('gender') }}">
+                <button type="submit" class="btn btn-primary">Activate all</button>
             </form>
         </x-slot:leading>
 

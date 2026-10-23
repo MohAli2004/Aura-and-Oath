@@ -429,6 +429,47 @@ class AuraCommerceTest extends TestCase
         $this->assertEquals(ProductStatus::Active, $archived->fresh()->status);
     }
 
+    public function test_admin_can_activate_all_inactive_products_without_selecting(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $ready = $this->createProduct([
+            'name' => 'Ready Draft',
+            'sku' => 'SKU-ALL-READY',
+            'barcode' => 'BC-ALL-READY',
+            'slug' => 'ready-draft',
+            'status' => ProductStatus::Draft,
+            'published_at' => null,
+        ]);
+        $incomplete = $this->createProduct([
+            'name' => 'Incomplete Draft',
+            'sku' => 'SKU-ALL-INCOMPLETE',
+            'barcode' => null,
+            'slug' => 'incomplete-draft',
+            'status' => ProductStatus::Draft,
+            'price' => null,
+            'cost_price' => null,
+            'stock_quantity' => null,
+            'published_at' => null,
+        ]);
+        ProductImage::query()->create([
+            'product_id' => $ready->id,
+            'path' => 'products/'.$ready->sku.'.jpg',
+            'alt' => $ready->name,
+            'sort_order' => 0,
+            'is_primary' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('admin.products.inactive'))
+            ->post(route('admin.products.bulk-activate'), ['scope' => 'all'])
+            ->assertRedirect(route('admin.products.inactive'))
+            ->assertSessionHas('success');
+
+        $this->assertSame(ProductStatus::Active, $ready->fresh()->status);
+        $this->assertNotNull($ready->fresh()->content_approved_at);
+        $this->assertSame(ProductStatus::Draft, $incomplete->fresh()->status);
+    }
+
     public function test_saving_an_inactive_product_returns_to_the_inactive_list(): void
     {
         $admin = User::factory()->admin()->create();
@@ -492,7 +533,7 @@ class AuraCommerceTest extends TestCase
             ->get(route('admin.products.inactive'))
             ->assertOk()
             ->assertSee('Still Draft')
-            ->assertSee('Activate all on this page')
+            ->assertSee('Activate all')
             ->assertDontSee('Draft Gift Set Live');
     }
 

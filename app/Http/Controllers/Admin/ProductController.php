@@ -317,19 +317,44 @@ class ProductController extends Controller
 
     public function bulkActivate(Request $request): RedirectResponse
     {
-        $ids = $request->validate([
-            'ids' => ['required', 'array', 'min:1'],
+        $data = $request->validate([
+            'scope' => ['nullable', 'in:all,selected'],
+            'ids' => ['required_unless:scope,all', 'array', 'min:1'],
             'ids.*' => ['integer'],
-        ])['ids'];
+            'q' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'string', 'max:40'],
+            'gender' => ['nullable', 'string', 'max:40'],
+        ]);
 
-        $products = Product::query()
-            ->whereIn('id', $ids)
-            ->where('status', '!=', ProductStatus::Active)
-            ->get();
+        $query = Product::query()->where('status', '!=', ProductStatus::Active);
+
+        if (($data['scope'] ?? 'selected') === 'all') {
+            $inactive = [ProductStatus::Draft->value, ProductStatus::Archived->value];
+            if (! empty($data['status']) && in_array($data['status'], $inactive, true)) {
+                $query->where('status', $data['status']);
+            }
+            if (! empty($data['q'])) {
+                $like = '%'.trim($data['q']).'%';
+                $query->where(function ($builder) use ($like) {
+                    $builder->where('name', 'like', $like)
+                        ->orWhere('sku', 'like', $like)
+                        ->orWhere('barcode', 'like', $like)
+                        ->orWhereHas('variants', function ($variants) use ($like) {
+                            $variants->where('barcode', 'like', $like)
+                                ->orWhere('sku', 'like', $like);
+                        });
+                });
+            }
+            if (! empty($data['gender'])) {
+                $query->gender($data['gender']);
+            }
+        } else {
+            $query->whereIn('id', $data['ids']);
+        }
 
         $activated = 0;
         $held = 0;
-        foreach ($products as $product) {
+        foreach ($query->get() as $product) {
             $issues = $this->readiness->issues($product);
             $this->readiness->remember($product, $issues);
             if ($issues !== []) {
