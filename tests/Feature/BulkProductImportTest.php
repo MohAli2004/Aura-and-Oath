@@ -291,12 +291,35 @@ class BulkProductImportTest extends TestCase
         $this->assertContains('cost', $issues);
         $this->assertContains('stock', $issues);
         $this->assertContains('image', $issues);
-        $this->assertContains('content_approval', $issues);
+        $this->assertNotContains('content_approval', $issues);
 
         $this->actingAs($admin)
             ->post(route('admin.products.activate', $product))
             ->assertSessionHasErrors('status');
         $this->assertSame(ProductStatus::Draft, $product->fresh()->status);
+    }
+
+    public function test_ai_product_can_be_activated_without_opening_it_for_content_approval(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $product = $this->readyProduct([
+            'content_source' => ContentSource::Ai,
+            'content_approved_at' => null,
+            'import_meta' => ['ai_unverified' => true],
+        ]);
+
+        $this->assertNull($product->content_approved_at);
+        $this->assertSame([], app(ProductReadinessService::class)->issues($product));
+
+        $this->actingAs($admin)
+            ->from(route('admin.products.inactive'))
+            ->post(route('admin.products.activate', $product))
+            ->assertRedirect(route('admin.products.inactive'))
+            ->assertSessionHas('success', 'Product activated.');
+
+        $product->refresh();
+        $this->assertSame(ProductStatus::Active, $product->status);
+        $this->assertNotNull($product->content_approved_at);
     }
 
     public function test_zero_stock_and_optional_compare_at_can_publish_when_complete(): void

@@ -269,6 +269,7 @@ class ProductController extends Controller
         $product->update([
             'status' => ProductStatus::Active,
             'published_at' => $product->published_at ?? now(),
+            'content_approved_at' => $product->content_approved_at ?? now(),
         ]);
         $this->audit->log('product.activated', $product);
 
@@ -340,6 +341,7 @@ class ProductController extends Controller
             $product->update([
                 'status' => ProductStatus::Active,
                 'published_at' => $product->published_at ?? now(),
+                'content_approved_at' => $product->content_approved_at ?? now(),
             ]);
             $this->audit->log('product.activated', $product);
             $activated++;

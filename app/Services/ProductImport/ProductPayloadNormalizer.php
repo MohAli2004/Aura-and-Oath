@@ -297,8 +297,6 @@ class ProductPayloadNormalizer
             $missing[] = 'name';
         }
 
-        $missing[] = 'content_approval';
-
         if (($payload['has_variants'] ?? false) === true) {
             $enabled = array_values(array_filter(
                 $payload['variants'] ?? [],

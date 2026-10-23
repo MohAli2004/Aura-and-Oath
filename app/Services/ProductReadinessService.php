@@ -48,10 +48,6 @@ class ProductReadinessService
             $issues[] = 'name';
         }
 
-        if ($product->content_approved_at === null) {
-            $issues[] = 'content_approval';
-        }
-
         $enabled = $product->variants->filter(fn (ProductVariant $variant) => (bool) $variant->is_active)->values();
         $usesVariants = (bool) $product->has_variants || $enabled->isNotEmpty();
 

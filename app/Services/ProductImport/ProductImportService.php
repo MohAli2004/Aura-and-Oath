@@ -742,6 +742,7 @@ class ProductImportService
             $product->update([
                 'status' => ProductStatus::Active,
                 'published_at' => $product->published_at ?? now(),
+                'content_approved_at' => $product->content_approved_at ?? now(),
             ]);
             $this->audit->log('product.activated', $product, null, ['source' => 'bulk_import']);
             $activated[] = $product->id;
