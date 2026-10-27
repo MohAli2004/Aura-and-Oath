@@ -12,7 +12,13 @@ class Cart extends Model
         'user_id',
         'session_id',
         'currency',
+        'is_buy_now',
     ];
+
+    protected function casts(): array
+    {
+        return ['is_buy_now' => 'boolean'];
+    }
 
     public function user(): BelongsTo
     {

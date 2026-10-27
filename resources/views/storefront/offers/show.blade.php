@@ -169,6 +169,14 @@
                     >
                         {{ __('storefront.add_to_bag') }}
                     </button>
+                    <button
+                        class="btn btn-secondary w-full max-w-sm"
+                        type="submit"
+                        formaction="{{ route('buy-now.offer', $offer->slug) }}"
+                        @disabled(! $canBuy)
+                    >
+                        {{ __('storefront.buy_now') }}
+                    </button>
                     <p class="text-xs text-taupe leading-snug max-w-sm">{{ __('storefront.offer_bag_note') }}</p>
                 </form>
             </div>

@@ -118,12 +118,14 @@
         cartStoreUrl: @js(route('cart.store')),
         cartBatchUrl: @js(route('cart.batch')),
         cartIndexUrl: @js(route('cart.index')),
+        buyNowUrl: @js(route('buy-now.store')),
         csrf: @js(csrf_token()),
         i18n: @js([
             'outOfStock' => __('storefront.js_out_of_stock'),
             'qtyMinOne' => __('storefront.js_qty_min_one'),
             'noMoreStock' => __('storefront.js_no_more_stock'),
             'couldNotAdd' => __('storefront.js_could_not_add_to_bag'),
+            'couldNotBuyNow' => __('storefront.js_could_not_buy_now'),
             'option' => __('storefront.option'),
             'onlyLeft' => __('storefront.only_left', ['count' => ':count']),
             'itemOne' => __('storefront.item_one'),
@@ -295,6 +297,36 @@
         removeStaged(index) {
             this.staged.splice(index, 1);
             this.confirmError = '';
+        },
+        buying: false,
+        async buyNow() {
+            this.stageError = '';
+            if (this.buying) {
+                return;
+            }
+            if (! this.canBuy) {
+                this.stageError = this.i18n.outOfStock;
+                return;
+            }
+
+            const qty = Math.floor(Number(this.quantity) || 0);
+            if (qty < 1) {
+                this.stageError = this.i18n.qtyMinOne;
+                return;
+            }
+
+            this.buying = true;
+            try {
+                const body = { product_id: this.productId, quantity: qty };
+                if (this.hasVariants && this.variantId) {
+                    body.product_variant_id = this.variantId;
+                }
+                const data = await window.auraHttp(this.buyNowUrl, { method: 'POST', body });
+                window.location.href = data.redirect || this.cartIndexUrl;
+            } catch (error) {
+                this.stageError = error?.message || this.i18n.couldNotBuyNow;
+                this.buying = false;
+            }
         },
         async confirmToBag() {
             if (! this.staged.length || this.confirming) {
@@ -584,6 +616,21 @@
                     @click="addToStaged()"
                 >
                     {{ __('storefront.add_to_bag') }}
+                </button>
+
+                <button
+                    class="btn btn-secondary w-full max-w-sm"
+                    type="button"
+                    x-show="canBuy"
+                    :disabled="buying"
+                    :aria-busy="buying.toString()"
+                    @click="buyNow()"
+                >
+                    <span x-show="!buying">{{ __('storefront.buy_now') }}</span>
+                    <span x-show="buying" x-cloak class="inline-flex items-center gap-2">
+                        <span class="ux-spinner" aria-hidden="true"></span>
+                        {{ __('storefront.buy_now_opening') }}
+                    </span>
                 </button>
 
                 <x-trust-product-notes class="max-w-sm" />

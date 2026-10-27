@@ -106,7 +106,14 @@ class ProductImportService
                     }
 
                     if (count($matches) === 1) {
-                        $this->persistExistingProduct(array_values($matches)[0], $payload, $warnings, markAi: false);
+                        $existing = array_values($matches)[0];
+                        if (! $this->duplicateWouldAddInfo($existing, $payload)) {
+                            $skipped++;
+
+                            continue;
+                        }
+
+                        $this->persistExistingProduct($existing, $payload, $warnings, markAi: false);
                         $updated++;
 
                         continue;
@@ -235,6 +242,24 @@ class ProductImportService
                     'resolution' => ImportResolution::Skip->value,
                     'warnings' => $normalized['warnings'],
                 ];
+
+            if (
+                $normalized['errors'] === []
+                && ! empty($match['matched_product_id'])
+                && in_array($match['match_type'], ['barcode', 'sku', 'catalogue', 'external_id'], true)
+            ) {
+                $matched = Product::query()->find($match['matched_product_id']);
+                if ($matched) {
+                    if ($this->duplicateWouldAddInfo($matched, $normalized['payload'])) {
+                        $match['resolution'] = ImportResolution::Update->value;
+                        $match['warnings'][] = 'Matched an existing product. New details will be added; existing details stay.';
+                    } else {
+                        $match['resolution'] = ImportResolution::Skip->value;
+                        $match['warnings'][] = 'Duplicate of an existing product with no new details. Skipped.';
+                    }
+                    $match['warnings'] = array_values(array_unique($match['warnings']));
+                }
+            }
 
             if (! empty($normalized['duplicate_in_file']) && $match['resolution'] === ImportResolution::Create->value) {
                 $match['resolution'] = ImportResolution::Review->value;
@@ -959,47 +984,42 @@ class ProductImportService
      */
     protected function persistExistingProduct(Product $product, array $payload, array &$warnings, bool $markAi, ?int $batchId = null): Product
     {
-        [$brandId, $categoryIds, $unit] = $this->resolveRelations($payload, $warnings);
+        $product->loadMissing(['categories', 'images', 'variants.images', 'variants.attributeValues']);
         $data = [];
 
-        foreach ([
-            'name' => 'name',
-            'name_ar' => 'name_ar',
-            'short_description' => 'short_description',
-            'short_description_ar' => 'short_description_ar',
-            'description' => 'description',
-            'description_ar' => 'description_ar',
-            'ingredients' => 'ingredients',
-            'ingredients_ar' => 'ingredients_ar',
-            'how_to_use' => 'how_to_use',
-            'how_to_use_ar' => 'how_to_use_ar',
-        ] as $from => $to) {
-            if (! empty($payload[$from])) {
+        foreach ($this->additiveTextFields() as $from => $to) {
+            if ($this->filledImportValue($payload[$from] ?? null) && $this->isImportBlank($product->{$to})) {
                 $data[$to] = $payload[$from];
             }
         }
 
-        if ($brandId) {
-            $data['brand_id'] = $brandId;
+        if ($this->isImportBlank($product->brand_id) && ! empty($payload['brand'])) {
+            $data['brand_id'] = $this->findOrCreateBrand((string) $payload['brand'], $warnings)->id;
         }
-        if ($unit) {
-            $data['unit'] = $unit;
+
+        $unit = $payload['unit'] ?? null;
+        if (is_string($unit) && $unit !== '' && ! in_array(strtolower($unit), Attribute::measureUnits(), true)) {
+            $warnings[] = 'Unit "'.$unit.'" is not one of the configured measure units and was left blank.';
+            $unit = null;
         }
-        if (! empty($payload['size'])) {
+        if ($this->isImportBlank($product->unit) && $unit) {
+            $data['unit'] = strtolower((string) $unit);
+        }
+        if ($this->filledImportValue($payload['size'] ?? null) && $this->isImportBlank($product->size)) {
             $data['size'] = $payload['size'];
         }
-        if (! empty($payload['gender'])) {
+        if ($this->filledImportValue($payload['gender'] ?? null) && $this->isImportBlank($product->gender)) {
             $data['gender'] = $payload['gender'];
         }
 
         if (! ($payload['has_variants'] ?? false)) {
-            foreach (['barcode' => 'barcode', 'price' => 'price', 'cost' => 'cost_price', 'compare_at_price' => 'compare_at_price', 'stock' => 'stock_quantity'] as $from => $to) {
-                if (($payload[$from] ?? null) !== null && $payload[$from] !== '') {
+            foreach (['barcode' => 'barcode', 'price' => 'price', 'cost' => 'cost_price', 'compare_at_price' => 'compare_at_price'] as $from => $to) {
+                if ($this->filledImportValue($payload[$from] ?? null) && $this->isImportBlank($product->{$to})) {
                     $data[$to] = $payload[$from];
                 }
             }
-            if (array_key_exists('stock', $payload) && $payload['stock'] === 0) {
-                $data['stock_quantity'] = 0;
+            if (array_key_exists('stock', $payload) && $payload['stock'] !== null && $payload['stock'] !== '' && $this->isImportBlank($product->stock_quantity)) {
+                $data['stock_quantity'] = $payload['stock'];
             }
             if (! empty($data['barcode'])) {
                 $this->barcodes->assertUnique((string) $data['barcode'], $product->id);
@@ -1007,21 +1027,35 @@ class ProductImportService
         }
 
         $meta = $product->import_meta ?? [];
-        $meta['sources'] = $payload['sources'] ?? ($meta['sources'] ?? []);
+        $meta['sources'] = array_values(array_unique([
+            ...(array) ($meta['sources'] ?? []),
+            ...(array) ($payload['sources'] ?? []),
+        ]));
         $meta['warnings'] = array_values(array_unique([...(array) ($meta['warnings'] ?? []), ...$warnings]));
         if ($markAi) {
             $meta['duplicate_warning'] = true;
-            $meta['ai_unverified'] = true;
-            $data['content_source'] = ContentSource::Ai;
-            $data['content_approved_at'] = null;
             $data['import_batch_id'] = $batchId ?? $product->import_batch_id;
         }
         $data['import_meta'] = $meta;
 
         $product->update($data);
+
+        $categoryIds = [];
+        foreach ($payload['categories'] ?? [] as $name) {
+            if (! is_string($name) || trim($name) === '') {
+                continue;
+            }
+            $category = $this->findExistingCategory($name, $warnings);
+            if ($category) {
+                $categoryIds[] = $category->id;
+            }
+        }
+        $categoryIds = array_values(array_unique($categoryIds));
         if ($categoryIds !== []) {
-            $product->categories()->sync($categoryIds);
-            $product->update(['category_id' => $categoryIds[0]]);
+            $product->categories()->syncWithoutDetaching($categoryIds);
+            if ($this->isImportBlank($product->category_id)) {
+                $product->update(['category_id' => $categoryIds[0]]);
+            }
         }
 
         if ($payload['has_variants'] ?? false) {
@@ -1060,13 +1094,7 @@ class ProductImportService
         $incoming = $this->variantPayloads($payload, $warnings);
 
         foreach ($incoming as $data) {
-            $existing = $product->variants->first(function (ProductVariant $variant) use ($data) {
-                if (! empty($data['barcode']) && (string) $variant->barcode === (string) $data['barcode']) {
-                    return true;
-                }
-
-                return mb_strtolower(trim((string) $variant->name)) === mb_strtolower(trim((string) ($data['name'] ?? '')));
-            });
+            $existing = $this->matchingVariant($product, $data);
 
             if ($existing && $addOnly) {
                 continue;
@@ -1075,20 +1103,20 @@ class ProductImportService
             if ($existing) {
                 $update = [];
                 foreach (['barcode', 'price', 'compare_at_price', 'cost_price', 'name_ar'] as $field) {
-                    if (array_key_exists($field, $data) && $data[$field] !== null && $data[$field] !== '') {
+                    if ($this->filledImportValue($data[$field] ?? null) && $this->isImportBlank($existing->{$field})) {
                         $update[$field] = $data[$field];
                     }
                 }
-                if (array_key_exists('stock_quantity', $data) && $data['stock_quantity'] !== null) {
+                if (array_key_exists('stock_quantity', $data) && $data['stock_quantity'] !== null && $this->isImportBlank($existing->stock_quantity)) {
                     $update['stock_quantity'] = $data['stock_quantity'];
                 }
-                if (! empty($data['barcode'])) {
-                    $this->barcodes->assertUnique((string) $data['barcode'], null, $existing->id);
+                if (! empty($update['barcode'])) {
+                    $this->barcodes->assertUnique((string) $update['barcode'], null, $existing->id);
                 }
                 if ($update !== []) {
                     $existing->update($update);
                 }
-                if (! empty($data['attribute_value_ids'])) {
+                if (! empty($data['attribute_value_ids']) && $existing->attributeValues()->count() === 0) {
                     $sync = [];
                     foreach ($data['attribute_value_ids'] as $attributeId => $valueId) {
                         $sync[(int) $valueId] = ['attribute_id' => (int) $attributeId];
@@ -1128,7 +1156,195 @@ class ProductImportService
             }
         }
 
-        $product->update(['has_variants' => $product->variants()->exists(), 'barcode' => null, 'stock_quantity' => 0]);
+        $hadVariants = (bool) $product->has_variants;
+        $hasVariants = $product->variants()->exists();
+        $parent = ['has_variants' => $hasVariants];
+        if ($hasVariants && ! $hadVariants) {
+            $parent['barcode'] = null;
+            $parent['stock_quantity'] = 0;
+        }
+        $product->update($parent);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function matchingVariant(Product $product, array $data): ?ProductVariant
+    {
+        return $product->variants->first(function (ProductVariant $variant) use ($data) {
+            if (! empty($data['barcode']) && (string) $variant->barcode === (string) $data['barcode']) {
+                return true;
+            }
+
+            return mb_strtolower(trim((string) $variant->name)) === mb_strtolower(trim((string) ($data['name'] ?? '')));
+        });
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function additiveTextFields(): array
+    {
+        return [
+            'name' => 'name',
+            'name_ar' => 'name_ar',
+            'short_description' => 'short_description',
+            'short_description_ar' => 'short_description_ar',
+            'description' => 'description',
+            'description_ar' => 'description_ar',
+            'ingredients' => 'ingredients',
+            'ingredients_ar' => 'ingredients_ar',
+            'how_to_use' => 'how_to_use',
+            'how_to_use_ar' => 'how_to_use_ar',
+        ];
+    }
+
+    protected function isImportBlank(mixed $value): bool
+    {
+        if ($value === null) {
+            return true;
+        }
+        if (is_string($value)) {
+            return trim($value) === '';
+        }
+        if (is_array($value)) {
+            return $value === [];
+        }
+
+        return false;
+    }
+
+    protected function filledImportValue(mixed $value): bool
+    {
+        return ! $this->isImportBlank($value);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function duplicateWouldAddInfo(Product $product, array $payload): bool
+    {
+        $product->loadMissing(['categories', 'images', 'variants.images', 'variants.attributeValues']);
+
+        foreach ($this->additiveTextFields() as $from => $to) {
+            if ($this->filledImportValue($payload[$from] ?? null) && $this->isImportBlank($product->{$to})) {
+                return true;
+            }
+        }
+
+        if ($this->filledImportValue($payload['brand'] ?? null) && $this->isImportBlank($product->brand_id)) {
+            return true;
+        }
+        if ($this->filledImportValue($payload['size'] ?? null) && $this->isImportBlank($product->size)) {
+            return true;
+        }
+        if ($this->filledImportValue($payload['gender'] ?? null) && $this->isImportBlank($product->gender)) {
+            return true;
+        }
+        if ($this->filledImportValue($payload['unit'] ?? null) && $this->isImportBlank($product->unit)) {
+            return true;
+        }
+
+        if (! ($payload['has_variants'] ?? false)) {
+            foreach (['barcode' => 'barcode', 'price' => 'price', 'cost' => 'cost_price', 'compare_at_price' => 'compare_at_price'] as $from => $to) {
+                if ($this->filledImportValue($payload[$from] ?? null) && $this->isImportBlank($product->{$to})) {
+                    return true;
+                }
+            }
+            if (array_key_exists('stock', $payload) && $payload['stock'] !== null && $payload['stock'] !== '' && $this->isImportBlank($product->stock_quantity)) {
+                return true;
+            }
+        }
+
+        $ignored = [];
+        foreach ($payload['categories'] ?? [] as $name) {
+            if (! is_string($name) || trim($name) === '') {
+                continue;
+            }
+            $category = $this->findExistingCategory($name, $ignored);
+            if ($category && ! $product->categories->contains('id', $category->id)) {
+                return true;
+            }
+        }
+
+        if ($this->hasNewImportMedia($product, $payload)) {
+            return true;
+        }
+
+        if ($payload['has_variants'] ?? false) {
+            return $this->incomingVariantsAddInfo($product, $payload);
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function hasNewImportMedia(Product $product, array $payload): bool
+    {
+        $incoming = [];
+        foreach (array_merge($payload['staged_images'] ?? [], $payload['image_filenames'] ?? []) as $path) {
+            if (is_string($path) && $path !== '') {
+                $incoming[] = basename($path);
+            }
+        }
+        if ($incoming === []) {
+            return false;
+        }
+
+        $existing = $product->images->map(fn (ProductImage $image) => basename((string) $image->path))->all();
+        foreach ($incoming as $name) {
+            if (! in_array($name, $existing, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    protected function incomingVariantsAddInfo(Product $product, array $payload): bool
+    {
+        $warnings = [];
+        $incoming = $this->variantPayloads($payload, $warnings);
+        $product->loadMissing(['variants.images', 'variants.attributeValues']);
+
+        foreach ($incoming as $data) {
+            $existing = $this->matchingVariant($product, $data);
+            if (! $existing) {
+                return true;
+            }
+
+            foreach (['name_ar', 'barcode', 'price', 'compare_at_price', 'cost_price'] as $field) {
+                if ($this->filledImportValue($data[$field] ?? null) && $this->isImportBlank($existing->{$field})) {
+                    return true;
+                }
+            }
+            if (array_key_exists('stock_quantity', $data) && $data['stock_quantity'] !== null && $this->isImportBlank($existing->stock_quantity)) {
+                return true;
+            }
+            if (! empty($data['attribute_value_ids']) && $existing->attributeValues->isEmpty()) {
+                return true;
+            }
+
+            $incomingMedia = [];
+            foreach (array_merge($data['staged_images'] ?? [], $data['image_filenames'] ?? []) as $path) {
+                if (is_string($path) && $path !== '') {
+                    $incomingMedia[] = basename($path);
+                }
+            }
+            $existingMedia = $existing->images->map(fn (ProductImage $image) => basename((string) $image->path))->all();
+            foreach ($incomingMedia as $name) {
+                if (! in_array($name, $existingMedia, true)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

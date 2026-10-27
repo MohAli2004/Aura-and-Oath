@@ -75,6 +75,7 @@
         $auraI18n = [
             'addedToBag' => __('storefront.flash_added_to_bag'),
             'couldNotAddToBag' => __('storefront.js_could_not_add_to_bag'),
+            'couldNotBuyNow' => __('storefront.js_could_not_buy_now'),
             'savedToWishlist' => __('storefront.flash_saved_wishlist'),
             'removedFromWishlist' => __('storefront.flash_removed_wishlist'),
             'couldNotUpdateWishlist' => __('storefront.js_could_not_update_wishlist'),

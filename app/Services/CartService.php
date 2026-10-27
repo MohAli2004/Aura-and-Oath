@@ -21,7 +21,7 @@ class CartService
 
         if ($user) {
             return Cart::query()->firstOrCreate(
-                ['user_id' => $user->id],
+                ['user_id' => $user->id, 'is_buy_now' => false],
                 ['currency' => config('aura.currency', 'USD')]
             );
         }
@@ -33,6 +33,7 @@ class CartService
             $existing = Cart::query()
                 ->whereKey($cartId)
                 ->whereNull('user_id')
+                ->where('is_buy_now', false)
                 ->first();
 
             if ($existing) {
@@ -45,13 +46,212 @@ class CartService
         }
 
         $cart = Cart::query()->firstOrCreate(
-            ['session_id' => $sessionId, 'user_id' => null],
+            ['session_id' => $sessionId, 'user_id' => null, 'is_buy_now' => false],
             ['currency' => config('aura.currency', 'USD')]
         );
 
         Session::put('guest_cart_id', $cart->id);
 
         return $cart;
+    }
+
+    /**
+     * Start a "Buy now" checkout: a separate one-off cart, so the regular bag is untouched.
+     *
+     * @param  list<array{product: Product, variant: ?ProductVariant, quantity: int}>  $lines
+     */
+    public function startBuyNow(array $lines, ?User $user = null): Cart
+    {
+        $user ??= Auth::user();
+
+        foreach ($lines as $line) {
+            $this->assertPurchasable($line['product'], $line['quantity'], $line['variant']);
+        }
+
+        $this->discardBuyNow();
+
+        return DB::transaction(function () use ($lines, $user) {
+            $cart = Cart::query()->create([
+                'user_id' => $user?->id,
+                'session_id' => $user ? null : Session::getId(),
+                'currency' => config('aura.currency', 'USD'),
+                'is_buy_now' => true,
+            ]);
+
+            foreach ($lines as $line) {
+                $item = CartItem::query()->firstOrNew([
+                    'cart_id' => $cart->id,
+                    'product_id' => $line['product']->id,
+                    'product_variant_id' => $line['variant']?->id,
+                    'offer_id' => null,
+                ]);
+                $item->quantity = ($item->exists ? $item->quantity : 0) + $line['quantity'];
+                $item->save();
+            }
+
+            Session::put('buy_now_cart_id', $cart->id);
+
+            return $cart;
+        });
+    }
+
+    public function startBuyNowOffer(Offer $offer, int $quantity = 1, ?User $user = null): Cart
+    {
+        $user ??= Auth::user();
+        $lines = $this->offerLines($offer, $quantity);
+
+        $this->discardBuyNow();
+
+        return DB::transaction(function () use ($offer, $lines, $user) {
+            $cart = Cart::query()->create([
+                'user_id' => $user?->id,
+                'session_id' => $user ? null : Session::getId(),
+                'currency' => config('aura.currency', 'USD'),
+                'is_buy_now' => true,
+            ]);
+
+            foreach ($lines as $line) {
+                CartItem::query()->create([
+                    'cart_id' => $cart->id,
+                    'product_id' => $line['product']->id,
+                    'product_variant_id' => $line['variant']?->id,
+                    'offer_id' => $offer->id,
+                    'quantity' => $line['units'],
+                ]);
+            }
+
+            Session::put('buy_now_cart_id', $cart->id);
+
+            return $cart;
+        });
+    }
+
+    /**
+     * The cart checkout should use: an active "Buy now" cart, otherwise the regular bag.
+     */
+    public function checkoutCart(?User $user = null): Cart
+    {
+        $user ??= Auth::user();
+        $buyNow = $this->activeBuyNowCart($user);
+
+        return $buyNow ?? $this->getOrCreateCart($user);
+    }
+
+    public function activeBuyNowCart(?User $user = null): ?Cart
+    {
+        $user ??= Auth::user();
+        $id = Session::get('buy_now_cart_id');
+        if (! $id) {
+            return null;
+        }
+
+        $cart = Cart::query()
+            ->whereKey($id)
+            ->where('is_buy_now', true)
+            ->first();
+
+        $owned = $cart && (
+            $cart->user_id === null
+                ? true
+                : ($user && (int) $cart->user_id === (int) $user->id)
+        );
+
+        if (! $cart || ! $owned || ! $cart->items()->exists()) {
+            Session::forget('buy_now_cart_id');
+
+            return null;
+        }
+
+        if ($user && $cart->user_id === null) {
+            $cart->update(['user_id' => $user->id, 'session_id' => null]);
+        }
+
+        return $cart;
+    }
+
+    public function discardBuyNow(): void
+    {
+        $id = Session::pull('buy_now_cart_id');
+        if (! $id) {
+            return;
+        }
+
+        $cart = Cart::query()->whereKey($id)->where('is_buy_now', true)->first();
+        if ($cart) {
+            $cart->items()->delete();
+            $cart->delete();
+        }
+    }
+
+    protected function assertPurchasable(Product $product, int $quantity, ?ProductVariant $variant): void
+    {
+        if ($quantity < 1) {
+            throw ValidationException::withMessages(['quantity' => 'Quantity must be at least 1.']);
+        }
+
+        if (! $product->isPurchasable()) {
+            throw ValidationException::withMessages(['product' => 'This product is not available.']);
+        }
+
+        if ($product->has_variants && ! $variant) {
+            throw ValidationException::withMessages(['variant' => 'Please select a variant.']);
+        }
+
+        $available = $variant ? $variant->availableStock() : $product->availableStock();
+        if ($product->track_inventory && $available < $quantity) {
+            throw ValidationException::withMessages(['quantity' => 'Not enough stock available.']);
+        }
+    }
+
+    /**
+     * @return list<array{product: Product, variant: ?ProductVariant, available: int, units: int}>
+     */
+    protected function offerLines(Offer $offer, int $quantity): array
+    {
+        if ($quantity < 1) {
+            throw ValidationException::withMessages(['quantity' => 'Quantity must be at least 1.']);
+        }
+
+        $offer->loadMissing(['products.activeVariants']);
+
+        if (! $offer->isLive() || $offer->products->isEmpty()) {
+            throw ValidationException::withMessages(['offer' => 'This offer is not available.']);
+        }
+
+        $lines = [];
+
+        foreach ($offer->products as $product) {
+            if (! $product->isPurchasable()) {
+                throw ValidationException::withMessages([
+                    'offer' => $product->name.' is not available, so this offer cannot be added.',
+                ]);
+            }
+
+            $variant = $product->defaultVariantForCart();
+
+            if ($product->has_variants && ! $variant) {
+                throw ValidationException::withMessages([
+                    'offer' => $product->name.' needs an option selected. Choose a default option in admin, then try again.',
+                ]);
+            }
+
+            $units = $quantity * $offer->lineQuantity($product);
+            $available = $variant ? $variant->availableStock() : $product->availableStock();
+            if ($product->track_inventory && $available < $units) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Not enough stock for '.$product->name.' to add this offer.',
+                ]);
+            }
+
+            $lines[] = [
+                'product' => $product,
+                'variant' => $variant,
+                'available' => $available,
+                'units' => $units,
+            ];
+        }
+
+        return $lines;
     }
 
     public function add(Product $product, int $quantity = 1, ?ProductVariant $variant = null): CartItem
@@ -221,6 +421,15 @@ class CartService
     {
         $cart ??= $this->getOrCreateCart();
         $cart->items()->delete();
+
+        if ($cart->is_buy_now) {
+            $cart->delete();
+            Session::forget('buy_now_cart_id');
+            $this->refreshCartCount();
+
+            return;
+        }
+
         $this->refreshCartCount($cart);
     }
 
@@ -235,6 +444,7 @@ class CartService
             $guestCart = Cart::query()
                 ->whereKey($guestCartId)
                 ->whereNull('user_id')
+                ->where('is_buy_now', false)
                 ->with('items')
                 ->first();
         }
@@ -242,6 +452,7 @@ class CartService
         if (! $guestCart) {
             $guestCart = Cart::query()
                 ->whereNull('user_id')
+                ->where('is_buy_now', false)
                 ->where('session_id', $sessionId)
                 ->with('items')
                 ->first();

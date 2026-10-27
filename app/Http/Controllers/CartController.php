@@ -19,6 +19,9 @@ class CartController extends Controller
 
     public function index(): View
     {
+        // Viewing the bag ends any one-off "Buy now" checkout.
+        $this->cartService->discardBuyNow();
+
         $cart = $this->cartService->getOrCreateCart();
         $cart->load(['items.product.images', 'items.product.activeVariants', 'items.variant.images', 'items.offer.products']);
 
@@ -62,6 +65,8 @@ class CartController extends Controller
             'quantity' => ['nullable', 'integer', 'min:1'],
         ]);
 
+        $this->cartService->discardBuyNow();
+
         $product = Product::query()->with('activeVariants')->findOrFail($data['product_id']);
         $variant = ! empty($data['product_variant_id'])
             ? ProductVariant::query()->findOrFail($data['product_variant_id'])
@@ -93,6 +98,81 @@ class CartController extends Controller
         return back()->with('success', __('storefront.flash_added_to_bag'));
     }
 
+    /**
+     * "Buy now": go straight to checkout with only this item. The regular bag is not changed.
+     */
+    public function buyNow(Request $request): RedirectResponse|JsonResponse
+    {
+        $data = $request->validate([
+            'product_id' => ['required', 'exists:products,id'],
+            'product_variant_id' => ['nullable', 'exists:product_variants,id'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $product = Product::query()->with('activeVariants')->findOrFail($data['product_id']);
+        $variant = ! empty($data['product_variant_id'])
+            ? ProductVariant::query()->where('product_id', $product->id)->findOrFail($data['product_variant_id'])
+            : $product->defaultVariantForCart();
+
+        try {
+            $this->cartService->startBuyNow([[
+                'product' => $product,
+                'variant' => $variant,
+                'quantity' => (int) ($data['quantity'] ?? 1),
+            ]]);
+        } catch (ValidationException $e) {
+            return $this->buyNowFailed($request, $e);
+        }
+
+        return $this->buyNowResponse($request);
+    }
+
+    public function buyNowOffer(Request $request, string $slug): RedirectResponse|JsonResponse
+    {
+        $offer = \App\Models\Offer::query()
+            ->active()
+            ->where('slug', $slug)
+            ->with(['products.activeVariants'])
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'quantity' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        try {
+            $this->cartService->startBuyNowOffer($offer, (int) ($data['quantity'] ?? 1));
+        } catch (ValidationException $e) {
+            return $this->buyNowFailed($request, $e);
+        }
+
+        return $this->buyNowResponse($request);
+    }
+
+    protected function buyNowResponse(Request $request): RedirectResponse|JsonResponse
+    {
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => true,
+                'redirect' => route('checkout.create'),
+            ]);
+        }
+
+        return redirect()->route('checkout.create');
+    }
+
+    protected function buyNowFailed(Request $request, ValidationException $e): RedirectResponse|JsonResponse
+    {
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'ok' => false,
+                'message' => collect($e->errors())->flatten()->first() ?: __('storefront.flash_could_not_buy_now'),
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        throw $e;
+    }
+
     public function storeBatch(Request $request): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
@@ -101,6 +181,8 @@ class CartController extends Controller
             'items.*.product_variant_id' => ['nullable', 'exists:product_variants,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
         ]);
+
+        $this->cartService->discardBuyNow();
 
         $product = Product::query()->findOrFail($data['product_id']);
 
@@ -158,6 +240,7 @@ class CartController extends Controller
             'quantity' => ['nullable', 'integer', 'min:1'],
         ]);
 
+        $this->cartService->discardBuyNow();
         $this->cartService->addOffer($offer, $data['quantity'] ?? 1);
 
         return redirect()->route('cart.index')->with('success', __('storefront.flash_offer_added_to_bag'));

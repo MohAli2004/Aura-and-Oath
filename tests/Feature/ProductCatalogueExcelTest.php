@@ -84,11 +84,13 @@ class ProductCatalogueExcelTest extends TestCase
         $barcodeIndex = array_search('barcode', CatalogueSpreadsheet::HEADERS, true);
         $variantBarcodeIndex = array_search('variant_barcode', CatalogueSpreadsheet::HEADERS, true);
         $stockIndex = array_search('stock', CatalogueSpreadsheet::HEADERS, true);
+        $descriptionIndex = array_search('description', CatalogueSpreadsheet::HEADERS, true);
 
         foreach ($rows as &$row) {
             if (($row[$barcodeIndex] ?? '') === '6281111111111') {
                 $row[$priceIndex] = '18.00';
                 $row[$stockIndex] = '9';
+                $row[$descriptionIndex] = 'Filled from spreadsheet';
             }
             if (($row[$variantBarcodeIndex] ?? '') === '6282222222222') {
                 $row[$priceIndex] = '30.00';
@@ -114,9 +116,10 @@ class ProductCatalogueExcelTest extends TestCase
             ->assertRedirect(route('admin.products.index'))
             ->assertSessionHas('success');
 
-        $this->assertSame('18.00', $existing->fresh()->price);
-        $this->assertSame(9, (int) $existing->fresh()->stock_quantity);
-        $this->assertSame('30.00', $parent->variants()->where('barcode', '6282222222222')->first()->price);
+        $this->assertSame('Filled from spreadsheet', $existing->fresh()->description);
+        $this->assertSame('10.00', $existing->fresh()->price);
+        $this->assertSame(3, (int) $existing->fresh()->stock_quantity);
+        $this->assertSame('22.00', $parent->variants()->where('barcode', '6282222222222')->first()->price);
         $this->assertSame(2, Product::query()->whereIn('name', ['Known Cream', 'Shade Foundation'])->count());
 
         $created = Product::query()->where('barcode', '6283333333333')->firstOrFail();

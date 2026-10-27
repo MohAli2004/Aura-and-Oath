@@ -271,6 +271,12 @@
         <aside class="space-y-6 lg:sticky lg:top-6 self-start">
             <div class="border border-beige p-5 bg-[#FFFCFA]">
                 <h2 class="font-display text-2xl mb-4">{{ __('storefront.summary') }}</h2>
+                @if(! empty($isBuyNow))
+                    <p class="mb-4 text-xs text-taupe leading-snug border border-beige bg-ivory px-3 py-2">
+                        {{ __('storefront.buy_now_notice') }}
+                        <a href="{{ route('cart.index') }}" class="underline">{{ __('storefront.buy_now_back_to_bag') }}</a>
+                    </p>
+                @endif
                 @foreach($cart->items as $item)
                     <div class="flex justify-between text-sm py-2 border-b border-beige/70">
                         <span>{{ $item->product->localized('name') }} × {{ $item->quantity }}</span>

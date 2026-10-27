@@ -32,7 +32,7 @@ class CheckoutController extends Controller
 
     public function create(Request $request): View|RedirectResponse|Response
     {
-        $cart = $this->cartService->getOrCreateCart();
+        $cart = $this->cartService->checkoutCart();
         $cart->load(['items.product.images', 'items.variant.images', 'items.offer.products']);
 
         if ($cart->items->isEmpty()) {
@@ -102,6 +102,7 @@ class CheckoutController extends Controller
                 'whishPayEnabled' => $this->whishPayService->isConfigured(),
                 'draft' => $draft,
                 'hasServerDraft' => $request->session()->hasOldInput() || filled($draft),
+                'isBuyNow' => (bool) $cart->is_buy_now,
             ])
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache');
@@ -113,7 +114,7 @@ class CheckoutController extends Controller
         $code = trim($data['coupon_code']);
         $this->storeCheckoutDraft($request);
 
-        $cart = $this->cartService->getOrCreateCart();
+        $cart = $this->cartService->checkoutCart();
         $cart->load(['items.product.categories', 'items.variant']);
 
         try {

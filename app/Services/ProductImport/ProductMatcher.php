@@ -20,7 +20,7 @@ class ProductMatcher
     {
         $barcodeHit = $this->matchBarcode($payload);
         if ($barcodeHit !== null) {
-            return $this->result('barcode', $barcodeHit, $warnings, 'Exact barcode match. An active product is not changed unless you choose Update.');
+            return $this->result('barcode', $barcodeHit, $warnings, 'Exact barcode match.');
         }
 
         $sku = trim((string) ($payload['sku'] ?? ''));
@@ -154,7 +154,7 @@ class ProductMatcher
     {
         $warnings[] = $message;
         if ($product->status === ProductStatus::Active) {
-            $warnings[] = 'This match is an active catalogue product. It will not be overwritten unless you explicitly choose Update.';
+            $warnings[] = 'This match is an active catalogue product. Existing details are kept; only empty fields and new variants can be added.';
         }
 
         return [

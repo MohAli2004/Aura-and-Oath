@@ -56,9 +56,11 @@ Alpine.data('productCard', (config = {}) => ({
     baseVariantId: config.baseVariantId ?? null,
     authenticated: Boolean(config.authenticated),
     cartUrl: config.cartUrl,
+    buyNowUrl: config.buyNowUrl,
     wishlistUrl: config.wishlistUrl,
     loginUrl: config.loginUrl,
     adding: false,
+    buying: false,
     wishing: false,
     wished: Boolean(config.wished),
     quantity: 1,
@@ -187,6 +189,31 @@ Alpine.data('productCard', (config = {}) => ({
             window.auraFlash(error?.message || window.auraI18n?.couldNotAddToBag || 'Could not add to bag.', 'error');
         } finally {
             this.adding = false;
+        }
+    },
+    async buyNow() {
+        if (this.adding || this.buying || ! this.canBuy) {
+            return;
+        }
+
+        this.normalizeQty();
+        this.buying = true;
+
+        try {
+            const body = {
+                product_id: this.productId,
+                quantity: this.quantity,
+            };
+
+            if (this.variantId) {
+                body.product_variant_id = this.variantId;
+            }
+
+            const data = await window.auraHttp(this.buyNowUrl, { method: 'POST', body });
+            window.location.href = data.redirect || this.buyNowUrl;
+        } catch (error) {
+            window.auraFlash(error?.message || window.auraI18n?.couldNotBuyNow || 'Could not start checkout.', 'error');
+            this.buying = false;
         }
     },
     async toggleWishlist() {

@@ -200,6 +200,10 @@
         width: 100%;
     }
 
+    .product-card-actions .btn-buy-now {
+        grid-column: 1 / -1;
+    }
+
     .product-card-actions .btn {
         width: 100%;
         min-width: 0;

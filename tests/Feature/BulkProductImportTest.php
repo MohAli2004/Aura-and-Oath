@@ -418,22 +418,25 @@ class BulkProductImportTest extends TestCase
         ]);
 
         $batch->load('rows');
-        $this->assertSame('review', $batch->rows[0]->resolution->value);
+        $this->assertSame('skip', $batch->rows[0]->resolution->value);
         $this->assertSame($existing->id, $batch->rows[0]->matched_product_id);
 
         $this->actingAs($admin)->post(route('admin.bulk-import.commit', $batch));
 
         $this->assertSame('Catalogue description', $existing->fresh()->description);
+        $this->assertSame('30.00', $existing->fresh()->price);
+        $this->assertSame('Existing Serum', $existing->fresh()->name);
         $this->assertSame(ProductStatus::Active, $existing->fresh()->status);
+        $this->assertSame(ContentSource::Verified, $existing->fresh()->content_source);
         $this->assertSame(1, Product::query()->count());
     }
 
-    public function test_explicit_update_can_change_an_active_product_without_duplicating_it(): void
+    public function test_duplicate_import_fills_empty_fields_without_removing_existing_info(): void
     {
         $admin = User::factory()->admin()->create();
         $existing = Product::query()->create([
             'name' => 'Existing Serum',
-            'slug' => 'existing-serum',
+            'slug' => 'existing-serum-fill',
             'sku' => 'SKU-EXISTING-2',
             'barcode' => '6282222222222',
             'price' => 30,
@@ -447,26 +450,25 @@ class BulkProductImportTest extends TestCase
         $batch = $this->upload($admin, [
             'schema_version' => '1.0.0',
             'products' => [[
-                'name' => 'Existing Serum',
+                'name' => 'AI rewrite',
                 'description' => 'Reviewed update',
+                'ingredients' => 'Water, glycerin',
                 'barcode' => '6282222222222',
                 'price' => 33,
             ]],
         ]);
         $row = $batch->rows()->firstOrFail();
-
-        $this->actingAs($admin)->put(route('admin.bulk-import.update', $batch), [
-            'rows' => [
-                $row->id => ['resolution' => 'update'],
-            ],
-        ])->assertRedirect();
+        $this->assertSame('update', $row->resolution->value);
 
         $this->actingAs($admin)->post(route('admin.bulk-import.commit', $batch));
 
+        $fresh = $existing->fresh();
         $this->assertSame(1, Product::query()->count());
-        $this->assertSame('Reviewed update', $existing->fresh()->description);
-        $this->assertSame(ProductStatus::Active, $existing->fresh()->status);
-        $this->assertSame('33.00', $existing->fresh()->price);
+        $this->assertSame('Existing Serum', $fresh->name);
+        $this->assertSame('Old text', $fresh->description);
+        $this->assertSame('Water, glycerin', $fresh->ingredients);
+        $this->assertSame(ProductStatus::Active, $fresh->status);
+        $this->assertSame('30.00', $fresh->price);
     }
 
     public function test_partial_failure_invalid_json_and_repeated_import(): void

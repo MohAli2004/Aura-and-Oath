@@ -60,6 +60,7 @@
         authenticated: {{ auth()->check() ? 'true' : 'false' }},
         wished: {{ $saved ? 'true' : 'false' }},
         cartUrl: {{ \Illuminate\Support\Js::from(route('cart.store')) }},
+        buyNowUrl: {{ \Illuminate\Support\Js::from(route('buy-now.store')) }},
         wishlistUrl: {{ \Illuminate\Support\Js::from(route('wishlist.toggle')) }},
         loginUrl: {{ \Illuminate\Support\Js::from(route('login')) }},
     })"
@@ -165,7 +166,7 @@
             <button
                 type="button"
                 class="btn btn-primary btn-sm"
-                :disabled="!canBuy || adding"
+                :disabled="!canBuy || adding || buying"
                 :aria-busy="adding.toString()"
                 @click.stop.prevent="addToBag()"
             >
@@ -174,6 +175,21 @@
                 <span x-show="adding" x-cloak class="inline-flex items-center gap-2">
                     <span class="ux-spinner" aria-hidden="true"></span>
                     {{ __('storefront.adding') }}
+                </span>
+            </button>
+            <button
+                type="button"
+                class="btn btn-secondary btn-sm btn-buy-now"
+                x-show="canBuy"
+                x-cloak
+                :disabled="adding || buying"
+                :aria-busy="buying.toString()"
+                @click.stop.prevent="buyNow()"
+            >
+                <span x-show="!buying">{{ __('storefront.buy_now') }}</span>
+                <span x-show="buying" x-cloak class="inline-flex items-center gap-2">
+                    <span class="ux-spinner" aria-hidden="true"></span>
+                    {{ __('storefront.buy_now_opening') }}
                 </span>
             </button>
     </div>

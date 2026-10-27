@@ -50,7 +50,7 @@ class CheckoutService
             return $existing;
         }
 
-        $cart = $this->cartService->getOrCreateCart($user);
+        $cart = $this->cartService->checkoutCart($user);
         $cart->load(['items.product', 'items.variant', 'items.offer.products']);
 
         if ($cart->items->isEmpty()) {

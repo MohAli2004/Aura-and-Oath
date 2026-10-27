@@ -48,6 +48,8 @@ Route::get('/products/{slug}', [ProductController::class, 'show'])->name('produc
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
+Route::post('/buy-now', [CartController::class, 'buyNow'])->name('buy-now.store');
+Route::post('/buy-now/offers/{slug}', [CartController::class, 'buyNowOffer'])->name('buy-now.offer');
 Route::post('/cart/batch', [CartController::class, 'storeBatch'])->name('cart.batch');
 Route::patch('/cart/{item}', [CartController::class, 'update'])->name('cart.update');
 Route::delete('/cart/{item}', [CartController::class, 'destroy'])->name('cart.destroy');
