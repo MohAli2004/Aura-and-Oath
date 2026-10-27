@@ -120,7 +120,7 @@
                                     @csrf
                                     <button class="btn btn-secondary btn-sm" type="submit">Activate</button>
                                 </form>
-                                <a class="underline self-center" href="{{ route('admin.products.edit', $product) }}">Edit</a>
+                                <a class="underline self-center" href="{{ route('admin.products.edit', ['product' => $product, 'return_to' => request()->getRequestUri()]) }}">Edit</a>
                             </div>
                         </td>
                     </tr>

@@ -504,6 +504,57 @@ class AuraCommerceTest extends TestCase
         $this->assertSame(ProductStatus::Draft, $incomplete->fresh()->status);
     }
 
+    public function test_saving_a_product_returns_to_the_same_list_page_it_was_opened_from(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $product = $this->createProduct([
+            'name' => 'Page Two Product',
+            'sku' => 'SKU-PAGE2',
+            'barcode' => 'BC-PAGE2',
+            'slug' => 'page-two-product',
+        ]);
+        ProductImage::query()->create([
+            'product_id' => $product->id,
+            'path' => 'products/'.$product->sku.'.jpg',
+            'alt' => $product->name,
+            'sort_order' => 0,
+            'is_primary' => true,
+        ]);
+        $imageId = $product->images()->value('id');
+        $listUrl = '/admin/products?page=2&q=serum';
+
+        $this->actingAs($admin)
+            ->get($listUrl)
+            ->assertOk();
+
+        $this->get(route('admin.products.edit', ['product' => $product, 'return_to' => $listUrl]))
+            ->assertOk()
+            ->assertSee('name="return_to"', false)
+            ->assertSee(e($listUrl), false);
+
+        $payload = [
+            'name' => 'Page Two Product Renamed',
+            'slug' => $product->slug,
+            'barcode' => $product->barcode,
+            'price' => 18,
+            'cost_price' => 8,
+            'stock_quantity' => 12,
+            'status' => ProductStatus::Active->value,
+            'visibility' => ProductVisibility::Public->value,
+            'existing_image_ids' => [$imageId],
+        ];
+
+        $this->put(route('admin.products.update', $product), $payload + ['return_to' => $listUrl])
+            ->assertRedirect($listUrl)
+            ->assertSessionHas('success', 'Product updated.');
+
+        // Anything that is not a product list page is ignored (no open redirect).
+        foreach (['https://evil.example/admin/products', '//evil.example', '/admin/orders', '/admin/products/1/edit'] as $bad) {
+            $this->put(route('admin.products.update', $product), $payload + ['return_to' => $bad])
+                ->assertRedirect(route('admin.products.index'));
+        }
+    }
+
     public function test_saving_an_inactive_product_returns_to_the_inactive_list(): void
     {
         $admin = User::factory()->admin()->create();

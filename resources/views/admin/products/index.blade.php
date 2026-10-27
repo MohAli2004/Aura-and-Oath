@@ -61,7 +61,7 @@
                     <td class="p-3">{{ money($product->price) }}</td>
                     <td class="p-3">{{ $product->availableStock() }}</td>
                     <td class="p-3"><x-badge>{{ $product->status->label() }}</x-badge></td>
-                    <td class="p-3 text-right"><a class="underline" href="{{ route('admin.products.edit', $product) }}">Edit</a></td>
+                    <td class="p-3 text-right"><a class="underline" href="{{ route('admin.products.edit', ['product' => $product, 'return_to' => request()->getRequestUri()]) }}">Edit</a></td>
                 </tr>
             @endforeach
             </tbody>

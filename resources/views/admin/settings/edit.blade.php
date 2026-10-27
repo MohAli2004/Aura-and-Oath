@@ -192,7 +192,7 @@
     <section class="border border-beige bg-[#FFFCFA] p-6 space-y-4">
         <div>
             <h2 class="font-display text-2xl">Favicon</h2>
-            <p class="text-sm text-taupe mt-1">Browser tab icon for the storefront and admin.</p>
+            <p class="text-sm text-taupe mt-1">Browser tab icon, and the icon Android/iPhone use when someone adds the site to their home screen or installs it as an app.</p>
         </div>
 
         <div>
@@ -208,7 +208,7 @@
                 accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon,.ico"
                 aria-labelledby="favicon-label"
             />
-            <p class="text-xs text-taupe mt-1">PNG or ICO recommended. Max 2MB.</p>
+            <p class="text-xs text-taupe mt-1">Use a square PNG, at least 512×512 (1024×1024 is ideal), with the logo centered and some empty margin around it. Max 2MB. After changing it, remove the old shortcut from the phone and add the site again.</p>
         </div>
 
         @if($faviconUrl)

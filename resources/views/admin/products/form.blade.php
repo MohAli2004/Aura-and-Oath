@@ -297,6 +297,9 @@
     >
         @csrf
         @if($product->exists) @method('PUT') @endif
+        @if(! empty($returnTo) || old('return_to'))
+            <input type="hidden" name="return_to" value="{{ old('return_to', $returnTo) }}">
+        @endif
         <input type="hidden" name="variants_json" id="variants_json" value="{{ old('variants_json', '[]') }}">
         <input type="hidden" name="option_unit" x-model="optionUnit">
         <template x-for="img in productImages" :key="'keep-'+img.key">

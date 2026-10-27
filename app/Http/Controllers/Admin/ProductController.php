@@ -172,11 +172,12 @@ class ProductController extends Controller
         return $this->redirectAfterPublication($product, $data['status'] ?? null, 'admin.products.index', 'Product created.');
     }
 
-    public function edit(Product $product): View
+    public function edit(Request $request, Product $product): View
     {
         $product->load(['images', 'variants.images', 'variants.attributeValues.attribute', 'categories']);
 
         return view('admin.products.form', [
+            'returnTo' => $this->safeReturnUrl((string) $request->query('return_to', '')),
             'product' => $product,
             'categories' => Category::query()->orderBy('name')->get(),
             'brands' => Brand::query()->orderBy('name')->get(),
@@ -233,7 +234,31 @@ class ProductController extends Controller
 
         $returnTo = $wasInactive ? 'admin.products.inactive' : 'admin.products.index';
 
-        return $this->redirectAfterPublication($product, $data['status'] ?? null, $returnTo, 'Product updated.');
+        return $this->redirectAfterPublication(
+            $product,
+            $data['status'] ?? null,
+            $returnTo,
+            'Product updated.',
+            $this->safeReturnUrl((string) $request->input('return_to', ''))
+        );
+    }
+
+    /**
+     * The product-list page (with its page number and filters) the admin came from.
+     * Only same-site product list URLs are accepted, so this can't be used as an open redirect.
+     */
+    protected function safeReturnUrl(string $url): ?string
+    {
+        $url = trim($url);
+        if ($url === '' || strlen($url) > 2000 || preg_match('/[\x00-\x1F\\\\]/', $url)) {
+            return null;
+        }
+
+        if (! preg_match('#^/admin/products(/(inactive|trashed))?(\?[^\#]*)?$#', $url)) {
+            return null;
+        }
+
+        return $url;
     }
 
     public function destroy(Product $product): RedirectResponse
@@ -397,7 +422,7 @@ class ProductController extends Controller
             ->with('success', "{$count} {$noun} permanently deleted.");
     }
 
-    protected function redirectAfterPublication(Product $product, mixed $requestedStatus, string $route, string $success): RedirectResponse
+    protected function redirectAfterPublication(Product $product, mixed $requestedStatus, string $route, string $success, ?string $returnUrl = null): RedirectResponse
     {
         $status = $requestedStatus instanceof ProductStatus
             ? $requestedStatus
@@ -412,9 +437,11 @@ class ProductController extends Controller
                 $product->update(['published_at' => now()]);
             }
 
-            $redirect = $route === 'admin.products.edit'
-                ? redirect()->route($route, $product)
-                : redirect()->route($route);
+            $redirect = match (true) {
+                $returnUrl !== null => redirect()->to($returnUrl),
+                $route === 'admin.products.edit' => redirect()->route($route, $product),
+                default => redirect()->route($route),
+            };
 
             return $redirect->with('success', $success);
         }
@@ -427,7 +454,7 @@ class ProductController extends Controller
         $message = 'This product stays in Draft. Still needed: '.implode(', ', $this->readiness->labels($issues)).'.';
 
         return redirect()
-            ->route('admin.products.edit', $product)
+            ->route('admin.products.edit', array_filter(['product' => $product, 'return_to' => $returnUrl]))
             ->withInput()
             ->withErrors(['status' => $message])
             ->with('error', $message);

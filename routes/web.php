@@ -36,6 +36,38 @@ Route::get('/sitemap.xml', SitemapController::class)
         \Illuminate\Session\Middleware\AuthenticateSession::class,
         \App\Http\Middleware\SetStorefrontLocale::class,
     ]);
+// Web app manifest: the home-screen / "install app" icon follows the Favicon set in Admin > Settings.
+Route::get('/manifest.webmanifest', function () {
+    $icon = store_favicon_url();
+    $icons = $icon ? [
+        ['src' => $icon, 'sizes' => '512x512', 'purpose' => 'any'],
+        ['src' => $icon, 'sizes' => '192x192', 'purpose' => 'any'],
+    ] : [];
+
+    return response()->json([
+        'id' => '/',
+        'name' => config('aura.name', 'Aura & Oath'),
+        'short_name' => 'Aura & Oath',
+        'description' => 'Beauty, body care, household products, and everyday essentials — quietly confident.',
+        'start_url' => '/',
+        'scope' => '/',
+        'display' => 'standalone',
+        'background_color' => '#F7F3EE',
+        'theme_color' => '#2C2A28',
+        'icons' => $icons,
+    ], 200, [
+        'Content-Type' => 'application/manifest+json',
+        'Cache-Control' => 'public, max-age=300',
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+})->name('manifest')->withoutMiddleware([
+    \Illuminate\Cookie\Middleware\EncryptCookies::class,
+    \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+    \Illuminate\Session\Middleware\StartSession::class,
+    \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+    \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+    \Illuminate\Session\Middleware\AuthenticateSession::class,
+    \App\Http\Middleware\SetStorefrontLocale::class,
+]);
 Route::get('/', HomeController::class)->name('home');
 Route::get('/links', LinkHubController::class)->name('links.index');
 Route::get('/shop', ShopController::class)->name('shop');
