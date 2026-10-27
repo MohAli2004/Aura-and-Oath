@@ -20,33 +20,6 @@ window.addEventListener('aura:cart-count', (event) => {
 
 Alpine.data('checkoutPage', checkoutPage);
 Alpine.data('pushNotifications', pushNotifications);
-Alpine.data('productRail', (config = {}) => ({
-    page: 0,
-    pages: Math.max(1, Number(config.pages || 1)),
-    get canPrev() {
-        return this.page > 0;
-    },
-    get canNext() {
-        return this.page < this.pages - 1;
-    },
-    get trackOffset() {
-        const rtl = document.documentElement.getAttribute('dir') === 'rtl';
-        const value = this.page * 100;
-
-        return rtl ? value : -value;
-    },
-    prev() {
-        if (this.canPrev) {
-            this.page -= 1;
-        }
-    },
-    next() {
-        if (this.canNext) {
-            this.page += 1;
-        }
-    },
-}));
-
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => initInventoryAdjust());
 } else {
