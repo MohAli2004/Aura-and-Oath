@@ -88,6 +88,12 @@
                     <p class="mt-1 break-words text-sm text-taupe">{{ $item['message'] }}</p>
                     <p class="mt-2 text-xs text-taupe/80">{{ $item['created_at'] }}</p>
                     <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        @if(! empty($item['action']))
+                            <form method="POST" action="{{ $item['action']['url'] }}" class="w-full sm:w-auto">
+                                @csrf
+                                <button type="submit" class="btn btn-primary min-h-11 w-full sm:min-h-8 sm:w-auto sm:px-3 sm:py-1.5">{{ $item['action']['label'] }}</button>
+                            </form>
+                        @endif
                         @if($item['unread'])
                             <button
                                 type="button"

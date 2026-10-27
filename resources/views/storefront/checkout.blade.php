@@ -294,7 +294,7 @@
             <form id="checkout-coupon-form" method="POST" action="{{ route('checkout.coupon') }}" class="border border-beige p-5 bg-[#FFFCFA] space-y-3" x-data="{ applying: false }" @submit="applying = true">
                 @csrf
                 <label class="label">{{ __('storefront.coupon') }}</label>
-                <input class="input" name="coupon_code" placeholder="AURA10" value="{{ old('coupon_code', session('checkout_coupon')) }}">
+                <input class="input" name="coupon_code" value="{{ old('coupon_code', session('checkout_coupon')) }}">
                 @error('coupon')
                     <p class="text-sm text-blush">{{ $message }}</p>
                 @enderror

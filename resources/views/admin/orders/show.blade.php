@@ -219,7 +219,108 @@
                 @if((float) $order->discount_amount > 0)
                     <div class="flex h-6 justify-between items-center gap-4"><span class="text-taupe">Discount</span><span class="tabular-nums">−{{ money($order->discount_amount) }}</span></div>
                 @endif
-                <div class="flex h-6 justify-between items-center gap-4"><span class="text-taupe">Delivery</span><span class="tabular-nums">{{ money($order->delivery_fee) }}</span></div>
+                @php
+                    $canEditDelivery = in_array($order->status, [
+                        \App\Enums\OrderStatus::PendingApproval,
+                        \App\Enums\OrderStatus::Approved,
+                        \App\Enums\OrderStatus::Preparing,
+                        \App\Enums\OrderStatus::OnTheWay,
+                    ], true);
+                @endphp
+                @if($order->hasPendingDeliveryConfirmation())
+                    <div class="border border-beige bg-ivory p-3 text-xs leading-5 space-y-2">
+                        <p>
+                            Waiting for the customer to confirm the new delivery charge
+                            ({{ money($order->delivery_fee_before ?? 0) }} → {{ money($order->delivery_fee) }}).
+                            @if($order->delivery_confirmation_due_at->isFuture())
+                                Approval is on hold until {{ $order->delivery_confirmation_due_at->format('M j, H:i') }}; after that it carries on automatically.
+                            @else
+                                The time is up, so it carries on automatically.
+                            @endif
+                        </p>
+                        <form method="POST" action="{{ route('admin.orders.delivery.confirmed', $order) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-secondary ctrl" onclick="return confirm('Mark the new delivery charge as confirmed by the customer?')">Customer confirmed</button>
+                        </form>
+                    </div>
+                @elseif($order->delivery_confirmation_outcome)
+                    <p class="text-xs text-taupe">
+                        Delivery charge change:
+                        {{ [
+                            'confirmed' => 'confirmed by the customer',
+                            'admin_confirmed' => 'marked confirmed by an admin',
+                            'auto_confirmed' => 'carried on automatically after the time ran out',
+                            'declined' => 'declined, order cancelled',
+                        ][$order->delivery_confirmation_outcome] ?? $order->delivery_confirmation_outcome }}.
+                    </p>
+                @endif
+                <div x-data="{ editingDelivery: {{ $errors->hasAny(['delivery', 'delivery_region_id', 'delivery_fee']) ? 'true' : 'false' }} }">
+                    <div class="flex min-h-6 justify-between items-center gap-4">
+                        <span class="text-taupe">
+                            Delivery
+                            @if($order->deliveryRegion)
+                                <span class="text-xs">· {{ $order->deliveryRegion->name }}</span>
+                            @endif
+                        </span>
+                        <span class="flex items-center gap-3">
+                            <span class="tabular-nums">{{ money($order->delivery_fee) }}</span>
+                            @if($canEditDelivery)
+                                <button type="button" class="text-xs underline text-taupe" x-show="!editingDelivery" @click="editingDelivery = true">Edit</button>
+                            @endif
+                        </span>
+                    </div>
+                    @if($canEditDelivery)
+                        <form
+                            method="POST"
+                            action="{{ route('admin.orders.delivery', $order) }}"
+                            class="mt-2 space-y-2 border border-beige bg-ivory p-3"
+                            x-show="editingDelivery"
+                            x-cloak
+                            x-data="{ fee: '{{ number_format((float) old('delivery_fee', $order->delivery_fee), 2, '.', '') }}' }"
+                        >
+                            @csrf
+                            <label class="label" for="delivery_region_id">Delivery choice</label>
+                            <select
+                                id="delivery_region_id"
+                                name="delivery_region_id"
+                                class="input ctrl"
+                                required
+                                @change="fee = Number($event.target.selectedOptions[0].dataset.fee || 0).toFixed(2)"
+                            >
+                                @foreach($deliveryRegions as $region)
+                                    <option
+                                        value="{{ $region->id }}"
+                                        data-fee="{{ number_format((float) $region->fee, 2, '.', '') }}"
+                                        @selected((int) old('delivery_region_id', $order->delivery_region_id) === (int) $region->id)
+                                    >{{ $region->name }} — {{ money($region->fee) }}@if(! $region->is_active) (hidden)@endif</option>
+                                @endforeach
+                            </select>
+                            <label class="label" for="delivery_fee">Delivery charge ({{ config('aura.currency_symbol', '$') }})</label>
+                            <input
+                                id="delivery_fee"
+                                type="number"
+                                name="delivery_fee"
+                                min="0"
+                                step="0.01"
+                                class="input ctrl"
+                                x-model="fee"
+                                required
+                            >
+                            <p class="text-[11px] text-taupe leading-4">Picking a choice fills in its usual charge. You can still type a different amount.</p>
+                            <input type="text" name="note" class="input ctrl" placeholder="Note to customer (optional)" maxlength="500">
+                            @error('delivery')
+                                <p class="text-sm text-[#B85C5C]">{{ $message }}</p>
+                            @enderror
+                            @error('delivery_fee')
+                                <p class="text-sm text-[#B85C5C]">{{ $message }}</p>
+                            @enderror
+                            <div class="flex gap-2">
+                                <button type="submit" class="btn btn-primary ctrl" onclick="return confirm('Update delivery and notify the customer?')">Save</button>
+                                <button type="button" class="btn btn-secondary ctrl" @click="editingDelivery = false">Cancel</button>
+                            </div>
+                        </form>
+                    @endif
+                </div>
                 @if((float) $order->tax_amount > 0)
                     <div class="flex h-6 justify-between items-center gap-4"><span class="text-taupe">Tax</span><span class="tabular-nums">{{ money($order->tax_amount) }}</span></div>
                 @endif

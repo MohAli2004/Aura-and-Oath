@@ -50,6 +50,10 @@ class Order extends Model
         'delivered_at',
         'cancelled_at',
         'tracking_number',
+        'delivery_confirmation_due_at',
+        'delivery_confirmation_resolved_at',
+        'delivery_confirmation_outcome',
+        'delivery_fee_before',
     ];
 
     protected function casts(): array
@@ -67,6 +71,9 @@ class Order extends Model
             'shipped_at' => 'datetime',
             'delivered_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'delivery_fee_before' => 'decimal:2',
+            'delivery_confirmation_due_at' => 'datetime',
+            'delivery_confirmation_resolved_at' => 'datetime',
         ];
     }
 
@@ -173,6 +180,25 @@ class Order extends Model
             OrderStatus::Delivered,
             OrderStatus::ReturnRequested,
         ], true);
+    }
+
+    /** The customer was asked to confirm a higher delivery charge and has not answered yet. */
+    public function hasPendingDeliveryConfirmation(): bool
+    {
+        return $this->delivery_confirmation_due_at !== null
+            && $this->delivery_confirmation_resolved_at === null;
+    }
+
+    /** Pending and still inside the customer's window, so the order must not be approved yet. */
+    public function isHeldForDeliveryConfirmation(): bool
+    {
+        return $this->hasPendingDeliveryConfirmation()
+            && $this->delivery_confirmation_due_at->isFuture();
+    }
+
+    public function deliveryConfirmationHours(): int
+    {
+        return max(1, (int) config('aura.orders.delivery_confirmation_hours', 2));
     }
 
     public function returnWindowHours(): int

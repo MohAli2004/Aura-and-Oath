@@ -25,3 +25,10 @@ On your Oracle server
 cd /var/www/Aura-and-Oath
 git pull --ff-only origin main
 php artisan optimize:clear
+______________________________________
+cd /var/www/Aura-and-Oath
+git restore --staged ,
+git restore --staged ':USERPROFILE\\.ssh\\aura_github_deploy' ':USERPROFILE\\.ssh\\aura_github_deploy.pub'
+git pull --ff-only origin main
+php artisan optimize:clear
+

@@ -74,6 +74,42 @@ class OrderController extends Controller
             ->with('success', __('storefront.flash_order_cancelled'));
     }
 
+    public function confirmDelivery(Order $order, OrderService $orderService): RedirectResponse
+    {
+        $this->authorize('view', $order);
+        abort_unless($order->isOwnedBy(Auth::user()), 403);
+
+        if (! $order->hasPendingDeliveryConfirmation()) {
+            return redirect()
+                ->route('account.orders.show', $order)
+                ->with('info', __('storefront.delivery_confirm_nothing_pending'));
+        }
+
+        $orderService->confirmDelivery($order, Auth::user());
+
+        return redirect()
+            ->route('account.orders.show', $order)
+            ->with('success', __('storefront.delivery_confirm_thanks'));
+    }
+
+    public function declineDelivery(Order $order, OrderService $orderService): RedirectResponse
+    {
+        $this->authorize('view', $order);
+        abort_unless($order->isOwnedBy(Auth::user()), 403);
+
+        if (! $order->hasPendingDeliveryConfirmation() || ! $order->canCustomerCancel()) {
+            return redirect()
+                ->route('account.orders.show', $order)
+                ->with('info', __('storefront.delivery_confirm_nothing_pending'));
+        }
+
+        $orderService->declineDelivery($order, Auth::user());
+
+        return redirect()
+            ->route('account.orders.index')
+            ->with('success', __('storefront.flash_order_cancelled'));
+    }
+
     public function cancelLookup(Request $request, OrderService $orderService): RedirectResponse
     {
         $data = $request->validate([

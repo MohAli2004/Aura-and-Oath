@@ -10,6 +10,37 @@
         · {{ money($order->total) }}
     </p>
 
+    @if($order->hasPendingDeliveryConfirmation())
+        <div class="border border-blush bg-[#FFFCFA] p-5 mb-8 text-sm space-y-3" id="delivery-confirmation">
+            <h2 class="font-display text-2xl">{{ __('storefront.delivery_confirm_heading') }}</h2>
+            <p class="text-taupe">
+                {{ __('storefront.delivery_confirm_body', [
+                    'old' => money($order->delivery_fee_before ?? 0),
+                    'new' => money($order->delivery_fee),
+                    'total' => money($order->total),
+                ]) }}
+            </p>
+            <p class="text-taupe">
+                {{ __('storefront.delivery_confirm_deadline', [
+                    'time' => $order->delivery_confirmation_due_at->format('M j, H:i'),
+                    'hours' => $order->deliveryConfirmationHours(),
+                ]) }}
+            </p>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <form method="POST" action="{{ route('account.orders.delivery.confirm', $order) }}">
+                    @csrf
+                    <button class="btn btn-primary w-full sm:w-auto" type="submit">{{ __('storefront.delivery_confirm_button') }}</button>
+                </form>
+                @if($order->canCustomerCancel())
+                    <form method="POST" action="{{ route('account.orders.delivery.decline', $order) }}" onsubmit="return confirm(@js(__('storefront.cancel_order_confirm')))">
+                        @csrf
+                        <button class="btn btn-secondary w-full sm:w-auto" type="submit">{{ __('storefront.delivery_decline_button') }}</button>
+                    </form>
+                @endif
+            </div>
+        </div>
+    @endif
+
     @if ($order->payment_method === \App\Enums\PaymentMethod::WishAccount && $order->payment_status !== \App\Enums\PaymentStatus::Paid)
         <div class="border border-beige bg-[#FFFCFA] p-5 mb-8 text-sm space-y-3">
             <h2 class="font-display text-2xl">{{ __('storefront.order_wish_payment') }}</h2>

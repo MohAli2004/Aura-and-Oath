@@ -109,5 +109,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/account/orders', [OrderController::class, 'index'])->name('account.orders.index');
     Route::get('/account/orders/{order}', [OrderController::class, 'show'])->name('account.orders.show');
+    Route::post('/account/orders/{order}/delivery/confirm', [OrderController::class, 'confirmDelivery'])->name('account.orders.delivery.confirm');
+    Route::post('/account/orders/{order}/delivery/decline', [OrderController::class, 'declineDelivery'])->name('account.orders.delivery.decline');
     Route::post('/account/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('account.orders.cancel');
 });

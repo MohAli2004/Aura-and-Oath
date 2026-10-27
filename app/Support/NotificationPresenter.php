@@ -2,7 +2,9 @@
 
 namespace App\Support;
 
+use App\Models\Order;
 use App\Notifications\ContactMessageNotification;
+use App\Notifications\OrderDeliveryConfirmationNotification;
 use App\Notifications\LowStockNotification;
 use App\Notifications\NewUserRegisteredNotification;
 use App\Notifications\OrderCancelledByCustomerNotification;
@@ -32,9 +34,33 @@ class NotificationPresenter
             'url' => isset($data['url']) && is_string($data['url']) && $data['url'] !== ''
                 ? safe_url($data['url'], self::fallbackUrl($notification) ?? '/')
                 : self::fallbackUrl($notification),
+            'action' => self::confirmAction($data),
             'unread' => $notification->read_at === null,
             'created_at' => $notification->created_at?->diffForHumans() ?? '',
             'created_at_iso' => $notification->created_at?->toIso8601String() ?? '',
+        ];
+    }
+
+    /**
+     * A one-tap "I still want my order" button, shown only while the customer's window is open.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{label:string,url:string}|null
+     */
+    protected static function confirmAction(array $data): ?array
+    {
+        if (empty($data['delivery_confirmation']) || empty($data['order_id'])) {
+            return null;
+        }
+
+        $order = Order::query()->find($data['order_id']);
+        if (! $order || ! $order->hasPendingDeliveryConfirmation()) {
+            return null;
+        }
+
+        return [
+            'label' => __('storefront.delivery_confirm_button'),
+            'url' => route('account.orders.delivery.confirm', $order),
         ];
     }
 
@@ -46,6 +72,7 @@ class NotificationPresenter
                 : 'Order received',
             OrderStatusChangedNotification::class => 'Order status updated',
             OrderUpdatedNotification::class => 'Order updated',
+            OrderDeliveryConfirmationNotification::class => 'Delivery charge update',
             OrderPaymentStatusChangedNotification::class => 'Payment status updated',
             OrderCancelledByCustomerNotification::class => 'Order cancelled by customer',
             OrderReturnRequestedNotification::class => 'Return requested',
@@ -107,7 +134,7 @@ class NotificationPresenter
                     ? url('/admin/orders/'.$data['order_id'])
                     : url('/account/orders/'.$data['order_id']))
                 : null,
-            OrderStatusChangedNotification::class, OrderPaymentStatusChangedNotification::class, OrderUpdatedNotification::class => isset($data['order_id'])
+            OrderStatusChangedNotification::class, OrderPaymentStatusChangedNotification::class, OrderUpdatedNotification::class, OrderDeliveryConfirmationNotification::class => isset($data['order_id'])
                 ? url('/account/orders/'.$data['order_id'])
                 : null,
             NewUserRegisteredNotification::class => isset($data['user_id'])

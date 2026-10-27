@@ -6,6 +6,7 @@ use App\Enums\OrderItemStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ReturnRequestStatus;
+use App\Models\DeliveryRegion;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderNote;
@@ -318,6 +319,226 @@ class OrderService
 
             return $fresh;
         });
+    }
+
+    /**
+     * Fix a wrong delivery choice and/or the delivery charge on an order that is still open.
+     * The charge defaults to the chosen region's fee but can be set to any amount.
+     */
+    public function updateDelivery(Order $order, ?int $regionId, float $fee, User $admin, ?string $note = null): Order
+    {
+        return DB::transaction(function () use ($order, $regionId, $fee, $admin, $note) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            $order->loadMissing('deliveryRegion');
+
+            $editable = [
+                OrderStatus::PendingApproval,
+                OrderStatus::Approved,
+                OrderStatus::Preparing,
+                OrderStatus::OnTheWay,
+            ];
+            if (! in_array($order->status, $editable, true)) {
+                throw ValidationException::withMessages([
+                    'delivery' => 'Delivery can only be changed while the order is still open.',
+                ]);
+            }
+
+            if ($order->payment_status === PaymentStatus::Paid) {
+                throw ValidationException::withMessages([
+                    'delivery' => 'This order is marked as paid. Unmark it as paid before changing the delivery charge.',
+                ]);
+            }
+
+            $region = null;
+            if ($regionId) {
+                $region = DeliveryRegion::query()->find($regionId);
+                if (! $region) {
+                    throw ValidationException::withMessages(['delivery_region_id' => 'Choose a valid delivery region.']);
+                }
+            }
+
+            $fee = round(max(0, $fee), 2);
+            $fromRegion = $order->deliveryRegion?->name;
+            $fromFee = (float) $order->delivery_fee;
+            $regionChanged = (int) ($order->delivery_region_id ?? 0) !== (int) ($region?->id ?? 0);
+
+            if (! $regionChanged && abs($fromFee - $fee) < 0.005) {
+                return $order->fresh(['items']);
+            }
+
+            $order->delivery_region_id = $region?->id;
+            $order->delivery_fee = $fee;
+
+            // A higher charge needs the customer's OK; they have a short window before the
+            // order carries on as normal. A lower or unchanged charge needs no confirmation.
+            $needsConfirmation = $fee > $fromFee + 0.004;
+            $wasPending = $order->hasPendingDeliveryConfirmation();
+            if ($needsConfirmation) {
+                $order->delivery_fee_before = $wasPending && $order->delivery_fee_before !== null
+                    ? $order->delivery_fee_before
+                    : $fromFee;
+                $order->delivery_confirmation_due_at = now()->addHours($order->deliveryConfirmationHours());
+                $order->delivery_confirmation_resolved_at = null;
+                $order->delivery_confirmation_outcome = null;
+            } elseif ($wasPending) {
+                $order->delivery_confirmation_due_at = null;
+                $order->delivery_confirmation_resolved_at = null;
+                $order->delivery_confirmation_outcome = null;
+                $order->delivery_fee_before = null;
+            }
+
+            $this->recalculateTotals($order);
+
+            $parts = [];
+            if ($regionChanged) {
+                $parts[] = sprintf('Delivery choice changed from %s to %s.', $fromRegion ?: 'none', $region?->name ?: 'none');
+            }
+            if (abs($fromFee - $fee) >= 0.005) {
+                $parts[] = sprintf('Delivery charge changed from %s to %s.', money($fromFee), money($fee));
+            }
+            $summary = implode(' ', $parts).' New total: '.money($order->fresh()->total).'.';
+            if (filled($note)) {
+                $summary .= ' Note: '.trim($note);
+            }
+            if ($needsConfirmation) {
+                $summary .= sprintf(
+                    ' Please confirm you still want this order within %d hour%s (by %s). If you do not reply, it carries on as normal with the new charge.',
+                    $order->deliveryConfirmationHours(),
+                    $order->deliveryConfirmationHours() === 1 ? '' : 's',
+                    $order->fresh()->delivery_confirmation_due_at->format('M j, H:i')
+                );
+            }
+
+            $this->addNote($order, $admin, $summary, true);
+
+            $this->audit->log(
+                'order.delivery_updated',
+                $order,
+                ['delivery_region_id' => $regionChanged ? $fromRegion : null, 'delivery_fee' => $fromFee],
+                ['delivery_region_id' => $region?->id, 'delivery_fee' => $fee],
+                $note,
+                $admin
+            );
+
+            $fresh = $order->fresh(['items', 'notes', 'user', 'deliveryRegion']);
+            if ($needsConfirmation) {
+                $this->notifications->notifyDeliveryConfirmation($fresh, 'requested', $summary);
+            } else {
+                $this->notifications->notifyOrderUpdated($fresh, $summary);
+            }
+
+            return $fresh;
+        });
+    }
+
+    /**
+     * The customer says they still want the order after the delivery charge changed.
+     */
+    public function confirmDelivery(Order $order, User $actor): Order
+    {
+        $outcome = $actor->isAdmin() ? 'admin_confirmed' : 'confirmed';
+
+        return DB::transaction(function () use ($order, $actor, $outcome) {
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            if (! $order->hasPendingDeliveryConfirmation()) {
+                return $order;
+            }
+
+            $order->delivery_confirmation_resolved_at = now();
+            $order->delivery_confirmation_outcome = $outcome;
+            $order->save();
+
+            $summary = $actor->isAdmin()
+                ? 'An admin marked the new delivery charge as confirmed by the customer.'
+                : 'Customer confirmed the new delivery charge and still wants this order.';
+            OrderNote::query()->create([
+                'order_id' => $order->id,
+                'user_id' => $actor->id,
+                'body' => $summary,
+                'is_customer_visible' => true,
+            ]);
+            $this->audit->log('order.delivery_confirmed', $order, null, ['outcome' => $outcome], $summary, $actor);
+
+            if (! $actor->isAdmin()) {
+                $this->notifications->notifyAdminsDeliveryConfirmed($order->fresh(['user']), 'Order '.$order->order_number.': '.$summary);
+            }
+
+            return $order->fresh();
+        });
+    }
+
+    /**
+     * The customer does not want the order at the new delivery charge: cancel it.
+     */
+    public function declineDelivery(Order $order, User $actor): Order
+    {
+        DB::transaction(function () use ($order) {
+            $locked = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+            if ($locked->hasPendingDeliveryConfirmation()) {
+                $locked->delivery_confirmation_resolved_at = now();
+                $locked->delivery_confirmation_outcome = 'declined';
+                $locked->save();
+            }
+        });
+
+        return $this->cancel($order->fresh(), $actor, 'Cancelled by customer: did not accept the new delivery charge');
+    }
+
+    /**
+     * Carry on as normal for every order whose confirmation window has run out.
+     * Safe to run often; it only touches orders whose window has expired.
+     */
+    public function expireDeliveryConfirmations(): int
+    {
+        $due = Order::query()
+            ->whereNotNull('delivery_confirmation_due_at')
+            ->whereNull('delivery_confirmation_resolved_at')
+            ->where('delivery_confirmation_due_at', '<=', now())
+            ->pluck('id');
+
+        $count = 0;
+        foreach ($due as $id) {
+            if ($this->autoConfirmDelivery((int) $id)) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    protected function autoConfirmDelivery(int $orderId): bool
+    {
+        $confirmed = DB::transaction(function () use ($orderId) {
+            $order = Order::query()->whereKey($orderId)->lockForUpdate()->first();
+            if (! $order || ! $order->hasPendingDeliveryConfirmation() || $order->delivery_confirmation_due_at->isFuture()) {
+                return null;
+            }
+
+            $order->delivery_confirmation_resolved_at = now();
+            $order->delivery_confirmation_outcome = 'auto_confirmed';
+            $order->save();
+
+            $summary = 'We did not hear back in time, so your order carries on as normal with the new delivery charge of '
+                .money($order->delivery_fee).'. New total: '.money($order->total).'.';
+            OrderNote::query()->create([
+                'order_id' => $order->id,
+                'user_id' => null,
+                'body' => $summary,
+                'is_customer_visible' => true,
+            ]);
+            $this->audit->log('order.delivery_auto_confirmed', $order, null, ['outcome' => 'auto_confirmed'], $summary);
+
+            return [$order->fresh(['user']), $summary];
+        });
+
+        if (! $confirmed) {
+            return false;
+        }
+
+        [$order, $summary] = $confirmed;
+        $this->notifications->notifyDeliveryConfirmation($order, 'auto_confirmed', $summary);
+
+        return true;
     }
 
     public function reject(Order $order, User $admin, string $reason): Order
@@ -840,6 +1061,18 @@ class OrderService
             if (! $from->canTransitionTo($to)) {
                 throw ValidationException::withMessages([
                     'status' => "Cannot transition from {$from->label()} to {$to->label()}.",
+                ]);
+            }
+
+            if (
+                $from === OrderStatus::PendingApproval
+                && in_array($to, [OrderStatus::Preparing, OrderStatus::Approved], true)
+                && $order->isHeldForDeliveryConfirmation()
+            ) {
+                throw ValidationException::withMessages([
+                    'status' => 'Waiting for the customer to confirm the new delivery charge until '
+                        .$order->delivery_confirmation_due_at->format('M j, H:i')
+                        .'. After that the order can be approved, or use "Customer confirmed" if they replied another way.',
                 ]);
             }
 

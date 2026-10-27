@@ -12,6 +12,7 @@ use App\Notifications\ContactMessageNotification;
 use App\Notifications\LowStockNotification;
 use App\Notifications\NewUserRegisteredNotification;
 use App\Notifications\OrderCancelledByCustomerNotification;
+use App\Notifications\OrderDeliveryConfirmationNotification;
 use App\Notifications\OrderPaymentStatusChangedNotification;
 use App\Notifications\OrderPlacedNotification;
 use App\Notifications\OrderReturnRequestedNotification;
@@ -64,6 +65,26 @@ class NotificationService
                 $order->user->notify(new OrderUpdatedNotification($order, $summary));
             }
         }, 'order.updated', ['order_id' => $order->id]);
+    }
+
+    public function notifyDeliveryConfirmation(Order $order, string $stage, string $summary): void
+    {
+        $this->safe(function () use ($order, $stage, $summary) {
+            if ($order->user) {
+                $order->user->notify(new OrderDeliveryConfirmationNotification($order, $stage, $summary));
+            }
+        }, 'order.delivery_confirmation', ['order_id' => $order->id, 'stage' => $stage]);
+    }
+
+    public function notifyAdminsDeliveryConfirmed(Order $order, string $summary): void
+    {
+        $this->safe(function () use ($order, $summary) {
+            // Sent right away (not queued) so admins see the customer's answer immediately.
+            Notification::sendNow(
+                $this->activeAdmins(),
+                new OrderDeliveryConfirmationNotification($order, 'confirmed', $summary, forAdmin: true)
+            );
+        }, 'order.delivery_confirmed', ['order_id' => $order->id]);
     }
 
     public function notifyAdminsOrderCancelledByCustomer(Order $order): void

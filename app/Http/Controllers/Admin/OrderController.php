@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\OrderDeliveryRequest;
 use App\Http\Requests\Admin\OrderItemQuantityRequest;
 use App\Http\Requests\Admin\OrderRejectItemsRequest;
 use App\Http\Requests\Admin\OrderRejectRequest;
@@ -87,6 +88,7 @@ class OrderController extends Controller
             'items.product.activeVariants',
             'items.variant.images',
             'addresses',
+            'deliveryRegion',
             'statusHistories.changer',
             'notes.user',
             'user',
@@ -94,7 +96,9 @@ class OrderController extends Controller
             'returnRequests.items.orderItem',
         ]);
 
-        return view('admin.orders.show', compact('order'));
+        $deliveryRegions = \App\Models\DeliveryRegion::query()->orderByDesc('is_active')->orderBy('sort_order')->orderBy('name')->get();
+
+        return view('admin.orders.show', compact('order', 'deliveryRegions'));
     }
 
     public function approve(Order $order): RedirectResponse
@@ -146,6 +150,28 @@ class OrderController extends Controller
         );
 
         return $this->backAfterOrderChange($order, 'Item quantity updated. Customer has been notified.');
+    }
+
+    public function updateDelivery(OrderDeliveryRequest $request, Order $order): RedirectResponse
+    {
+        $data = $request->validated();
+
+        $this->orders->updateDelivery(
+            $order,
+            (int) $data['delivery_region_id'],
+            (float) $data['delivery_fee'],
+            Auth::user(),
+            $data['note'] ?? null
+        );
+
+        return $this->backAfterOrderChange($order->fresh(), 'Delivery updated. Customer has been notified.');
+    }
+
+    public function confirmDeliveryForCustomer(Order $order): RedirectResponse
+    {
+        $this->orders->confirmDelivery($order, Auth::user());
+
+        return $this->backAfterOrderChange($order->fresh(), 'Delivery charge marked as confirmed by the customer.');
     }
 
     public function updateStatus(OrderStatusRequest $request, Order $order): RedirectResponse

@@ -121,6 +121,9 @@ return [
         'idempotency_ttl_minutes' => 60,
         'guest_checkout' => false,
         'return_window_hours' => 24,
+        // After an admin raises the delivery charge, the customer has this long to confirm
+        // before the order carries on as normal.
+        'delivery_confirmation_hours' => (int) env('AURA_DELIVERY_CONFIRMATION_HOURS', 2),
     ],
 
     /*
