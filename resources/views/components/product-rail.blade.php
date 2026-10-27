@@ -65,14 +65,18 @@
                 </button>
             @endif
 
-            <div class="min-w-0 flex-1 overflow-hidden [container-type:inline-size] {{ $canSlide ? 'cursor-grab touch-pan-y active:cursor-grabbing' : '' }}" data-product-rail>
+            <div
+                class="min-w-0 flex-1 overflow-hidden {{ $canSlide ? 'cursor-grab active:cursor-grabbing' : '' }}"
+                data-product-rail
+                @if($canSlide) style="touch-action: pan-y;" @endif
+            >
                 <div
-                    class="flex transition-transform duration-500 ease-in-out will-change-transform"
+                    class="flex will-change-transform"
                     data-rail-track
-                    style="transform: translate3d(0, 0, 0);"
+                    style="transform: translate3d(0, 0, 0); transition: transform 0.5s ease-in-out;"
                 >
                     @foreach($pages as $page)
-                        <div class="grid shrink-0 grid-cols-2 items-stretch gap-5 md:grid-cols-4" style="flex: 0 0 100cqw; width: 100cqw;">
+                        <div class="grid w-full min-w-full shrink-0 grid-cols-2 items-stretch gap-5 md:grid-cols-4">
                             @foreach($page as $product)
                                 <x-product-card :product="$product" />
                             @endforeach
@@ -80,8 +84,8 @@
                     @endforeach
                     @if($hasShowMoreSlide)
                         <div
-                            class="flex shrink-0 flex-col items-center justify-center gap-4 px-6 text-center"
-                            style="flex: 0 0 100cqw; width: 100cqw; min-height: 22rem;"
+                            class="flex w-full min-w-full shrink-0 flex-col items-center justify-center gap-4 px-6 text-center"
+                            style="min-height: 22rem;"
                             data-rail-show-more
                         >
                             <p class="max-w-md text-sm leading-relaxed text-taupe">{{ $moreHint ?: __('storefront.show_more_hint') }}</p>
@@ -128,9 +132,48 @@
                     var startY = 0;
                     var deltaX = 0;
                     var width = 0;
+                    var dragReset = null;
 
                     function isRtl() {
                         return document.documentElement.getAttribute('dir') === 'rtl';
+                    }
+
+                    function clientX(event) {
+                        if (event.touches && event.touches[0]) {
+                            return event.touches[0].clientX;
+                        }
+
+                        if (event.changedTouches && event.changedTouches[0]) {
+                            return event.changedTouches[0].clientX;
+                        }
+
+                        return event.clientX;
+                    }
+
+                    function clientY(event) {
+                        if (event.touches && event.touches[0]) {
+                            return event.touches[0].clientY;
+                        }
+
+                        if (event.changedTouches && event.changedTouches[0]) {
+                            return event.changedTouches[0].clientY;
+                        }
+
+                        return event.clientY;
+                    }
+
+                    function layout() {
+                        if (! viewport || ! track) {
+                            return;
+                        }
+
+                        width = viewport.getBoundingClientRect().width || 1;
+                        Array.prototype.forEach.call(track.children, function (slide) {
+                            slide.style.flex = '0 0 ' + width + 'px';
+                            slide.style.width = width + 'px';
+                            slide.style.maxWidth = width + 'px';
+                        });
+                        update();
                     }
 
                     function update() {
@@ -138,9 +181,9 @@
                             return;
                         }
 
-                        track.style.transition = '';
-                        var offset = (isRtl() ? page : -page) * 100;
-                        track.style.transform = 'translate3d(' + offset + 'cqw, 0, 0)';
+                        track.style.transition = 'transform 0.5s ease-in-out';
+                        var offset = (isRtl() ? page : -page) * width;
+                        track.style.transform = 'translate3d(' + offset + 'px, 0, 0)';
 
                         prevButtons.forEach(function (button) {
                             button.disabled = page === 0;
@@ -173,51 +216,58 @@
                         return target && target.closest && target.closest('button, a.btn, input, select, textarea, [data-rail-prev], [data-rail-next]');
                     }
 
-                    function onPointerDown(event) {
+                    function beginDrag(event) {
                         if (pages < 2 || ! track || ! viewport) {
-                            return;
-                        }
-
-                        if (event.pointerType === 'mouse' && event.button !== 0) {
-                            return;
+                            return false;
                         }
 
                         if (interactiveTarget(event.target)) {
-                            return;
+                            return false;
+                        }
+
+                        if (dragReset) {
+                            clearTimeout(dragReset);
+                            dragReset = null;
                         }
 
                         dragging = true;
                         didDrag = false;
-                        startX = event.clientX;
-                        startY = event.clientY;
+                        startX = clientX(event);
+                        startY = clientY(event);
                         deltaX = 0;
                         width = viewport.getBoundingClientRect().width || 1;
 
-                        try {
-                            viewport.setPointerCapture(event.pointerId);
-                        } catch (error) {}
+                        return true;
                     }
 
-                    function onPointerMove(event) {
+                    function moveDrag(event) {
                         if (! dragging) {
                             return;
                         }
 
-                        deltaX = event.clientX - startX;
-                        var deltaY = event.clientY - startY;
+                        deltaX = clientX(event) - startX;
+                        var deltaY = clientY(event) - startY;
 
-                        if (! didDrag && Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
+                        if (! didDrag && Math.abs(deltaX) < 12 && Math.abs(deltaY) < 12) {
                             return;
                         }
 
-                        if (! didDrag && Math.abs(deltaY) > Math.abs(deltaX)) {
+                        if (! didDrag && Math.abs(deltaY) > Math.abs(deltaX) + 6) {
                             dragging = false;
                             update();
                             return;
                         }
 
                         didDrag = true;
-                        event.preventDefault();
+
+                        if (event.cancelable) {
+                            event.preventDefault();
+                        }
+
+                        if (event.stopPropagation) {
+                            event.stopPropagation();
+                        }
+
                         track.style.transition = 'none';
 
                         var limited = deltaX;
@@ -232,15 +282,14 @@
                         track.style.transform = 'translate3d(' + (base + limited) + 'px, 0, 0)';
                     }
 
-                    function onPointerUp() {
+                    function endDrag() {
                         if (! dragging && ! didDrag) {
                             return;
                         }
 
                         dragging = false;
-                        track.style.transition = '';
 
-                        var threshold = Math.max(48, width * 0.18);
+                        var threshold = Math.max(36, width * 0.15);
                         var rtl = isRtl();
                         var goNext = rtl ? deltaX > threshold : deltaX < -threshold;
                         var goPrev = rtl ? deltaX < -threshold : deltaX > threshold;
@@ -256,17 +305,70 @@
                         deltaX = 0;
 
                         if (didDrag) {
-                            setTimeout(function () {
+                            dragReset = setTimeout(function () {
                                 didDrag = false;
-                            }, 0);
+                                dragReset = null;
+                            }, 400);
                         }
                     }
 
                     if (viewport && pages > 1) {
-                        viewport.addEventListener('pointerdown', onPointerDown);
-                        viewport.addEventListener('pointermove', onPointerMove);
-                        viewport.addEventListener('pointerup', onPointerUp);
-                        viewport.addEventListener('pointercancel', onPointerUp);
+                        viewport.addEventListener('touchstart', function (event) {
+                            beginDrag(event);
+                        }, { passive: true });
+                        viewport.addEventListener('touchmove', function (event) {
+                            moveDrag(event);
+                            if (didDrag) {
+                                event.stopPropagation();
+                            }
+                        }, { passive: false, capture: true });
+                        viewport.addEventListener('touchend', function (event) {
+                            if (didDrag) {
+                                event.stopPropagation();
+                            }
+                            endDrag();
+                        }, { passive: true, capture: true });
+                        viewport.addEventListener('touchcancel', endDrag, { passive: true });
+
+                        viewport.addEventListener('pointerdown', function (event) {
+                            if (event.pointerType === 'touch') {
+                                return;
+                            }
+
+                            if (event.button !== 0) {
+                                return;
+                            }
+
+                            if (! beginDrag(event)) {
+                                return;
+                            }
+
+                            try {
+                                viewport.setPointerCapture(event.pointerId);
+                            } catch (error) {}
+                        });
+                        viewport.addEventListener('pointermove', function (event) {
+                            if (event.pointerType === 'touch') {
+                                return;
+                            }
+
+                            moveDrag(event);
+                        });
+                        viewport.addEventListener('pointerup', function (event) {
+                            if (event.pointerType === 'touch') {
+                                return;
+                            }
+
+                            endDrag();
+                        });
+                        viewport.addEventListener('pointercancel', function (event) {
+                            if (event.pointerType === 'touch') {
+                                return;
+                            }
+
+                            endDrag();
+                        });
+
                         viewport.addEventListener('click', function (event) {
                             if (! didDrag) {
                                 return;
@@ -274,11 +376,12 @@
 
                             event.preventDefault();
                             event.stopPropagation();
-                            didDrag = false;
                         }, true);
+
+                        window.addEventListener('resize', layout);
                     }
 
-                    update();
+                    layout();
                 });
             }
 
