@@ -20,46 +20,29 @@ window.addEventListener('aura:cart-count', (event) => {
 
 Alpine.data('checkoutPage', checkoutPage);
 Alpine.data('pushNotifications', pushNotifications);
-Alpine.data('productRail', () => ({
-    canPrev: false,
-    canNext: false,
-    init() {
-        this.$nextTick(() => this.update());
-        this.$refs.scroller?.addEventListener('scroll', () => this.update(), { passive: true });
-        window.addEventListener('resize', () => this.update());
+Alpine.data('productRail', (config = {}) => ({
+    page: 0,
+    pages: Math.max(1, Number(config.pages || 1)),
+    get canPrev() {
+        return this.page > 0;
     },
-    amount() {
-        return this.$refs.scroller?.clientWidth ?? 0;
+    get canNext() {
+        return this.page < this.pages - 1;
     },
-    dir() {
-        return getComputedStyle(this.$refs.scroller || document.documentElement).direction === 'rtl' ? -1 : 1;
+    get trackOffset() {
+        const rtl = document.documentElement.getAttribute('dir') === 'rtl';
+        const value = this.page * 100;
+
+        return rtl ? value : -value;
     },
     prev() {
-        this.$refs.scroller?.scrollBy({ left: -this.dir() * this.amount(), behavior: 'smooth' });
+        if (this.canPrev) {
+            this.page -= 1;
+        }
     },
     next() {
-        this.$refs.scroller?.scrollBy({ left: this.dir() * this.amount(), behavior: 'smooth' });
-    },
-    update() {
-        const el = this.$refs.scroller;
-        if (! el || el.children.length === 0) {
-            this.canPrev = false;
-            this.canNext = false;
-
-            return;
-        }
-
-        const box = el.getBoundingClientRect();
-        const first = el.children[0].getBoundingClientRect();
-        const last = el.children[el.children.length - 1].getBoundingClientRect();
-        const rtl = getComputedStyle(el).direction === 'rtl';
-
-        if (rtl) {
-            this.canPrev = first.right > box.right + 8;
-            this.canNext = last.left < box.left - 8;
-        } else {
-            this.canPrev = first.left < box.left - 8;
-            this.canNext = last.right > box.right + 8;
+        if (this.canNext) {
+            this.page += 1;
         }
     },
 }));

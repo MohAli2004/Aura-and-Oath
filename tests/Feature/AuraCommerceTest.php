@@ -112,7 +112,7 @@ class AuraCommerceTest extends TestCase
             ->assertSee('data-product-rail', false)
             ->assertSee('grid-cols-2 md:grid-cols-4', false)
             ->assertSee(__('storefront.show_more'))
-            ->assertSee('x-data="productRail()"', false);
+            ->assertSee('productRail({ pages:', false);
         $this->get('/shop')
             ->assertOk()
             ->assertSee('Shop Serum')
