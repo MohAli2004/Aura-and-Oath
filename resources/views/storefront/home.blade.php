@@ -40,6 +40,7 @@
         :title="__('storefront.featured')"
         :products="$featured"
         :more-url="route('shop', ['featured' => 1])"
+        :more-hint="__('storefront.show_more_hint_featured')"
         :empty="__('storefront.no_featured_products')"
     />
 @endif
@@ -49,6 +50,7 @@
         :title="__('storefront.new_arrivals')"
         :products="$newArrivals"
         :more-url="route('shop', ['sort' => 'newest'])"
+        :more-hint="__('storefront.show_more_hint_new_arrivals')"
     />
 @endif
 
@@ -84,6 +86,7 @@
         :title="__('storefront.women')"
         :products="$womenProducts"
         :more-url="route('shop', ['gender' => 'women'])"
+        :more-hint="__('storefront.show_more_hint_women')"
         :empty="__('storefront.no_women_products')"
     />
 @endif
@@ -94,6 +97,7 @@
             :title="__('storefront.men')"
             :products="$menProducts"
             :more-url="route('shop', ['gender' => 'men'])"
+            :more-hint="__('storefront.show_more_hint_men')"
             :empty="__('storefront.no_men_products')"
         />
     </div>
@@ -104,6 +108,7 @@
         :title="__('storefront.unisex')"
         :products="$unisexProducts"
         :more-url="route('shop', ['gender' => 'unisex'])"
+        :more-hint="__('storefront.show_more_hint_unisex')"
         :empty="__('storefront.no_unisex_products')"
     />
 @endif
@@ -132,6 +137,7 @@
         :title="__('storefront.bestsellers')"
         :products="$bestsellers"
         :more-url="route('shop', ['bestseller' => 1])"
+        :more-hint="__('storefront.show_more_hint_bestsellers')"
     />
 @endif
 
