@@ -285,7 +285,7 @@
                 </div>
             </div>
 
-            <form id="checkout-coupon-form" method="POST" action="{{ route('checkout.coupon') }}" class="border border-beige p-5 bg-[#FFFCFA] space-y-3">
+            <form id="checkout-coupon-form" method="POST" action="{{ route('checkout.coupon') }}" class="border border-beige p-5 bg-[#FFFCFA] space-y-3" x-data="{ applying: false }" @submit="applying = true">
                 @csrf
                 <label class="label">{{ __('storefront.coupon') }}</label>
                 <input class="input" name="coupon_code" placeholder="AURA10" value="{{ old('coupon_code', session('checkout_coupon')) }}">
@@ -295,7 +295,13 @@
                 @error('coupon_code')
                     <p class="text-sm text-blush">{{ $message }}</p>
                 @enderror
-                <button class="btn btn-secondary w-full" type="submit">{{ __('storefront.apply_coupon') }}</button>
+                <button class="btn btn-secondary w-full" type="submit" :disabled="applying" :aria-busy="applying.toString()">
+                    <span x-show="!applying">{{ __('storefront.apply_coupon') }}</span>
+                    <span x-show="applying" x-cloak class="inline-flex items-center gap-2">
+                        <span class="ux-spinner" aria-hidden="true"></span>
+                        {{ __('storefront.applying') }}
+                    </span>
+                </button>
             </form>
         </aside>
     </div>

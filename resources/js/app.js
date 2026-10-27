@@ -10,11 +10,27 @@ window.auraHttp = auraFetch;
 window.auraFlash = flashToast;
 window.auraNotifyNotificationsChanged = notifyNotificationsChanged;
 
+window.auraOverlay = {
+    ids: new Set(),
+    set(id, locked) {
+        if (locked) {
+            this.ids.add(id);
+        } else {
+            this.ids.delete(id);
+        }
+
+        document.documentElement.classList.toggle('ux-overlay-open', this.ids.size > 0);
+    },
+};
+
 window.addEventListener('aura:cart-count', (event) => {
     const count = Number(event.detail?.count ?? 0);
     document.querySelectorAll('[data-cart-count]').forEach((el) => {
         el.textContent = String(count);
         el.hidden = count < 1;
+        el.classList.remove('ux-cart-pulse');
+        void el.offsetWidth;
+        el.classList.add('ux-cart-pulse');
     });
 });
 

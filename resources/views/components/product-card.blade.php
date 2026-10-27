@@ -76,6 +76,8 @@
                 alt="{{ $product->localized('name') }}"
                 class="product-card-slide w-full h-full object-cover"
                 :class="slideDirection === 1 ? 'is-next' : 'is-prev'"
+                loading="lazy"
+                decoding="async"
             >
             @if($inBundle || $product->hasActiveOffer())
                 <span class="absolute top-3 start-3 z-[1] bg-blush text-[#FFFCFA] text-[10px] uppercase tracking-[0.14em] px-2 py-1">{{ __('storefront.hot_offer_badge') }}</span>
@@ -164,11 +166,15 @@
                 type="button"
                 class="btn btn-primary btn-sm"
                 :disabled="!canBuy || adding"
+                :aria-busy="adding.toString()"
                 @click.stop.prevent="addToBag()"
             >
                 <span x-show="!adding && canBuy">{{ __('storefront.add_to_bag') }}</span>
                 <span x-show="!adding && !canBuy" x-cloak>{{ __('storefront.sold_out') }}</span>
-                <span x-show="adding" x-cloak>{{ __('storefront.adding') }}</span>
+                <span x-show="adding" x-cloak class="inline-flex items-center gap-2">
+                    <span class="ux-spinner" aria-hidden="true"></span>
+                    {{ __('storefront.adding') }}
+                </span>
             </button>
     </div>
 </article>

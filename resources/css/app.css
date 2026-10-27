@@ -1073,3 +1073,103 @@
 [dir="rtl"] .storefront-header-right {
     direction: rtl;
 }
+
+/* Isolated micro-UX helpers — do not change brand tokens or layout grids */
+html.ux-overlay-open,
+html.ux-overlay-open body {
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
+.ux-spinner {
+    display: inline-block;
+    width: 0.85rem;
+    height: 0.85rem;
+    border: 2px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-top-color: currentColor;
+    border-radius: 999px;
+    animation: ux-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes ux-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes ux-cart-pulse {
+    0% {
+        transform: scale(1);
+    }
+    40% {
+        transform: scale(1.28);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+[data-cart-count].ux-cart-pulse {
+    animation: ux-cart-pulse 0.45s ease;
+}
+
+.btn:focus-visible,
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+[role="option"]:focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.input.ux-input-valid {
+    border-color: color-mix(in srgb, var(--color-gold) 80%, #6b8f71);
+}
+
+.ux-field-hint {
+    min-height: 1.25rem;
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+}
+
+.ux-variant-disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+}
+
+@media (hover: none) {
+    .btn {
+        min-height: 2.75rem;
+    }
+
+    .product-card-wish {
+        height: 2.75rem;
+        width: 2.75rem;
+    }
+
+    .product-card-variant-nav {
+        height: 2.75rem;
+        width: 2.75rem;
+    }
+
+    .product-card-qty {
+        min-height: 2.75rem;
+        height: 2.75rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ux-spinner,
+    [data-cart-count].ux-cart-pulse {
+        animation: none;
+    }
+
+    .btn:active {
+        transform: none;
+    }
+}

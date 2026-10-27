@@ -86,7 +86,7 @@
         window.auraI18n = @json($auraI18n);
     </script>
 </head>
-<body class="min-h-screen flex flex-col bg-ivory text-charcoal overflow-x-hidden" x-data="{ open: false, nav: '' }" @keydown.escape.window="open = false; nav = ''">
+<body class="min-h-screen flex flex-col bg-ivory text-charcoal overflow-x-hidden" x-data="{ open: false, nav: '' }" @keydown.escape.window="open = false; nav = ''" x-effect="window.auraOverlay?.set('nav', open)">
     <header class="border-b border-beige/80 bg-[#FFFCFA]/95 backdrop-blur sticky top-0 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
             <div class="flex items-center justify-between gap-3 lg:hidden">
@@ -547,15 +547,18 @@
                     method="POST"
                     action="{{ route('newsletter.store') }}"
                     class="space-y-2"
-                    x-data="{ submitting: false, done: false }"
+                    x-data="{ submitting: false, done: false, email: '', emailTouched: false, get emailOk() { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(this.email).trim()); } }"
                     @submit.prevent="
                         if (submitting || done) return;
+                        emailTouched = true;
+                        if (! emailOk) return;
                         submitting = true;
                         const form = $event.target;
                         const body = new FormData(form);
                         window.auraHttp(form.action, { method: 'POST', body })
                             .then((data) => {
                                 done = true;
+                                email = '';
                                 form.reset();
                                 window.dispatchEvent(new CustomEvent('aura:toast', {
                                     detail: { message: data.message || window.auraI18n?.newsletterSubscribed || @js(__('storefront.flash_newsletter_subscribed')), type: 'success' },
@@ -570,10 +573,17 @@
                     "
                 >
                     @csrf
-                    <input type="email" name="email" required placeholder="{{ __('storefront.newsletter_email_placeholder') }}" class="input" aria-label="{{ __('storefront.newsletter_email') }}" :disabled="submitting || done">
-                    <button class="btn btn-primary w-full" type="submit" :disabled="submitting || done">
+                    <input type="email" name="email" required placeholder="{{ __('storefront.newsletter_email_placeholder') }}" class="input" aria-label="{{ __('storefront.newsletter_email') }}" x-model="email" @blur="emailTouched = true" :class="emailTouched && email.length && emailOk ? 'ux-input-valid' : ''" :aria-invalid="emailTouched && email.length && !emailOk ? 'true' : 'false'" :disabled="submitting || done">
+                    <p class="ux-field-hint" x-show="emailTouched && email.length && !done" x-cloak>
+                        <span x-show="emailOk">{{ __('storefront.email_looks_valid') }}</span>
+                        <span x-show="!emailOk" class="text-blush">{{ __('storefront.email_invalid_hint') }}</span>
+                    </p>
+                    <button class="btn btn-primary w-full" type="submit" :disabled="submitting || done" :aria-busy="submitting.toString()">
                         <span x-show="!submitting && !done">{{ __('storefront.subscribe') }}</span>
-                        <span x-show="submitting" x-cloak>{{ __('storefront.saving') }}</span>
+                        <span x-show="submitting" x-cloak class="inline-flex items-center gap-2">
+                            <span class="ux-spinner" aria-hidden="true"></span>
+                            {{ __('storefront.saving') }}
+                        </span>
                         <span x-show="done && !submitting" x-cloak>{{ __('storefront.subscribed') }}</span>
                     </button>
                 </form>

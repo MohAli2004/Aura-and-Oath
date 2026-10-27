@@ -461,9 +461,9 @@
                                 type="button"
                                 role="option"
                                 class="shrink-0 border px-3 py-1.5 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
-                                :class="variantId === variant.id
+                                :class="(variantId === variant.id
                                     ? 'border-charcoal bg-ivory text-charcoal'
-                                    : 'border-beige bg-[#FFFCFA] text-taupe hover:border-gold'"
+                                    : 'border-beige bg-[#FFFCFA] text-taupe hover:border-gold') + (variant.purchasable ? '' : ' ux-variant-disabled')"
                                 :aria-selected="variantId === variant.id"
                                 :disabled="!variant.purchasable"
                                 @click="selectVariant(variant.id)"
@@ -533,9 +533,9 @@
                                     type="button"
                                     role="option"
                                     class="text-start border p-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold"
-                                    :class="variantId === variant.id
+                                    :class="(variantId === variant.id
                                         ? 'border-charcoal bg-ivory'
-                                        : 'border-beige bg-[#FFFCFA] hover:border-gold'"
+                                        : 'border-beige bg-[#FFFCFA] hover:border-gold') + (variant.purchasable ? '' : ' ux-variant-disabled')"
                                     :aria-selected="variantId === variant.id"
                                     :disabled="!variant.purchasable"
                                     @click="selectVariant(variant.id)"
@@ -630,10 +630,14 @@
                         class="btn btn-gold w-full"
                         type="button"
                         :disabled="confirming || staged.length === 0"
+                        :aria-busy="confirming.toString()"
                         @click="confirmToBag()"
                     >
                         <span x-show="!confirming">{{ __('storefront.confirm_to_bag') }}</span>
-                        <span x-show="confirming" x-cloak>{{ __('storefront.adding') }}</span>
+                        <span x-show="confirming" x-cloak class="inline-flex items-center gap-2">
+                            <span class="ux-spinner" aria-hidden="true"></span>
+                            {{ __('storefront.adding') }}
+                        </span>
                     </button>
                     <p class="text-xs text-taupe leading-snug">
                         {{ __('storefront.selection_staging_note') }}

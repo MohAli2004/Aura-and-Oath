@@ -50,7 +50,7 @@
 <script type="application/ld+json">{!! \App\Support\Seo::encodeJsonLd(\App\Support\Seo::breadcrumbSchema($breadcrumbItems)) !!}</script>
 @endpush
 @section('content')
-<div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10" x-data="{ filtersOpen: false }" @keydown.escape.window="filtersOpen = false">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10" x-data="{ filtersOpen: false }" @keydown.escape.window="filtersOpen = false" x-effect="window.auraOverlay?.set('filters', filtersOpen)">
     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sm:mb-8">
         <div>
             <h1 class="font-display text-4xl sm:text-5xl">{{ __('storefront.shop') }}</h1>
