@@ -20,6 +20,49 @@ window.addEventListener('aura:cart-count', (event) => {
 
 Alpine.data('checkoutPage', checkoutPage);
 Alpine.data('pushNotifications', pushNotifications);
+Alpine.data('productRail', () => ({
+    canPrev: false,
+    canNext: false,
+    init() {
+        this.$nextTick(() => this.update());
+        this.$refs.scroller?.addEventListener('scroll', () => this.update(), { passive: true });
+        window.addEventListener('resize', () => this.update());
+    },
+    amount() {
+        return this.$refs.scroller?.clientWidth ?? 0;
+    },
+    dir() {
+        return getComputedStyle(this.$refs.scroller || document.documentElement).direction === 'rtl' ? -1 : 1;
+    },
+    prev() {
+        this.$refs.scroller?.scrollBy({ left: -this.dir() * this.amount(), behavior: 'smooth' });
+    },
+    next() {
+        this.$refs.scroller?.scrollBy({ left: this.dir() * this.amount(), behavior: 'smooth' });
+    },
+    update() {
+        const el = this.$refs.scroller;
+        if (! el || el.children.length === 0) {
+            this.canPrev = false;
+            this.canNext = false;
+
+            return;
+        }
+
+        const box = el.getBoundingClientRect();
+        const first = el.children[0].getBoundingClientRect();
+        const last = el.children[el.children.length - 1].getBoundingClientRect();
+        const rtl = getComputedStyle(el).direction === 'rtl';
+
+        if (rtl) {
+            this.canPrev = first.right > box.right + 8;
+            this.canNext = last.left < box.left - 8;
+        } else {
+            this.canPrev = first.left < box.left - 8;
+            this.canNext = last.right > box.right + 8;
+        }
+    },
+}));
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => initInventoryAdjust());

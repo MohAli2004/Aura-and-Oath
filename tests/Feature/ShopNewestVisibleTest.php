@@ -46,6 +46,24 @@ class ShopNewestVisibleTest extends TestCase
             ->assertSeeInOrder(['Newly Visible Serum', 'Older Visible Cream']);
     }
 
+    public function test_shop_pagination_shows_page_numbers(): void
+    {
+        for ($i = 1; $i <= 13; $i++) {
+            $this->createProduct([
+                'name' => "Paged Shop Item {$i}",
+                'sku' => 'SKU-SHOP-PAGE-'.$i,
+                'barcode' => 'BC-SHOP-PAGE-'.$i,
+                'slug' => 'paged-shop-item-'.$i,
+            ]);
+        }
+
+        $this->get(route('shop'))
+            ->assertOk()
+            ->assertSee('aria-label="Go to page 2"', false)
+            ->assertSee('>2</a>', false)
+            ->assertDontSee('sm:hidden');
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */

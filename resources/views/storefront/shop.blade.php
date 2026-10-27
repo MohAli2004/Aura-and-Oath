@@ -96,7 +96,7 @@
                         <x-product-card :product="$product" />
                     @endforeach
                 </div>
-                <div class="mt-8 sm:mt-10 overflow-x-auto">{{ $products->links() }}</div>
+                <div class="mt-8 sm:mt-10">{{ $products->onEachSide(1)->links() }}</div>
             @endif
         </div>
     </div>

@@ -62,6 +62,10 @@ class ProductSearchService
             $query->featured();
         }
 
+        if (! empty($filters['bestseller'])) {
+            $query->bestseller();
+        }
+
         if (! empty($filters['gender'])) {
             $query->gender($filters['gender']);
         }

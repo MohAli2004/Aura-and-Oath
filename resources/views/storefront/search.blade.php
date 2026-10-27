@@ -27,7 +27,7 @@
         <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
             @foreach($products as $product)<x-product-card :product="$product" />@endforeach
         </div>
-        <div class="mt-10">{{ $products->links() }}</div>
+        <div class="mt-10">{{ $products->onEachSide(1)->links() }}</div>
     @endif
 </div>
 @endsection

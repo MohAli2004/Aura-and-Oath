@@ -80,6 +80,39 @@ class AuraCommerceTest extends TestCase
         $this->get('/')
             ->assertOk()
             ->assertSeeInOrder([__('storefront.featured'), __('storefront.new_arrivals')]);
+
+        $this->createProduct([
+            'name' => 'Home Rail One',
+            'slug' => 'home-rail-one',
+            'sku' => 'SKU-RAIL-1',
+            'barcode' => 'BC-RAIL-1',
+            'is_featured' => true,
+            'is_new' => true,
+        ]);
+        $this->createProduct([
+            'name' => 'Home Rail Two',
+            'slug' => 'home-rail-two',
+            'sku' => 'SKU-RAIL-2',
+            'barcode' => 'BC-RAIL-2',
+            'is_featured' => true,
+            'is_new' => true,
+        ]);
+        $this->createProduct([
+            'name' => 'Home Rail Three',
+            'slug' => 'home-rail-three',
+            'sku' => 'SKU-RAIL-3',
+            'barcode' => 'BC-RAIL-3',
+            'is_featured' => true,
+            'is_new' => true,
+        ]);
+        \Illuminate\Support\Facades\Cache::forget('storefront.home');
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('data-product-rail', false)
+            ->assertSee('grid-cols-2 md:grid-cols-4', false)
+            ->assertSee(__('storefront.show_more'))
+            ->assertSee('x-data="productRail()"', false);
         $this->get('/shop')
             ->assertOk()
             ->assertSee('Shop Serum')

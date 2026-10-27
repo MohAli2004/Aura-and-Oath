@@ -35,33 +35,21 @@
 @endif
 
 @if(site_flag('home_show_featured'))
-<section class="max-w-7xl mx-auto px-4 sm:px-6 py-16 rise-in">
-    <div class="flex items-end justify-between mb-8">
-        <h2 class="font-display text-4xl">{{ __('storefront.featured') }}</h2>
-        <a href="{{ route('shop', ['featured' => 1]) }}" class="text-sm text-taupe">{{ __('storefront.view_all') }}</a>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 items-stretch">
-        @forelse($featured as $product)
-            <x-product-card :product="$product" />
-        @empty
-            <p class="text-taupe col-span-full">{{ __('storefront.no_featured_products') }}</p>
-        @endforelse
-    </div>
-</section>
+    <x-product-rail
+        class="rise-in"
+        :title="__('storefront.featured')"
+        :products="$featured"
+        :more-url="route('shop', ['featured' => 1])"
+        :empty="__('storefront.no_featured_products')"
+    />
 @endif
 
 @if(site_flag('home_show_new_arrivals'))
-<section class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
-    <div class="flex items-end justify-between mb-8">
-        <h2 class="font-display text-4xl">{{ __('storefront.new_arrivals') }}</h2>
-        <a href="{{ route('shop', ['sort' => 'newest']) }}" class="text-sm text-taupe">{{ __('storefront.view_all') }}</a>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 items-stretch">
-        @foreach($newArrivals as $product)
-            <x-product-card :product="$product" />
-        @endforeach
-    </div>
-</section>
+    <x-product-rail
+        :title="__('storefront.new_arrivals')"
+        :products="$newArrivals"
+        :more-url="route('shop', ['sort' => 'newest'])"
+    />
 @endif
 
 @if(site_flag('home_show_shop_by_gender'))
@@ -92,53 +80,32 @@
 @endif
 
 @if(site_flag('home_show_women'))
-<section class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
-    <div class="flex items-end justify-between mb-8">
-        <h2 class="font-display text-4xl">{{ __('storefront.women') }}</h2>
-        <a href="{{ route('shop', ['gender' => 'women']) }}" class="text-sm text-taupe">{{ __('storefront.view_all') }}</a>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 items-stretch">
-        @forelse($womenProducts as $product)
-            <x-product-card :product="$product" />
-        @empty
-            <p class="text-taupe col-span-full">{{ __('storefront.no_women_products') }}</p>
-        @endforelse
-    </div>
-</section>
+    <x-product-rail
+        :title="__('storefront.women')"
+        :products="$womenProducts"
+        :more-url="route('shop', ['gender' => 'women'])"
+        :empty="__('storefront.no_women_products')"
+    />
 @endif
 
 @if(site_flag('home_show_men'))
-<section class="bg-[#F3EEE7] py-16">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6">
-        <div class="flex items-end justify-between mb-8">
-            <h2 class="font-display text-4xl">{{ __('storefront.men') }}</h2>
-            <a href="{{ route('shop', ['gender' => 'men']) }}" class="text-sm text-taupe">{{ __('storefront.view_all') }}</a>
-        </div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-5 items-stretch">
-            @forelse($menProducts as $product)
-                <x-product-card :product="$product" />
-            @empty
-                <p class="text-taupe col-span-full">{{ __('storefront.no_men_products') }}</p>
-            @endforelse
-        </div>
+    <div class="bg-[#F3EEE7]">
+        <x-product-rail
+            :title="__('storefront.men')"
+            :products="$menProducts"
+            :more-url="route('shop', ['gender' => 'men'])"
+            :empty="__('storefront.no_men_products')"
+        />
     </div>
-</section>
 @endif
 
 @if(site_flag('home_show_unisex'))
-<section class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
-    <div class="flex items-end justify-between mb-8">
-        <h2 class="font-display text-4xl">{{ __('storefront.unisex') }}</h2>
-        <a href="{{ route('shop', ['gender' => 'unisex']) }}" class="text-sm text-taupe">{{ __('storefront.view_all') }}</a>
-    </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 items-stretch">
-        @forelse($unisexProducts as $product)
-            <x-product-card :product="$product" />
-        @empty
-            <p class="text-taupe col-span-full">{{ __('storefront.no_unisex_products') }}</p>
-        @endforelse
-    </div>
-</section>
+    <x-product-rail
+        :title="__('storefront.unisex')"
+        :products="$unisexProducts"
+        :more-url="route('shop', ['gender' => 'unisex'])"
+        :empty="__('storefront.no_unisex_products')"
+    />
 @endif
 
 @if(site_flag('home_show_categories'))
@@ -161,14 +128,11 @@
 @endif
 
 @if(site_flag('home_show_bestsellers'))
-<section class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
-    <h2 class="font-display text-4xl mb-8">{{ __('storefront.bestsellers') }}</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 items-stretch">
-        @foreach($bestsellers as $product)
-            <x-product-card :product="$product" />
-        @endforeach
-    </div>
-</section>
+    <x-product-rail
+        :title="__('storefront.bestsellers')"
+        :products="$bestsellers"
+        :more-url="route('shop', ['bestseller' => 1])"
+    />
 @endif
 
 <x-trust-facts />

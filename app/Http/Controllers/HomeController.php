@@ -23,12 +23,12 @@ class HomeController extends Controller
 
             return [
                 'banners' => Banner::query()->active()->placement('home_hero')->orderBy('sort_order')->get(),
-                'featured' => $base()->featured()->take(8)->get(),
-                'bestsellers' => $base()->bestseller()->take(8)->get(),
-                'newArrivals' => $base()->newArrivals()->take(8)->get(),
-                'womenProducts' => $base()->gender(ProductGender::Women)->take(8)->get(),
-                'menProducts' => $base()->gender(ProductGender::Men)->take(8)->get(),
-                'unisexProducts' => $base()->gender(ProductGender::Unisex)->take(8)->get(),
+                'featured' => $base()->featured()->take(16)->get(),
+                'bestsellers' => $base()->bestseller()->take(16)->get(),
+                'newArrivals' => $base()->newArrivals()->take(16)->get(),
+                'womenProducts' => $base()->gender(ProductGender::Women)->take(16)->get(),
+                'menProducts' => $base()->gender(ProductGender::Men)->take(16)->get(),
+                'unisexProducts' => $base()->gender(ProductGender::Unisex)->take(16)->get(),
                 'categories' => Category::query()->forStorefront()->get(),
                 'brands' => Brand::query()->active()->featured()->orderBy('sort_order')->take(8)->get(),
             ];
